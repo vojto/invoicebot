@@ -1,5 +1,5 @@
 class DetectInvoiceAgent
-  MODEL = "gpt-4.1-mini"
+  MODEL = "gpt-5.2"
 
   def initialize(email, pdf_attachment_names: [])
     @email = email
@@ -7,12 +7,8 @@ class DetectInvoiceAgent
   end
 
   def call
-    response = RubyLLM.chat(
-      model: MODEL,
-      messages: [
-        { role: "user", content: prompt }
-      ]
-    )
+    chat = RubyLLM.chat(model: MODEL)
+    response = chat.ask(prompt)
 
     result = response.content.strip.downcase
     result.include?("yes")

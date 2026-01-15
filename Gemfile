@@ -51,8 +51,7 @@ gem "thruster", require: false
 gem "image_processing", "~> 1.2"
 
 # LLM integration
-gem "ruby_llm"
-gem "ruby_llm-schema", github: "danielfriis/ruby_llm-schema"
+gem "ruby_llm", github: "crmne/ruby_llm"
 
 # Terminal colors
 gem "colorize"
