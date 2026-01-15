@@ -2,6 +2,8 @@
 
 An AI-powered invoice extraction system that syncs emails from Gmail, detects invoices in PDF attachments, and extracts key data (vendor, amount, dates) using LLMs.
 
+![Screenshot](screenshot.png)
+
 ## Requirements
 
 - Ruby 3.4.5
