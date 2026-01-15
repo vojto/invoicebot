@@ -44,6 +44,4 @@
 
 # Ignore Kamal deployment files (contains secrets)
 /config/deploy.yml
-/.kamal/secrets
-!/.kamal/secrets.example
 
