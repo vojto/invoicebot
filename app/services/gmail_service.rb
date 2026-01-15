@@ -84,7 +84,8 @@ class GmailService
           gmail_attachment_id: attachment_id,
           filename: part.filename,
           mime_type: part.mime_type,
-          size: part.body.size
+          size: part.body.size,
+          file_type: FileTypeDetector.detect(mime_type: part.mime_type, filename: part.filename)
         )
 
         file_data = GmailDataDecoder.decode(attachment_data.data)
@@ -115,9 +116,7 @@ class GmailService
   def pdf_attachment?(part)
     return false unless part.filename.present?
 
-    # Check MIME type or filename extension (some clients send PDFs as octet-stream)
-    part.mime_type == "application/pdf" ||
-      (part.mime_type == "application/octet-stream" && part.filename.downcase.end_with?(".pdf"))
+    FileTypeDetector.detect(mime_type: part.mime_type, filename: part.filename) == :pdf
   end
 
   def extract_headers(message)
@@ -140,7 +139,9 @@ class GmailService
     return { address: nil, name: nil } unless str
 
     if str =~ /^(.+?)\s*<(.+?)>$/
-      { name: $1.gsub(/^"|"$/, ''), address: $2 }
+      name = $1
+      address = $2
+      { name: name.gsub(/^"|"$/, ''), address: address }
     else
       { name: nil, address: str }
     end

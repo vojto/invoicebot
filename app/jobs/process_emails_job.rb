@@ -25,7 +25,7 @@ class ProcessEmailsJob < ApplicationJob
   private
 
   def process_email(email)
-    pdf_attachments = email.attachments.select { |a| a.mime_type == "application/pdf" }
+    pdf_attachments = email.attachments.select(&:file_type_pdf?)
     attachment_names = pdf_attachments.map(&:filename)
 
     puts "\n#{"Subject:".light_blue} #{email.subject}"
