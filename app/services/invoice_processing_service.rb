@@ -73,7 +73,6 @@ class InvoiceProcessingService
 
     unless result[:invoice_found]
       puts "#{"Skip:".yellow} #{email.subject}" if verbose
-      email.update!(is_processed_for_invoices: true)
       return nil
     end
 
@@ -85,8 +84,6 @@ class InvoiceProcessingService
     end
 
     invoice = extract_and_save_invoice_from_email(email, pdf_attachments, result[:pdf_filename], verbose: verbose)
-
-    email.update!(is_processed_for_invoices: true)
     puts "-" * 60 if verbose
 
     invoice
@@ -95,6 +92,8 @@ class InvoiceProcessingService
     puts "-" * 60 if verbose
     Rails.logger.error "[InvoiceProcessingService] Error processing email #{email.id}: #{e.class} - #{e.message}"
     nil
+  ensure
+    email.update!(is_processed_for_invoices: true)
   end
 
   # Extract invoice data from a standalone PDF file and create an Invoice record.
