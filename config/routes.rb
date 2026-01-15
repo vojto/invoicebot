@@ -19,6 +19,8 @@ Rails.application.routes.draw do
 
   # Transactions
   get "/transactions", to: "transactions#index", as: :transactions
+  post "/transactions/:id/hide", to: "transactions#hide", as: :hide_transaction
+  post "/transactions/:id/restore", to: "transactions#restore", as: :restore_transaction
 
   # Banks
   get "/banks", to: "banks#index", as: :banks

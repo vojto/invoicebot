@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_01_15_214643) do
+ActiveRecord::Schema[8.1].define(version: 2026_01_15_215300) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -115,6 +115,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_15_214643) do
     t.string "debtor_iban"
     t.string "debtor_name"
     t.text "description"
+    t.datetime "hidden_at"
     t.string "internal_transaction_id"
     t.boolean "is_enriched", default: false, null: false
     t.integer "original_amount_cents"

@@ -1,4 +1,4 @@
-import { Head, Link } from "@inertiajs/react"
+import { Head, Link, router } from "@inertiajs/react"
 import { Heading, Box, Text, Button, Flex, Table } from "@radix-ui/themes"
 import { PlusIcon } from "@radix-ui/react-icons"
 import { z } from "zod"
@@ -15,6 +15,7 @@ const TransactionSchema = z.object({
   debtor_name: z.string().nullable(),
   description: z.string().nullable(),
   bank_name: z.string().nullable(),
+  hidden_at: z.string().nullable(),
 })
 
 type Transaction = z.infer<typeof TransactionSchema>
@@ -126,36 +127,66 @@ export default function TransactionsIndex(props: Props) {
                       <Table.ColumnHeaderCell width="200px">Vendor</Table.ColumnHeaderCell>
                       <Table.ColumnHeaderCell width="200px">From / To</Table.ColumnHeaderCell>
                       <Table.ColumnHeaderCell>Description</Table.ColumnHeaderCell>
+                      <Table.ColumnHeaderCell width="100px">Actions</Table.ColumnHeaderCell>
                     </Table.Row>
                   </Table.Header>
                   <Table.Body>
-                    {monthTransactions.map((tx) => (
-                      <Table.Row key={tx.id}>
-                        <Table.Cell>{tx.bank_name}</Table.Cell>
-                        <Table.Cell>{formatDate(tx.booking_date)}</Table.Cell>
-                        <Table.Cell>
-                          <Flex direction="column">
-                            <Text color={tx.amount_cents >= 0 ? "green" : undefined}>
-                              {formatAmount(tx.amount_cents, tx.currency)}
-                            </Text>
-                            {tx.original_currency && tx.original_amount_cents && (
-                              <Text size="1" color="gray">
-                                {formatAmount(tx.original_amount_cents, tx.original_currency)}
+                    {monthTransactions.map((tx) => {
+                      const isHidden = !!tx.hidden_at
+                      const hiddenClass = isHidden ? "line-through opacity-40" : ""
+
+                      return (
+                        <Table.Row key={tx.id}>
+                          <Table.Cell><span className={hiddenClass}>{tx.bank_name}</span></Table.Cell>
+                          <Table.Cell><span className={hiddenClass}>{formatDate(tx.booking_date)}</span></Table.Cell>
+                          <Table.Cell>
+                            <Flex direction="column" className={hiddenClass}>
+                              <Text color={isHidden ? "gray" : (tx.amount_cents >= 0 ? "green" : undefined)}>
+                                {formatAmount(tx.amount_cents, tx.currency)}
                               </Text>
-                            )}
-                          </Flex>
-                        </Table.Cell>
-                        <Table.Cell>{tx.vendor_name}</Table.Cell>
-                        <Table.Cell>
-                          {tx.amount_cents >= 0 ? tx.debtor_name : tx.creditor_name}
-                        </Table.Cell>
-                        <Table.Cell>
-                          <Text size="1" color="gray" className="line-clamp-3">
-                            {tx.description}
-                          </Text>
-                        </Table.Cell>
-                      </Table.Row>
-                    ))}
+                              {tx.original_currency && tx.original_amount_cents && (
+                                <Text size="1" color="gray">
+                                  {formatAmount(tx.original_amount_cents, tx.original_currency)}
+                                </Text>
+                              )}
+                            </Flex>
+                          </Table.Cell>
+                          <Table.Cell><span className={hiddenClass}>{tx.vendor_name}</span></Table.Cell>
+                          <Table.Cell>
+                            <span className={hiddenClass}>
+                              {tx.amount_cents >= 0 ? tx.debtor_name : tx.creditor_name}
+                            </span>
+                          </Table.Cell>
+                          <Table.Cell>
+                            <Text size="1" color="gray" className={`line-clamp-3 ${hiddenClass}`}>
+                              {tx.description}
+                            </Text>
+                          </Table.Cell>
+                          <Table.Cell>
+                            <Flex align="center" className="h-full">
+                              {isHidden ? (
+                                <Button
+                                  size="1"
+                                  variant="ghost"
+                                  onClick={() => router.post(`/transactions/${tx.id}/restore`)}
+                                >
+                                  Restore
+                                </Button>
+                              ) : (
+                                <Button
+                                  size="1"
+                                  variant="ghost"
+                                  color="red"
+                                  onClick={() => router.post(`/transactions/${tx.id}/hide`)}
+                                >
+                                  Hide
+                                </Button>
+                              )}
+                            </Flex>
+                          </Table.Cell>
+                        </Table.Row>
+                      )
+                    })}
                   </Table.Body>
                 </Table.Root>
               </Box>
