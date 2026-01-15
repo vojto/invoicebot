@@ -52,6 +52,7 @@ gem "image_processing", "~> 1.2"
 
 # LLM integration
 gem "ruby_llm", github: "crmne/ruby_llm"
+gem "ruby_llm-schema"
 
 # Terminal colors
 gem "colorize"

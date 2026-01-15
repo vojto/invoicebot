@@ -526,6 +526,7 @@ DEPENDENCIES
   rails (~> 8.1.2)
   rubocop-rails-omakase
   ruby_llm!
+  ruby_llm-schema
   selenium-webdriver
   solid_cable
   solid_cache
