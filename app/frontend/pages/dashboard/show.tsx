@@ -6,7 +6,7 @@ import InvoiceRow, { InvoiceSchema, type Invoice } from "~/components/InvoiceRow
 
 const PropsSchema = z.object({
   invoices: z.array(InvoiceSchema),
-  last_synced_at: z.string().nullable(),
+  last_synced_at: z.string(),
 })
 
 type Props = z.infer<typeof PropsSchema>
@@ -55,15 +55,6 @@ function groupInvoicesByMonth(invoices: Invoice[]): Map<string, Invoice[]> {
   })
 
   return new Map(sortedEntries)
-}
-
-function formatLastSynced(isoString: string | null): string {
-  if (!isoString) return "Never"
-  const date = new Date(isoString)
-  return new Intl.DateTimeFormat("en-US", {
-    dateStyle: "medium",
-    timeStyle: "short",
-  }).format(date)
 }
 
 export default function DashboardShow(props: Props) {
@@ -126,7 +117,7 @@ export default function DashboardShow(props: Props) {
       </Box>
       <Box mt="6">
         <Text size="1" color="gray">
-          Last synced: {formatLastSynced(last_synced_at)}
+          Last synced: {last_synced_at}
         </Text>
       </Box>
     </>
