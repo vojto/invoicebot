@@ -115,12 +115,16 @@ class InvoiceExtractionAgent
     @source_pdf_temp_file.write(@attachment.file.download)
     @source_pdf_temp_file.close
 
-    # Create a new PDF with only the first 2 pages using qpdf
+    # Get the actual page count to avoid requesting more pages than exist
+    page_count = `qpdf --show-npages #{@source_pdf_temp_file.path}`.strip.to_i
+    end_page = [ PDF_PAGES_TO_EXTRACT, page_count ].min
+
+    # Create a new PDF with the first pages using qpdf
     @extracted_pdf_temp_file = Tempfile.new([ "invoice_pages", ".pdf" ])
     @extracted_pdf_temp_file.close
 
     # Use qpdf to extract first pages (commonly available on macOS via homebrew)
-    system("qpdf", @source_pdf_temp_file.path, "--pages", ".", "1-#{PDF_PAGES_TO_EXTRACT}", "--", @extracted_pdf_temp_file.path)
+    system("qpdf", @source_pdf_temp_file.path, "--pages", ".", "1-#{end_page}", "--", @extracted_pdf_temp_file.path)
 
     unless $?.success?
       raise "Failed to extract pages from PDF. Make sure qpdf is installed (brew install qpdf)"
