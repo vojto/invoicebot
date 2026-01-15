@@ -1,23 +1,25 @@
 import { ReactNode } from "react"
 import { Link, router, usePage } from "@inertiajs/react"
 import { Button, Box, Flex, Text } from "@radix-ui/themes"
+import { z } from "zod"
 
-interface User {
-  id: number
-  email: string
-  name: string
-  picture_url: string
-}
+const UserSchema = z.object({
+  id: z.number(),
+  email: z.string(),
+  name: z.string(),
+  picture_url: z.string(),
+})
 
-interface PageProps {
-  user?: User | null
-  signed_in?: boolean
-  [key: string]: unknown
-}
+const PagePropsSchema = z.object({
+  user: UserSchema.nullable().optional(),
+  signed_in: z.boolean().optional(),
+})
+
+type PageProps = z.infer<typeof PagePropsSchema>
 
 export default function DefaultLayout({ children }: { children: ReactNode }) {
-  const { props } = usePage<PageProps>()
-  const { user, signed_in } = props
+  const { props } = usePage()
+  const { user, signed_in } = PagePropsSchema.parse(props)
 
   const handleLogout = () => {
     router.visit("/logout")

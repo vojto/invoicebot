@@ -12,3 +12,28 @@ NEW_API_KEY=sk-real-secret-key
 # .env.example (committed, contains placeholders)
 NEW_API_KEY=your-api-key-here
 ```
+
+## React Component Props
+
+Use Zod schemas as the source of truth for props coming from Rails to React components. Define schemas in the same file as the component and infer TypeScript types from them.
+
+Example:
+```tsx
+import { z } from "zod"
+
+const PropsSchema = z.object({
+  title: z.string(),
+  count: z.number(),
+  items: z.array(z.object({
+    id: z.number(),
+    name: z.string(),
+  })),
+})
+
+type Props = z.infer<typeof PropsSchema>
+
+export default function MyComponent(props: Props) {
+  const { title, count, items } = PropsSchema.parse(props)
+  // ...
+}
+```
