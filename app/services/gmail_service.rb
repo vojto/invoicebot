@@ -76,22 +76,36 @@ class GmailService
       attachment_id = part.body.attachment_id
       next unless attachment_id
 
-      attachment_data = fetch_attachment(message.id, attachment_id)
+      begin
+        attachment_data = fetch_attachment(message.id, attachment_id)
+        next unless attachment_data&.data.present?
 
-      attachment = email.attachments.create!(
-        gmail_attachment_id: attachment_id,
-        filename: part.filename,
-        mime_type: part.mime_type,
-        size: part.body.size
-      )
+        attachment = email.attachments.create!(
+          gmail_attachment_id: attachment_id,
+          filename: part.filename,
+          mime_type: part.mime_type,
+          size: part.body.size
+        )
 
-      # Decode and attach the file
-      file_data = Base64.urlsafe_decode64(attachment_data.data)
-      attachment.file.attach(
-        io: StringIO.new(file_data),
-        filename: part.filename,
-        content_type: part.mime_type
-      )
+        # Gmail API may return already decoded data or base64 encoded
+        file_data = attachment_data.data
+        if file_data.start_with?('%PDF') || !file_data.match?(/\A[A-Za-z0-9_-]+={0,2}\z/)
+          # Already decoded binary data
+        else
+          # Base64 encoded, decode it
+          file_data += '=' * (4 - file_data.length % 4) if file_data.length % 4 != 0
+          file_data = Base64.urlsafe_decode64(file_data)
+        end
+
+        attachment.file.attach(
+          io: StringIO.new(file_data),
+          filename: part.filename,
+          content_type: part.mime_type
+        )
+      rescue => e
+        Rails.logger.error "Failed to sync attachment #{part.filename}: #{e.message}"
+        raise e # Re-raise to see the actual error during development
+      end
     end
   end
 
