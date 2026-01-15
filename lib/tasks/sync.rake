@@ -8,4 +8,9 @@ namespace :sync do
     end
     puts "All users synced."
   end
+
+  desc "Process unprocessed emails to detect invoices"
+  task process: :environment do
+    ProcessEmailsJob.perform_now
+  end
 end

@@ -54,6 +54,9 @@ gem "image_processing", "~> 1.2"
 gem "ruby_llm"
 gem "ruby_llm-schema", github: "danielfriis/ruby_llm-schema"
 
+# Terminal colors
+gem "colorize"
+
 group :development, :test do
   # See https://guides.rubyonrails.org/debugging_rails_applications.html#debugging-with-the-debug-gem
   gem "debug", platforms: %i[ mri windows ], require: "debug/prelude"
