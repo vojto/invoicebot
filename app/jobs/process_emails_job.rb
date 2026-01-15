@@ -67,6 +67,11 @@ class ProcessEmailsJob < ApplicationJob
     puts "  #{"Extracting:".light_blue} #{attachment.filename}..."
     extraction = InvoiceExtractionAgent.new(attachment).call
 
+    unless extraction[:is_invoice]
+      puts "  #{"Skipped:".yellow} PDF is not a valid invoice"
+      return
+    end
+
     invoice = email.invoice || email.build_invoice
     invoice.assign_attributes(
       vendor_name: extraction[:vendor_name],

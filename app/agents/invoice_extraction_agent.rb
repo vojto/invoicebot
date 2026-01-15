@@ -4,9 +4,10 @@ class InvoiceExtractionAgent
   class ResponseSchema < ApplicationSchema
     additional_properties false
 
-    string :vendor_name, description: "The name of the vendor/business issuing the invoice"
-    integer :amount_cents, description: "Total amount in cents (e.g., 1999 for $19.99)"
-    string :currency, description: "Three-letter currency code (e.g., USD, EUR, CZK)"
+    boolean :is_invoice, description: "Whether this document is a valid invoice that can be extracted"
+    string :vendor_name, nullable: true, description: "The name of the vendor/business issuing the invoice"
+    integer :amount_cents, nullable: true, description: "Total amount in cents (e.g., 1999 for $19.99)"
+    string :currency, nullable: true, description: "Three-letter currency code (e.g., USD, EUR, CZK)"
     string :issue_date, nullable: true, description: "Invoice issue date in YYYY-MM-DD format"
     string :delivery_date, nullable: true, description: "Delivery/service date in YYYY-MM-DD format"
     string :note, nullable: true, description: "Any additional notes or invoice number"
@@ -15,9 +16,14 @@ class InvoiceExtractionAgent
   MODEL = "gpt-5.2"
 
   SYSTEM_PROMPT = <<~PROMPT
-    You are an invoice data extraction assistant. Your task is to extract structured data from invoice documents.
+    You are an invoice data extraction assistant. Your task is to analyze documents and extract structured data from invoices.
 
-    Extract the following information:
+    First, determine if the document is actually an invoice. Set is_invoice to false if:
+    - The document is not an invoice (e.g., a contract, letter, report, manual, etc.)
+    - The document is too malformed or unclear to extract meaningful data
+    - Essential information (vendor name, amount) cannot be determined
+
+    If is_invoice is true, extract the following information:
     - vendor_name: The name of the business or company issuing the invoice
     - amount_cents: The total amount to pay, converted to cents (multiply by 100). For example, $19.99 becomes 1999
     - currency: The three-letter currency code (USD, EUR, CZK, GBP, etc.)
@@ -25,8 +31,9 @@ class InvoiceExtractionAgent
     - delivery_date: The date of delivery or service (YYYY-MM-DD format). This is optional and many invoices don't have it. Only extract if explicitly stated, otherwise set to null.
     - note: Any relevant notes, invoice number, or reference number
 
+    If is_invoice is false, set all other fields to null.
+
     Be precise with amounts. Always convert to cents by multiplying the decimal amount by 100.
-    If you cannot determine a field, leave it null.
   PROMPT
 
   def initialize(attachment)
@@ -62,10 +69,15 @@ class InvoiceExtractionAgent
     input_tokens = result.input_tokens
     output_tokens = result.output_tokens
 
-    Rails.logger.info "[InvoiceExtractionAgent] Extracted: vendor=#{data[:vendor_name]}, amount=#{data[:amount_cents]} #{data[:currency]}"
+    if data[:is_invoice]
+      Rails.logger.info "[InvoiceExtractionAgent] Extracted: vendor=#{data[:vendor_name]}, amount=#{data[:amount_cents]} #{data[:currency]}"
+    else
+      Rails.logger.info "[InvoiceExtractionAgent] Document is not a valid invoice"
+    end
     Rails.logger.info "[InvoiceExtractionAgent] Tokens: #{input_tokens} in / #{output_tokens} out"
 
     {
+      is_invoice: data[:is_invoice],
       vendor_name: data[:vendor_name],
       amount_cents: data[:amount_cents],
       currency: data[:currency],
