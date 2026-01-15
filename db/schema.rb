@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_01_15_212355) do
+ActiveRecord::Schema[8.1].define(version: 2026_01_15_214643) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -116,9 +116,13 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_15_212355) do
     t.string "debtor_name"
     t.text "description"
     t.string "internal_transaction_id"
+    t.boolean "is_enriched", default: false, null: false
+    t.integer "original_amount_cents"
+    t.string "original_currency"
     t.string "transaction_id"
     t.datetime "updated_at", null: false
     t.date "value_date"
+    t.string "vendor_name"
     t.index ["bank_connection_id"], name: "index_transactions_on_bank_connection_id"
     t.index ["booking_date"], name: "index_transactions_on_booking_date"
     t.index ["internal_transaction_id"], name: "index_transactions_on_internal_transaction_id", unique: true

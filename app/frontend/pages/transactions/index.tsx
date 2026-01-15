@@ -8,6 +8,9 @@ const TransactionSchema = z.object({
   booking_date: z.string().nullable(),
   amount_cents: z.number(),
   currency: z.string().nullable(),
+  original_amount_cents: z.number().nullable(),
+  original_currency: z.string().nullable(),
+  vendor_name: z.string().nullable(),
   creditor_name: z.string().nullable(),
   debtor_name: z.string().nullable(),
   description: z.string().nullable(),
@@ -119,7 +122,8 @@ export default function TransactionsIndex(props: Props) {
                     <Table.Row>
                       <Table.ColumnHeaderCell width="110px">Bank</Table.ColumnHeaderCell>
                       <Table.ColumnHeaderCell width="110px">Date</Table.ColumnHeaderCell>
-                      <Table.ColumnHeaderCell width="110px">Amount</Table.ColumnHeaderCell>
+                      <Table.ColumnHeaderCell width="200px">Amount</Table.ColumnHeaderCell>
+                      <Table.ColumnHeaderCell width="200px">Vendor</Table.ColumnHeaderCell>
                       <Table.ColumnHeaderCell width="200px">From / To</Table.ColumnHeaderCell>
                       <Table.ColumnHeaderCell>Description</Table.ColumnHeaderCell>
                     </Table.Row>
@@ -130,10 +134,18 @@ export default function TransactionsIndex(props: Props) {
                         <Table.Cell>{tx.bank_name}</Table.Cell>
                         <Table.Cell>{formatDate(tx.booking_date)}</Table.Cell>
                         <Table.Cell>
-                          <Text color={tx.amount_cents >= 0 ? "green" : undefined}>
-                            {formatAmount(tx.amount_cents, tx.currency)}
-                          </Text>
+                          <Flex direction="column">
+                            <Text color={tx.amount_cents >= 0 ? "green" : undefined}>
+                              {formatAmount(tx.amount_cents, tx.currency)}
+                            </Text>
+                            {tx.original_currency && tx.original_amount_cents && (
+                              <Text size="1" color="gray">
+                                {formatAmount(tx.original_amount_cents, tx.original_currency)}
+                              </Text>
+                            )}
+                          </Flex>
                         </Table.Cell>
+                        <Table.Cell>{tx.vendor_name}</Table.Cell>
                         <Table.Cell>
                           {tx.amount_cents >= 0 ? tx.debtor_name : tx.creditor_name}
                         </Table.Cell>
