@@ -15,8 +15,7 @@ const InvoiceSchema = z.object({
   vendor_name: z.string().nullable(),
   amount_cents: z.number(),
   currency: z.string().nullable(),
-  issue_date: z.string().nullable(),
-  delivery_date: z.string().nullable(),
+  accounting_date: z.string().nullish(),
   note: z.string().nullable(),
   email: EmailSchema,
 })
@@ -74,9 +73,8 @@ export default function DashboardShow(props: Props) {
               <Table.Row>
                 <Table.ColumnHeaderCell>Vendor</Table.ColumnHeaderCell>
                 <Table.ColumnHeaderCell>Amount</Table.ColumnHeaderCell>
-                <Table.ColumnHeaderCell>Invoice Date</Table.ColumnHeaderCell>
+                <Table.ColumnHeaderCell>Date</Table.ColumnHeaderCell>
                 <Table.ColumnHeaderCell>Email Subject</Table.ColumnHeaderCell>
-                <Table.ColumnHeaderCell>Received</Table.ColumnHeaderCell>
               </Table.Row>
             </Table.Header>
             <Table.Body>
@@ -93,18 +91,13 @@ export default function DashboardShow(props: Props) {
                     </Text>
                   </Table.Cell>
                   <Table.Cell>
-                    <Text color={invoice.issue_date ? undefined : "gray"}>
-                      {formatDate(invoice.issue_date)}
+                    <Text color={invoice.accounting_date ? undefined : "gray"}>
+                      {formatDate(invoice.accounting_date)}
                     </Text>
                   </Table.Cell>
                   <Table.Cell>
                     <Text size="2" color="gray">
                       {invoice.email.subject || "No subject"}
-                    </Text>
-                  </Table.Cell>
-                  <Table.Cell>
-                    <Text size="2" color="gray">
-                      {formatDate(invoice.email.date)}
                     </Text>
                   </Table.Cell>
                 </Table.Row>

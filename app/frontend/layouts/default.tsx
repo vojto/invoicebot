@@ -32,7 +32,7 @@ export default function DefaultLayout({ children }: { children: ReactNode }) {
         <header style={{ backgroundColor: "var(--gray-a2)", borderBottom: "1px solid var(--gray-a5)" }}>
           <Flex
             className="mx-auto"
-            style={{ maxWidth: "1000px" }}
+            style={{ maxWidth: "1400px" }}
             px="4"
             py="4"
             justify="between"
@@ -74,7 +74,7 @@ export default function DefaultLayout({ children }: { children: ReactNode }) {
       {/* Main content */}
       <Box asChild>
         <main style={{ width: "100%", backgroundColor: "var(--color-background)" }}>
-          <Box className="mx-auto" style={{ maxWidth: "1000px" }} px="4" py="8">
+          <Box className="mx-auto" style={{ maxWidth: "1400px" }} px="4" py="8">
             {children}
           </Box>
         </main>
