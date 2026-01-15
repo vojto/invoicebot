@@ -22,8 +22,7 @@ class DashboardController < ApplicationController
       vendor_name: invoice.vendor_name,
       amount_cents: invoice.amount_cents,
       currency: invoice.currency,
-      issue_date: invoice.issue_date&.iso8601,
-      delivery_date: invoice.delivery_date&.iso8601,
+      accounting_date: invoice.accounting_date&.iso8601,
       note: invoice.note,
       email: {
         id: invoice.email.id,

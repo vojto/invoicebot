@@ -14,6 +14,7 @@ class InvoiceExtractionAgent
   end
 
   MODEL = "gpt-5.2"
+  PDF_PAGES_TO_EXTRACT = 2
 
   SYSTEM_PROMPT = <<~PROMPT
     You are an invoice data extraction assistant. Your task is to analyze documents and extract structured data from invoices.
@@ -45,8 +46,8 @@ class InvoiceExtractionAgent
 
     Rails.logger.info "[InvoiceExtractionAgent] Starting extraction for attachment #{@attachment.id} (#{@attachment.filename})"
 
-    pdf_path = extract_first_page_pdf
-    Rails.logger.info "[InvoiceExtractionAgent] Extracted first page PDF: #{pdf_path}"
+    pdf_path = extract_first_pages_pdf
+    Rails.logger.info "[InvoiceExtractionAgent] Extracted first #{PDF_PAGES_TO_EXTRACT} pages PDF: #{pdf_path}"
 
     chat = RubyLLM.chat(model: MODEL)
     chat.with_instructions(SYSTEM_PROMPT)
@@ -99,29 +100,29 @@ class InvoiceExtractionAgent
 
   private
 
-  def extract_first_page_pdf
+  def extract_first_pages_pdf
     # Download PDF to temp file
     @source_pdf_temp_file = Tempfile.new([ "invoice_source", ".pdf" ])
     @source_pdf_temp_file.binmode
     @source_pdf_temp_file.write(@attachment.file.download)
     @source_pdf_temp_file.close
 
-    # Create a new PDF with only the first page using pdftk or qpdf
-    @first_page_pdf_temp_file = Tempfile.new([ "invoice_first_page", ".pdf" ])
-    @first_page_pdf_temp_file.close
+    # Create a new PDF with only the first 2 pages using qpdf
+    @extracted_pdf_temp_file = Tempfile.new([ "invoice_pages", ".pdf" ])
+    @extracted_pdf_temp_file.close
 
-    # Use qpdf to extract first page (commonly available on macOS via homebrew)
-    system("qpdf", @source_pdf_temp_file.path, "--pages", ".", "1", "--", @first_page_pdf_temp_file.path)
+    # Use qpdf to extract first pages (commonly available on macOS via homebrew)
+    system("qpdf", @source_pdf_temp_file.path, "--pages", ".", "1-#{PDF_PAGES_TO_EXTRACT}", "--", @extracted_pdf_temp_file.path)
 
     unless $?.success?
-      raise "Failed to extract first page from PDF. Make sure qpdf is installed (brew install qpdf)"
+      raise "Failed to extract pages from PDF. Make sure qpdf is installed (brew install qpdf)"
     end
 
-    @first_page_pdf_temp_file.path
+    @extracted_pdf_temp_file.path
   end
 
   def cleanup_temp_files
     @source_pdf_temp_file&.unlink
-    @first_page_pdf_temp_file&.unlink
+    @extracted_pdf_temp_file&.unlink
   end
 end
