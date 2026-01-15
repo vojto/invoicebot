@@ -52,9 +52,10 @@ class InvoicesController < ApplicationController
         pdf_attachment = invoice.email.attachments.find(&:file_type_pdf?)
         next unless pdf_attachment&.file&.attached?
 
-        # Create a safe filename from vendor name and invoice id
+        # Create a safe filename with date prefix, vendor name, and invoice id
+        date_prefix = invoice.accounting_date.strftime("%Y-%m-%d")
         safe_vendor = invoice.vendor_name.gsub(/[^a-zA-Z0-9\-_]/, "_").truncate(50, omission: "")
-        filename = "#{safe_vendor}_#{invoice.id}.pdf"
+        filename = "#{date_prefix}__#{safe_vendor}_#{invoice.id}.pdf"
 
         zip.put_next_entry(filename)
         zip.write(pdf_attachment.file.download)
