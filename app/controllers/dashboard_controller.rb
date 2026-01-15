@@ -6,7 +6,11 @@ class DashboardController < ApplicationController
       .left_joins(:email)
       .order(Arel.sql("COALESCE(invoices.issue_date, emails.date::date) DESC NULLS LAST"))
       .limit(100)
-      .includes(email: { attachments: { file_attachment: :blob } })
+      .includes(
+        :attachments,
+        attachments: { file_attachment: :blob },
+        email: { attachments: { file_attachment: :blob } }
+      )
 
     render inertia: "dashboard/show", props: {
       invoices: invoices.map { |invoice| serialize_invoice(invoice) },
@@ -24,7 +28,9 @@ class DashboardController < ApplicationController
 
   def serialize_invoice(invoice)
     email = invoice.email
-    pdf_attachment = email&.attachments&.find(&:file_type_pdf?)
+    # Check for direct invoice attachments first, then fall back to email attachments
+    pdf_attachment = invoice.attachments.find(&:file_type_pdf?) ||
+                     email&.attachments&.find(&:file_type_pdf?)
     pdf_url = pdf_attachment&.file&.attached? ? url_for(pdf_attachment.file) : nil
 
     {

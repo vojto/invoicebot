@@ -41,7 +41,10 @@ class InvoicesController < ApplicationController
     invoices = current_user.invoices
       .where(deleted_at: nil)
       .where(accounting_date: start_date..end_date)
-      .includes(email: { attachments: { file_attachment: :blob } })
+      .includes(
+        attachments: { file_attachment: :blob },
+        email: { attachments: { file_attachment: :blob } }
+      )
 
     return head :not_found if invoices.empty?
 
@@ -62,7 +65,9 @@ class InvoicesController < ApplicationController
 
     buffer = Zip::OutputStream.write_buffer do |zip|
       invoices.each do |invoice|
-        pdf_attachment = invoice.email&.attachments&.find(&:file_type_pdf?)
+        # Check for direct invoice attachments first, then fall back to email attachments
+        pdf_attachment = invoice.attachments.find(&:file_type_pdf?) ||
+                         invoice.email&.attachments&.find(&:file_type_pdf?)
         next unless pdf_attachment&.file&.attached?
 
         # Create a safe filename with date prefix, vendor name, and invoice id

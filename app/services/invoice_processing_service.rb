@@ -108,10 +108,13 @@ class InvoiceProcessingService
   def extract_invoice_from_pdf(user, pdf_io, filename:)
     Rails.logger.info "[InvoiceProcessingService] Extracting invoice from PDF: #{filename} for user #{user.email}"
 
+    # Read PDF content into memory for both extraction and attachment
+    pdf_content = pdf_io.respond_to?(:read) ? pdf_io.read : pdf_io
+
     # Write PDF to temp file for processing
     temp_file = Tempfile.new([ "uploaded_invoice", ".pdf" ])
     temp_file.binmode
-    temp_file.write(pdf_io.respond_to?(:read) ? pdf_io.read : pdf_io)
+    temp_file.write(pdf_content)
     temp_file.close
 
     begin
@@ -131,7 +134,20 @@ class InvoiceProcessingService
         note: extraction[:note]
       )
 
-      Rails.logger.info "[InvoiceProcessingService] Created invoice #{invoice.id}: #{extraction[:vendor_name]} - #{extraction[:amount_cents]} #{extraction[:currency]}"
+      # Create attachment for the uploaded PDF
+      attachment = invoice.attachments.create!(
+        filename: filename,
+        mime_type: "application/pdf",
+        size: pdf_content.bytesize,
+        file_type: :pdf
+      )
+      attachment.file.attach(
+        io: StringIO.new(pdf_content),
+        filename: filename,
+        content_type: "application/pdf"
+      )
+
+      Rails.logger.info "[InvoiceProcessingService] Created invoice #{invoice.id} with attachment: #{extraction[:vendor_name]} - #{extraction[:amount_cents]} #{extraction[:currency]}"
 
       invoice
     ensure
