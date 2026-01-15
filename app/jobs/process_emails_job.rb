@@ -72,6 +72,9 @@ class ProcessEmailsJob < ApplicationJob
       return
     end
 
+    puts "  #{"Vendor:".light_blue} #{extraction[:vendor_name]}"
+    puts "  #{"Amount:".light_blue} #{format_amount(extraction[:amount_cents], extraction[:currency])}"
+
     invoice = email.invoice || email.build_invoice
     invoice.assign_attributes(
       vendor_name: extraction[:vendor_name],
