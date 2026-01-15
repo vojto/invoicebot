@@ -1,5 +1,5 @@
 import { Head } from "@inertiajs/react"
-import { Heading, Box, Text, Table, Flex } from "@radix-ui/themes"
+import { Heading, Box, Text, Table, Flex, Button } from "@radix-ui/themes"
 import { z } from "zod"
 
 const EmailSchema = z.object({
@@ -17,6 +17,7 @@ const InvoiceSchema = z.object({
   currency: z.string().nullable(),
   accounting_date: z.string().nullish(),
   note: z.string().nullable(),
+  pdf_url: z.string().nullish(),
   email: EmailSchema,
 })
 
@@ -121,10 +122,11 @@ export default function DashboardShow(props: Props) {
                 <Table.Root variant="surface" size="2">
                   <Table.Header>
                     <Table.Row>
-                      <Table.ColumnHeaderCell>Vendor</Table.ColumnHeaderCell>
-                      <Table.ColumnHeaderCell>Amount</Table.ColumnHeaderCell>
-                      <Table.ColumnHeaderCell>Accounting Date</Table.ColumnHeaderCell>
+                      <Table.ColumnHeaderCell width="400px">Vendor</Table.ColumnHeaderCell>
+                      <Table.ColumnHeaderCell width="120px">Amount</Table.ColumnHeaderCell>
+                      <Table.ColumnHeaderCell width="140px">Accounting Date</Table.ColumnHeaderCell>
                       <Table.ColumnHeaderCell>Email Subject</Table.ColumnHeaderCell>
+                      <Table.ColumnHeaderCell width="80px">Actions</Table.ColumnHeaderCell>
                     </Table.Row>
                   </Table.Header>
                   <Table.Body>
@@ -149,6 +151,15 @@ export default function DashboardShow(props: Props) {
                           <Text size="2" color="gray">
                             {invoice.email.subject || "No subject"}
                           </Text>
+                        </Table.Cell>
+                        <Table.Cell>
+                          {invoice.pdf_url && (
+                            <Button size="1" variant="soft" asChild>
+                              <a href={invoice.pdf_url} target="_blank" rel="noopener noreferrer">
+                                Open
+                              </a>
+                            </Button>
+                          )}
                         </Table.Cell>
                       </Table.Row>
                     ))}
