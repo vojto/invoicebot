@@ -87,15 +87,7 @@ class GmailService
           size: part.body.size
         )
 
-        # Gmail API may return already decoded data or base64 encoded
-        file_data = attachment_data.data
-        if file_data.start_with?('%PDF') || !file_data.match?(/\A[A-Za-z0-9_-]+={0,2}\z/)
-          # Already decoded binary data
-        else
-          # Base64 encoded, decode it
-          file_data += '=' * (4 - file_data.length % 4) if file_data.length % 4 != 0
-          file_data = Base64.urlsafe_decode64(file_data)
-        end
+        file_data = GmailDataDecoder.decode(attachment_data.data)
 
         attachment.file.attach(
           io: StringIO.new(file_data),
