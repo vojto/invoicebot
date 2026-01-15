@@ -1,5 +1,9 @@
 class LandingController < ApplicationController
   def show
-    render inertia: "landing/show"
+    if user_signed_in?
+      redirect_to dashboard_path
+    else
+      render inertia: "landing/show"
+    end
   end
 end
