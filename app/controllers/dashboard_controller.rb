@@ -10,11 +10,17 @@ class DashboardController < ApplicationController
       .includes(email: { attachments: { file_attachment: :blob } })
 
     render inertia: "dashboard/show", props: {
-      invoices: invoices.map { |invoice| serialize_invoice(invoice) }
+      invoices: invoices.map { |invoice| serialize_invoice(invoice) },
+      last_synced_at: format_last_synced(current_user.last_synced_at)
     }
   end
 
   private
+
+  def format_last_synced(time)
+    return "Never" if time.nil?
+    time.strftime("%b %d, %Y at %l:%M %p")
+  end
 
   def serialize_invoice(invoice)
     pdf_attachment = invoice.email.attachments.find(&:file_type_pdf?)

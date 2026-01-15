@@ -19,6 +19,9 @@ Rails.application.routes.draw do
 
   # Invoices
   resources :invoices, only: [] do
+    collection do
+      get :download
+    end
     member do
       post :remove
       post :restore

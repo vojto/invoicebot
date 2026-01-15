@@ -5,5 +5,6 @@ class SyncEmailsJob < ApplicationJob
     user = User.find(user_id)
     service = GmailService.new(user)
     service.sync_emails(days: days)
+    user.update!(last_synced_at: Time.current)
   end
 end

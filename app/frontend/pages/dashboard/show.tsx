@@ -1,10 +1,12 @@
 import { Head } from "@inertiajs/react"
-import { Heading, Box, Text, Table, Flex } from "@radix-ui/themes"
+import { Heading, Box, Text, Table, Flex, Button } from "@radix-ui/themes"
+import { DownloadIcon } from "@radix-ui/react-icons"
 import { z } from "zod"
 import InvoiceRow, { InvoiceSchema, type Invoice } from "~/components/InvoiceRow"
 
 const PropsSchema = z.object({
   invoices: z.array(InvoiceSchema),
+  last_synced_at: z.string().nullable(),
 })
 
 type Props = z.infer<typeof PropsSchema>
@@ -55,8 +57,17 @@ function groupInvoicesByMonth(invoices: Invoice[]): Map<string, Invoice[]> {
   return new Map(sortedEntries)
 }
 
+function formatLastSynced(isoString: string | null): string {
+  if (!isoString) return "Never"
+  const date = new Date(isoString)
+  return new Intl.DateTimeFormat("en-US", {
+    dateStyle: "medium",
+    timeStyle: "short",
+  }).format(date)
+}
+
 export default function DashboardShow(props: Props) {
-  const { invoices } = PropsSchema.parse(props)
+  const { invoices, last_synced_at } = PropsSchema.parse(props)
   const groupedInvoices = groupInvoicesByMonth(invoices)
 
   return (
@@ -70,11 +81,27 @@ export default function DashboardShow(props: Props) {
           </Text>
         ) : (
           <Flex direction="column" gap="6">
-            {[...groupedInvoices.entries()].map(([monthKey, monthInvoices]) => (
+            {[...groupedInvoices.entries()].map(([monthKey, monthInvoices]) => {
+              const hasDownloadableInvoices = monthKey !== "unknown" && monthInvoices.some((inv) => !inv.deleted_at)
+              return (
               <Box key={monthKey}>
-                <Heading size="5" as="h2" mb="4">
-                  {formatMonthHeading(monthKey)}
-                </Heading>
+                <Flex justify="between" align="center" mb="4">
+                  <Heading size="5" as="h2">
+                    {formatMonthHeading(monthKey)}
+                  </Heading>
+                  {hasDownloadableInvoices && (
+                    <Button
+                      variant="soft"
+                      size="2"
+                      asChild
+                    >
+                      <a href={`/invoices/download?month=${monthKey}`} download>
+                        <DownloadIcon />
+                        Download ZIP
+                      </a>
+                    </Button>
+                  )}
+                </Flex>
                 <Table.Root variant="surface" size="2">
                   <Table.Header>
                     <Table.Row>
@@ -93,9 +120,14 @@ export default function DashboardShow(props: Props) {
                   </Table.Body>
                 </Table.Root>
               </Box>
-            ))}
+            )})}
           </Flex>
         )}
+      </Box>
+      <Box mt="6">
+        <Text size="1" color="gray">
+          Last synced: {formatLastSynced(last_synced_at)}
+        </Text>
       </Box>
     </>
   )
