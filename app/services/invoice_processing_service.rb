@@ -108,7 +108,7 @@ class InvoiceProcessingService
   def extract_invoice_from_pdf(user, pdf_io, filename:)
     Rails.logger.info "[InvoiceProcessingService] Extracting invoice from PDF: #{filename} for user #{user.email}"
 
-    # Read PDF content into memory for both extraction and attachment
+    # Read PDF content for both extraction and attachment
     pdf_content = pdf_io.respond_to?(:read) ? pdf_io.read : pdf_io
 
     # Write PDF to temp file for processing
@@ -134,20 +134,14 @@ class InvoiceProcessingService
         note: extraction[:note]
       )
 
-      # Create attachment for the uploaded PDF
-      attachment = invoice.attachments.create!(
-        filename: filename,
-        mime_type: "application/pdf",
-        size: pdf_content.bytesize,
-        file_type: :pdf
-      )
-      attachment.file.attach(
+      # Attach the PDF directly to the invoice
+      invoice.pdf.attach(
         io: StringIO.new(pdf_content),
         filename: filename,
         content_type: "application/pdf"
       )
 
-      Rails.logger.info "[InvoiceProcessingService] Created invoice #{invoice.id} with attachment: #{extraction[:vendor_name]} - #{extraction[:amount_cents]} #{extraction[:currency]}"
+      Rails.logger.info "[InvoiceProcessingService] Created invoice #{invoice.id} with PDF: #{extraction[:vendor_name]} - #{extraction[:amount_cents]} #{extraction[:currency]}"
 
       invoice
     ensure
@@ -193,6 +187,15 @@ class InvoiceProcessingService
       note: extraction[:note]
     )
     invoice.save!
+
+    # Copy the PDF from the email attachment to the invoice
+    if attachment.file.attached? && !invoice.pdf.attached?
+      invoice.pdf.attach(
+        io: StringIO.new(attachment.file.download),
+        filename: attachment.filename,
+        content_type: attachment.mime_type
+      )
+    end
 
     if verbose
       action = invoice.previously_new_record? ? "Created" : "Updated"

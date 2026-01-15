@@ -14,7 +14,7 @@
 class Invoice < ApplicationRecord
   belongs_to :user
   belongs_to :email, optional: true
-  has_many :attachments, dependent: :destroy
+  has_one_attached :pdf
 
   validates :vendor_name, presence: true
   validates :amount_cents, presence: true
