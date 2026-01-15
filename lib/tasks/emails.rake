@@ -3,9 +3,10 @@ namespace :emails do
   task sync_all: :environment do
     User.find_each do |user|
       puts "Syncing emails for #{user.email}..."
-      SyncEmailsJob.perform_later(user.id)
+      SyncEmailsJob.perform_now(user.id)
+      puts "  Done."
     end
-    puts "Done. Jobs enqueued for #{User.count} users."
+    puts "All users synced."
   end
 
   desc "Sync emails from Gmail for a specific user (by email)"
