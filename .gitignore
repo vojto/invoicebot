@@ -42,3 +42,8 @@
 # Ignore key files for decrypting credentials and more.
 /config/*.key
 
+# Ignore Kamal deployment files (contains secrets)
+/config/deploy.yml
+/.kamal/secrets
+!/.kamal/secrets.example
+
