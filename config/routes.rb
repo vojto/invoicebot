@@ -14,6 +14,9 @@ Rails.application.routes.draw do
   get "/auth/failure", to: "sessions#failure"
   get "/logout", to: "sessions#logout"
 
+  # Dashboard
+  get "/dashboard", to: "dashboard#show", as: :dashboard
+
   # Defines the root path route ("/")
   root "landing#show"
 end
