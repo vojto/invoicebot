@@ -24,13 +24,21 @@ class InvoiceExtractionAgent
     - The document is too malformed or unclear to extract meaningful data
     - Essential information (vendor name, amount) cannot be determined
 
-    If is_invoice is true, extract the following information:
-    - vendor_name: The name of the business or company issuing the invoice
-    - amount_cents: The total amount to pay, converted to cents (multiply by 100). For example, $19.99 becomes 1999
-    - currency: The three-letter currency code (USD, EUR, CZK, GBP, etc.)
-    - issue_date: The date the invoice was issued (YYYY-MM-DD format). Most invoices have this, but set to null if not present.
-    - delivery_date: The date of delivery or service (YYYY-MM-DD format). This is optional and many invoices don't have it. Only extract if explicitly stated, otherwise set to null.
-    - note: Any relevant notes, invoice number, or reference number
+    If is_invoice is true, follow these steps:
+
+    1. First, determine which country the invoice is from based on the vendor address, language, currency, or other contextual clues.
+
+    2. Use the country of origin to interpret date formats correctly:
+       - European countries (and most of the world): assume day/month/year format (e.g., 05/01/2026 = January 5th, 2026)
+       - United States: assume month/day/year format (e.g., 05/01/2026 = May 1st, 2026)
+
+    3. Extract the following information:
+       - vendor_name: The name of the business or company issuing the invoice
+       - amount_cents: The total amount to pay, converted to cents (multiply by 100). For example, $19.99 becomes 1999
+       - currency: The three-letter currency code (USD, EUR, CZK, GBP, etc.)
+       - issue_date: The date the invoice was issued (YYYY-MM-DD format). Most invoices have this, but set to null if not present.
+       - delivery_date: The date of delivery or service (YYYY-MM-DD format). This is optional and many invoices don't have it. Only extract if explicitly stated, otherwise set to null.
+       - note: Any relevant notes, invoice number, or reference number
 
     If is_invoice is false, set all other fields to null.
 
