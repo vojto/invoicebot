@@ -12,6 +12,24 @@ class InvoicesController < ApplicationController
     redirect_to dashboard_path
   end
 
+  def upload
+    file = params[:file]
+    return head :bad_request unless file.present? && file.content_type == "application/pdf"
+
+    processing_service = InvoiceProcessingService.new
+    invoice = processing_service.extract_invoice_from_pdf(
+      current_user,
+      file.tempfile,
+      filename: file.original_filename
+    )
+
+    if invoice
+      redirect_to dashboard_path, notice: "Invoice created: #{invoice.vendor_name}"
+    else
+      redirect_to dashboard_path, alert: "Could not extract invoice from PDF"
+    end
+  end
+
   def download
     month = params[:month]
     return head :bad_request unless month.present? && month.match?(/\A\d{4}-\d{2}\z/)

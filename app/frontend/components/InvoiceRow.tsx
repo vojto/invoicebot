@@ -20,7 +20,7 @@ export const InvoiceSchema = z.object({
   deleted_at: z.string().nullish(),
   note: z.string().nullable(),
   pdf_url: z.string().nullish(),
-  email: EmailSchema,
+  email: EmailSchema.nullable(),
 })
 
 export type Invoice = z.infer<typeof InvoiceSchema>
@@ -76,17 +76,17 @@ export default function InvoiceRow({ invoice }: Props) {
         </Text>
       </Table.Cell>
       <Table.Cell>
-        <Text color={invoice.email.date ? undefined : "gray"} style={deletedStyle}>
-          {formatDate(invoice.email.date)}
+        <Text color={invoice.email?.date ? undefined : "gray"} style={deletedStyle}>
+          {formatDate(invoice.email?.date)}
           <DateDifferenceBadge
-            emailDate={invoice.email.date}
+            emailDate={invoice.email?.date}
             accountingDate={invoice.accounting_date}
           />
         </Text>
       </Table.Cell>
       <Table.Cell>
         <Text size="2" color="gray" style={deletedStyle}>
-          {invoice.email.subject || "No subject"}
+          {invoice.email?.subject || "—"}
         </Text>
       </Table.Cell>
       <Table.Cell>
