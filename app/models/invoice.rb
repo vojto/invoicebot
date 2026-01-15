@@ -15,6 +15,6 @@ class Invoice < ApplicationRecord
   belongs_to :email
 
   validates :vendor_name, presence: true
-  validates :amount, presence: true
+  validates :amount_cents, presence: true
   validates :currency, presence: true
 end

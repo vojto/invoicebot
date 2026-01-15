@@ -5,6 +5,6 @@ class Email < ApplicationRecord
 
   validates :gmail_id, presence: true, uniqueness: { scope: :user_id }
 
-  scope :unprocessed_for_invoices, -> { where(processed_for_invoices: false) }
-  scope :processed_for_invoices, -> { where(processed_for_invoices: true) }
+  scope :unprocessed_for_invoices, -> { where(is_processed_for_invoices: false) }
+  scope :processed_for_invoices, -> { where(is_processed_for_invoices: true) }
 end
