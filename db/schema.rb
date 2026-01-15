@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_01_15_150741) do
+ActiveRecord::Schema[8.1].define(version: 2026_01_15_210333) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -99,6 +99,9 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_15_150741) do
     t.text "last_sync_error"
     t.datetime "last_synced_at"
     t.string "name"
+    t.text "nordigen_access_token"
+    t.text "nordigen_refresh_token"
+    t.datetime "nordigen_token_expires_at"
     t.string "picture_url"
     t.datetime "updated_at", null: false
     t.index ["email"], name: "index_users_on_email"

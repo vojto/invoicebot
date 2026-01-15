@@ -17,6 +17,12 @@ Rails.application.routes.draw do
   # Dashboard
   get "/dashboard", to: "dashboard#show", as: :dashboard
 
+  # Transactions
+  get "/transactions", to: "transactions#index", as: :transactions
+
+  # Banks
+  get "/banks", to: "banks#index", as: :banks
+
   # Invoices
   resources :invoices, only: [] do
     collection do
