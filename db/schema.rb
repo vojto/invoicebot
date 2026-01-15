@@ -10,7 +10,35 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_01_15_075123) do
+ActiveRecord::Schema[8.1].define(version: 2026_01_15_082936) do
+  create_table "attachments", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.integer "email_id", null: false
+    t.string "filename"
+    t.string "gmail_attachment_id"
+    t.string "mime_type"
+    t.integer "size"
+    t.datetime "updated_at", null: false
+    t.index ["email_id"], name: "index_attachments_on_email_id"
+  end
+
+  create_table "emails", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.datetime "date"
+    t.string "from_address"
+    t.string "from_name"
+    t.string "gmail_id"
+    t.text "snippet"
+    t.string "subject"
+    t.string "thread_id"
+    t.text "to_addresses"
+    t.datetime "updated_at", null: false
+    t.integer "user_id", null: false
+    t.index ["date"], name: "index_emails_on_date"
+    t.index ["user_id", "gmail_id"], name: "index_emails_on_user_id_and_gmail_id", unique: true
+    t.index ["user_id"], name: "index_emails_on_user_id"
+  end
+
   create_table "users", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.string "email"
@@ -24,4 +52,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_15_075123) do
     t.index ["email"], name: "index_users_on_email"
     t.index ["google_uid"], name: "index_users_on_google_uid", unique: true
   end
+
+  add_foreign_key "attachments", "emails"
+  add_foreign_key "emails", "users"
 end

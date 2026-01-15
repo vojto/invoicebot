@@ -1,4 +1,6 @@
 class User < ApplicationRecord
+  has_many :emails, dependent: :destroy
+
   validates :google_uid, :email, presence: true
   validates :google_uid, uniqueness: true
 
