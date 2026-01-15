@@ -11,7 +11,8 @@ class DashboardController < ApplicationController
 
     render inertia: "dashboard/show", props: {
       invoices: invoices.map { |invoice| serialize_invoice(invoice) },
-      last_synced_at: format_last_synced(current_user.last_synced_at)
+      last_synced_at: format_last_synced(current_user.last_synced_at),
+      last_sync_error: current_user.last_sync_error
     }
   end
 

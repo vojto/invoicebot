@@ -7,6 +7,7 @@ import InvoiceRow, { InvoiceSchema, type Invoice } from "~/components/InvoiceRow
 const PropsSchema = z.object({
   invoices: z.array(InvoiceSchema),
   last_synced_at: z.string(),
+  last_sync_error: z.string().nullable(),
 })
 
 type Props = z.infer<typeof PropsSchema>
@@ -58,7 +59,7 @@ function groupInvoicesByMonth(invoices: Invoice[]): Map<string, Invoice[]> {
 }
 
 export default function DashboardShow(props: Props) {
-  const { invoices, last_synced_at } = PropsSchema.parse(props)
+  const { invoices, last_synced_at, last_sync_error } = PropsSchema.parse(props)
   const groupedInvoices = groupInvoicesByMonth(invoices)
 
   return (
@@ -116,9 +117,15 @@ export default function DashboardShow(props: Props) {
         )}
       </Box>
       <Box mt="6">
-        <Text size="1" color="gray">
-          Last synced: {last_synced_at}
-        </Text>
+        {last_sync_error ? (
+          <Text size="1" color="red">
+            Last sync failed: {last_sync_error}
+          </Text>
+        ) : (
+          <Text size="1" color="gray">
+            Last synced: {last_synced_at}
+          </Text>
+        )}
       </Box>
     </>
   )

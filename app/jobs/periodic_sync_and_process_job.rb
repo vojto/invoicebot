@@ -6,7 +6,13 @@ class PeriodicSyncAndProcessJob < ApplicationJob
 
     User.find_each do |user|
       Rails.logger.info "Syncing emails for #{user.email}..."
-      SyncEmailsJob.perform_now(user.id)
+      begin
+        SyncEmailsJob.perform_now(user.id)
+        user.update!(last_sync_error: nil)
+      rescue => e
+        Rails.logger.error "Sync failed for #{user.email}: #{e.message}"
+        user.update!(last_sync_error: e.message)
+      end
     end
 
     Rails.logger.info "Processing emails..."
