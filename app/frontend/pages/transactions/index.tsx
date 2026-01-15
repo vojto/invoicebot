@@ -117,19 +117,17 @@ export default function TransactionsIndex(props: Props) {
                 <Table.Root variant="surface" size="2">
                   <Table.Header>
                     <Table.Row>
-                      <Table.ColumnHeaderCell width="150px">Bank</Table.ColumnHeaderCell>
-                      <Table.ColumnHeaderCell width="100px">Date</Table.ColumnHeaderCell>
-                      <Table.ColumnHeaderCell width="140px">Amount</Table.ColumnHeaderCell>
-                      <Table.ColumnHeaderCell width="250px">From / To</Table.ColumnHeaderCell>
-                      <Table.ColumnHeaderCell width="400px">Description</Table.ColumnHeaderCell>
+                      <Table.ColumnHeaderCell width="110px">Bank</Table.ColumnHeaderCell>
+                      <Table.ColumnHeaderCell width="110px">Date</Table.ColumnHeaderCell>
+                      <Table.ColumnHeaderCell width="110px">Amount</Table.ColumnHeaderCell>
+                      <Table.ColumnHeaderCell width="200px">From / To</Table.ColumnHeaderCell>
+                      <Table.ColumnHeaderCell>Description</Table.ColumnHeaderCell>
                     </Table.Row>
                   </Table.Header>
                   <Table.Body>
                     {monthTransactions.map((tx) => (
                       <Table.Row key={tx.id}>
-                        <Table.Cell>
-                          <Text size="2">{tx.bank_name}</Text>
-                        </Table.Cell>
+                        <Table.Cell>{tx.bank_name}</Table.Cell>
                         <Table.Cell>{formatDate(tx.booking_date)}</Table.Cell>
                         <Table.Cell>
                           <Text color={tx.amount_cents >= 0 ? "green" : undefined}>
@@ -140,11 +138,7 @@ export default function TransactionsIndex(props: Props) {
                           {tx.amount_cents >= 0 ? tx.debtor_name : tx.creditor_name}
                         </Table.Cell>
                         <Table.Cell>
-                          <Text
-                            size="2"
-                            color="gray"
-                            className="line-clamp-3"
-                          >
+                          <Text size="1" color="gray" className="line-clamp-3">
                             {tx.description}
                           </Text>
                         </Table.Cell>
