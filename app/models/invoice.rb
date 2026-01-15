@@ -17,4 +17,16 @@ class Invoice < ApplicationRecord
   validates :vendor_name, presence: true
   validates :amount_cents, presence: true
   validates :currency, presence: true
+
+  def soft_deleted?
+    deleted_at.present?
+  end
+
+  def soft_delete!
+    update!(deleted_at: Time.current)
+  end
+
+  def restore!
+    update!(deleted_at: nil)
+  end
 end

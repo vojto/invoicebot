@@ -1,57 +1,13 @@
 import { Head } from "@inertiajs/react"
-import { Heading, Box, Text, Table, Flex, Button } from "@radix-ui/themes"
+import { Heading, Box, Text, Table, Flex } from "@radix-ui/themes"
 import { z } from "zod"
-
-const EmailSchema = z.object({
-  id: z.number(),
-  subject: z.string().nullable(),
-  from_name: z.string().nullable(),
-  from_address: z.string().nullable(),
-  date: z.string().nullable(),
-})
-
-const InvoiceSchema = z.object({
-  id: z.number(),
-  vendor_name: z.string().nullable(),
-  amount_cents: z.number(),
-  currency: z.string().nullable(),
-  accounting_date: z.string().nullish(),
-  note: z.string().nullable(),
-  pdf_url: z.string().nullish(),
-  email: EmailSchema,
-})
+import InvoiceRow, { InvoiceSchema, type Invoice } from "~/components/InvoiceRow"
 
 const PropsSchema = z.object({
   invoices: z.array(InvoiceSchema),
 })
 
 type Props = z.infer<typeof PropsSchema>
-type Invoice = z.infer<typeof InvoiceSchema>
-
-function formatCurrency(amountCents: number, currency: string | null): string {
-  const amount = amountCents / 100
-  const currencyCode = currency || "USD"
-
-  try {
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: currencyCode,
-    }).format(amount)
-  } catch {
-    return `${amount.toFixed(2)} ${currencyCode}`
-  }
-}
-
-function formatDate(dateString: string | null | undefined): string {
-  if (!dateString) return "—"
-
-  const date = new Date(dateString)
-  return new Intl.DateTimeFormat("en-US", {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-  }).format(date)
-}
 
 function getMonthKey(dateString: string | null | undefined): string {
   if (!dateString) return "unknown"
@@ -126,42 +82,12 @@ export default function DashboardShow(props: Props) {
                       <Table.ColumnHeaderCell width="120px">Amount</Table.ColumnHeaderCell>
                       <Table.ColumnHeaderCell width="140px">Accounting Date</Table.ColumnHeaderCell>
                       <Table.ColumnHeaderCell>Email Subject</Table.ColumnHeaderCell>
-                      <Table.ColumnHeaderCell width="80px">Actions</Table.ColumnHeaderCell>
+                      <Table.ColumnHeaderCell width="140px">Actions</Table.ColumnHeaderCell>
                     </Table.Row>
                   </Table.Header>
                   <Table.Body>
                     {monthInvoices.map((invoice) => (
-                      <Table.Row key={invoice.id}>
-                        <Table.Cell>
-                          <Text weight="medium">
-                            {invoice.vendor_name || "Unknown"}
-                          </Text>
-                        </Table.Cell>
-                        <Table.Cell>
-                          <Text family="mono">
-                            {formatCurrency(invoice.amount_cents, invoice.currency)}
-                          </Text>
-                        </Table.Cell>
-                        <Table.Cell>
-                          <Text color={invoice.accounting_date ? undefined : "gray"}>
-                            {formatDate(invoice.accounting_date)}
-                          </Text>
-                        </Table.Cell>
-                        <Table.Cell>
-                          <Text size="2" color="gray">
-                            {invoice.email.subject || "No subject"}
-                          </Text>
-                        </Table.Cell>
-                        <Table.Cell>
-                          {invoice.pdf_url && (
-                            <Button size="1" variant="soft" asChild>
-                              <a href={invoice.pdf_url} target="_blank" rel="noopener noreferrer">
-                                Open
-                              </a>
-                            </Button>
-                          )}
-                        </Table.Cell>
-                      </Table.Row>
+                      <InvoiceRow key={invoice.id} invoice={invoice} />
                     ))}
                   </Table.Body>
                 </Table.Root>

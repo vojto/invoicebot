@@ -17,6 +17,14 @@ Rails.application.routes.draw do
   # Dashboard
   get "/dashboard", to: "dashboard#show", as: :dashboard
 
+  # Invoices
+  resources :invoices, only: [] do
+    member do
+      post :remove
+      post :restore
+    end
+  end
+
   # Defines the root path route ("/")
   root "landing#show"
 end

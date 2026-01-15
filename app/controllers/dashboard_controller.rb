@@ -26,6 +26,7 @@ class DashboardController < ApplicationController
       amount_cents: invoice.amount_cents,
       currency: invoice.currency,
       accounting_date: invoice.accounting_date&.iso8601,
+      deleted_at: invoice.deleted_at&.iso8601,
       note: invoice.note,
       pdf_url: pdf_url,
       email: {
