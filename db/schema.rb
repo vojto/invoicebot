@@ -10,7 +10,10 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_01_15_095318) do
+ActiveRecord::Schema[8.1].define(version: 2026_01_15_075123) do
+  # These are extensions that must be enabled in order to support this database
+  enable_extension "pg_catalog.plpgsql"
+
   create_table "active_storage_attachments", force: :cascade do |t|
     t.bigint "blob_id", null: false
     t.datetime "created_at", null: false
@@ -41,7 +44,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_15_095318) do
 
   create_table "attachments", force: :cascade do |t|
     t.datetime "created_at", null: false
-    t.integer "email_id", null: false
+    t.bigint "email_id", null: false
     t.string "file_type"
     t.string "filename"
     t.string "gmail_attachment_id"
@@ -63,7 +66,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_15_095318) do
     t.string "thread_id"
     t.text "to_addresses"
     t.datetime "updated_at", null: false
-    t.integer "user_id", null: false
+    t.bigint "user_id", null: false
     t.index ["date"], name: "index_emails_on_date"
     t.index ["user_id", "gmail_id"], name: "index_emails_on_user_id_and_gmail_id", unique: true
     t.index ["user_id"], name: "index_emails_on_user_id"
@@ -74,7 +77,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_15_095318) do
     t.datetime "created_at", null: false
     t.string "currency"
     t.date "delivery_date"
-    t.integer "email_id", null: false
+    t.bigint "email_id", null: false
     t.date "issue_date"
     t.text "note"
     t.datetime "updated_at", null: false
