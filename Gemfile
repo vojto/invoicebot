@@ -8,12 +8,10 @@ gem "propshaft"
 gem "sqlite3", ">= 2.1"
 # Use the Puma web server [https://github.com/puma/puma]
 gem "puma", ">= 5.0"
-# Use JavaScript with ESM import maps [https://github.com/rails/importmap-rails]
-gem "importmap-rails"
-# Hotwire's SPA-like page accelerator [https://turbo.hotwired.dev]
-gem "turbo-rails"
-# Hotwire's modest JavaScript framework [https://stimulus.hotwired.dev]
-gem "stimulus-rails"
+# Vite.js integration for Rails [https://vite-ruby.netlify.app/]
+gem "vite_rails", "~> 3.0"
+# Inertia.js Rails adapter [https://inertia-rails.dev/]
+gem "inertia_rails", "~> 3.6"
 # Build JSON APIs with ease [https://github.com/rails/jbuilder]
 gem "jbuilder"
 

@@ -1,0 +1,50 @@
+@import "tailwindcss";
+
+@plugin 'tailwindcss-animate';
+@plugin "@tailwindcss/typography";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --animate-accordion-down: accordion-down 0.2s ease-out;
+  --animate-accordion-up: accordion-up 0.2s ease-out;
+
+  @keyframes accordion-down {
+    from {
+      height: 0;
+    }
+    to {
+      height: var(--radix-accordion-content-height);
+    }
+  }
+
+  @keyframes accordion-up {
+    from {
+      height: var(--radix-accordion-content-height);
+    }
+    to {
+      height: 0;
+    }
+  }
+
+  @keyframes spin {
+    from {
+      transform: rotate(0deg);
+    }
+    to {
+      transform: rotate(360deg);
+    }
+  }
+}
+
+@layer base {
+  * {
+    @apply border-neutral-200 outline-neutral-500/50 dark:border-neutral-800;
+  }
+  body {
+    @apply antialiased bg-white text-neutral-900 dark:bg-neutral-950 dark:text-neutral-50;
+  }
+  input:focus {
+    @apply outline-stone-200 outline-1;
+  }
+}
