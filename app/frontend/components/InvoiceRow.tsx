@@ -1,6 +1,7 @@
 import { router } from "@inertiajs/react"
 import { Text, Table, Flex, Button } from "@radix-ui/themes"
 import { z } from "zod"
+import DateDifferenceBadge from "./DateDifferenceBadge"
 
 const EmailSchema = z.object({
   id: z.number(),
@@ -72,6 +73,15 @@ export default function InvoiceRow({ invoice }: Props) {
       <Table.Cell>
         <Text color={invoice.accounting_date ? undefined : "gray"} style={deletedStyle}>
           {formatDate(invoice.accounting_date)}
+        </Text>
+      </Table.Cell>
+      <Table.Cell>
+        <Text color={invoice.email.date ? undefined : "gray"} style={deletedStyle}>
+          {formatDate(invoice.email.date)}
+          <DateDifferenceBadge
+            emailDate={invoice.email.date}
+            accountingDate={invoice.accounting_date}
+          />
         </Text>
       </Table.Cell>
       <Table.Cell>
