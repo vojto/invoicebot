@@ -12,7 +12,8 @@
 # - payment_reference/variable_symbol: Not needed for our use case
 #
 class Invoice < ApplicationRecord
-  belongs_to :email
+  belongs_to :user
+  belongs_to :email, optional: true
 
   validates :vendor_name, presence: true
   validates :amount_cents, presence: true

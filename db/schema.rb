@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_01_15_141105) do
+ActiveRecord::Schema[8.1].define(version: 2026_01_15_150741) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -79,12 +79,14 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_15_141105) do
     t.string "currency"
     t.datetime "deleted_at"
     t.date "delivery_date"
-    t.bigint "email_id", null: false
+    t.bigint "email_id"
     t.date "issue_date"
     t.text "note"
     t.datetime "updated_at", null: false
+    t.bigint "user_id", null: false
     t.string "vendor_name"
     t.index ["email_id"], name: "index_invoices_on_email_id"
+    t.index ["user_id"], name: "index_invoices_on_user_id"
   end
 
   create_table "users", force: :cascade do |t|
@@ -108,4 +110,5 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_15_141105) do
   add_foreign_key "attachments", "emails"
   add_foreign_key "emails", "users"
   add_foreign_key "invoices", "emails"
+  add_foreign_key "invoices", "users"
 end

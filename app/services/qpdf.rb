@@ -9,13 +9,15 @@ class Qpdf
 
   def page_count
     output = `qpdf --show-npages #{@path}`.strip
-    raise Error, "Failed to get page count" unless $?.success?
+    # Exit code 0 = success, 2 = success with warnings, 3 = errors
+    raise Error, "Failed to get page count" if $?.exitstatus == 3 || output.empty?
     output.to_i
   end
 
   def extract_pages(range, output_path:)
     system("qpdf", @path, "--pages", ".", range, "--", output_path)
-    raise Error, "Failed to extract pages" unless $?.success?
+    # Exit code 0 = success, 2 = success with warnings, 3 = errors
+    raise Error, "Failed to extract pages" if $?.exitstatus == 3
     output_path
   end
 

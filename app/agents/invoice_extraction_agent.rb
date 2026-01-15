@@ -45,14 +45,30 @@ class InvoiceExtractionAgent
     Be precise with amounts. Always convert to cents by multiplying the decimal amount by 100.
   PROMPT
 
-  def initialize(attachment)
+  # Initialize with either an attachment or a raw PDF path.
+  #
+  # @param attachment [Attachment, nil] An Attachment model with a PDF file attached
+  # @param pdf_path [String, nil] Path to a PDF file on disk
+  # @param filename [String, nil] Original filename (used for logging when pdf_path is provided)
+  def initialize(attachment = nil, pdf_path: nil, filename: nil)
     @attachment = attachment
+    @pdf_path = pdf_path
+    @filename = filename
+
+    if @attachment.nil? && @pdf_path.nil?
+      raise ArgumentError, "Either attachment or pdf_path must be provided"
+    end
   end
 
   def call
-    raise ArgumentError, "Attachment must have a file attached" unless @attachment.file.attached?
+    if @attachment
+      raise ArgumentError, "Attachment must have a file attached" unless @attachment.file.attached?
+      log_identifier = "attachment #{@attachment.id} (#{@attachment.filename})"
+    else
+      log_identifier = "file #{@filename || @pdf_path}"
+    end
 
-    Rails.logger.info "[InvoiceExtractionAgent] Starting extraction for attachment #{@attachment.id} (#{@attachment.filename})"
+    Rails.logger.info "[InvoiceExtractionAgent] Starting extraction for #{log_identifier}"
 
     pdf_path = extract_first_pages_pdf
     Rails.logger.info "[InvoiceExtractionAgent] Extracted first #{PDF_PAGES_TO_EXTRACT} pages PDF: #{pdf_path}"
@@ -109,17 +125,23 @@ class InvoiceExtractionAgent
   private
 
   def extract_first_pages_pdf
-    # Download PDF to temp file
-    @source_pdf_temp_file = Tempfile.new([ "invoice_source", ".pdf" ])
-    @source_pdf_temp_file.binmode
-    @source_pdf_temp_file.write(@attachment.file.download)
-    @source_pdf_temp_file.close
+    source_path = if @attachment
+      # Download PDF from attachment to temp file
+      @source_pdf_temp_file = Tempfile.new([ "invoice_source", ".pdf" ])
+      @source_pdf_temp_file.binmode
+      @source_pdf_temp_file.write(@attachment.file.download)
+      @source_pdf_temp_file.close
+      @source_pdf_temp_file.path
+    else
+      # Use provided PDF path directly
+      @pdf_path
+    end
 
     # Extract first pages using Qpdf wrapper
     @extracted_pdf_temp_file = Tempfile.new([ "invoice_pages", ".pdf" ])
     @extracted_pdf_temp_file.close
 
-    Qpdf.new(@source_pdf_temp_file.path).extract_first_pages(
+    Qpdf.new(source_path).extract_first_pages(
       PDF_PAGES_TO_EXTRACT,
       output_path: @extracted_pdf_temp_file.path
     )

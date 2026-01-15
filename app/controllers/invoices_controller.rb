@@ -20,9 +20,7 @@ class InvoicesController < ApplicationController
     start_date = Date.new(year, month_num, 1)
     end_date = start_date.end_of_month
 
-    invoices = Invoice
-      .joins(:email)
-      .where(emails: { user_id: current_user.id })
+    invoices = current_user.invoices
       .where(deleted_at: nil)
       .where(accounting_date: start_date..end_date)
       .includes(email: { attachments: { file_attachment: :blob } })
@@ -38,10 +36,7 @@ class InvoicesController < ApplicationController
   private
 
   def set_invoice
-    @invoice = Invoice
-      .joins(:email)
-      .where(emails: { user_id: current_user.id })
-      .find(params[:id])
+    @invoice = current_user.invoices.find(params[:id])
   end
 
   def create_zip(invoices)
@@ -49,7 +44,7 @@ class InvoicesController < ApplicationController
 
     buffer = Zip::OutputStream.write_buffer do |zip|
       invoices.each do |invoice|
-        pdf_attachment = invoice.email.attachments.find(&:file_type_pdf?)
+        pdf_attachment = invoice.email&.attachments&.find(&:file_type_pdf?)
         next unless pdf_attachment&.file&.attached?
 
         # Create a safe filename with date prefix, vendor name, and invoice id

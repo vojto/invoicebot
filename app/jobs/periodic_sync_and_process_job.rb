@@ -4,19 +4,22 @@ class PeriodicSyncAndProcessJob < ApplicationJob
   def perform
     Rails.logger.info "Starting periodic sync and process..."
 
-    User.find_each do |user|
-      Rails.logger.info "Syncing emails for #{user.email}..."
-      begin
-        SyncEmailsJob.perform_now(user.id)
+    sync_service = EmailSyncService.new
+    processing_service = InvoiceProcessingService.new
+
+    # Sync emails for all users
+    sync_service.sync_all_users do |user, error|
+      if error
+        Rails.logger.error "Sync failed for #{user.email}: #{error.message}"
+        user.update!(last_sync_error: error.message)
+      else
         user.update!(last_sync_error: nil)
-      rescue => e
-        Rails.logger.error "Sync failed for #{user.email}: #{e.message}"
-        user.update!(last_sync_error: e.message)
       end
     end
 
+    # Process all unprocessed emails
     Rails.logger.info "Processing emails..."
-    ProcessEmailsJob.perform_now
+    processing_service.process_all_users(verbose: true)
 
     User.update_all(last_synced_at: Time.current)
     Rails.logger.info "Periodic sync and process complete."
