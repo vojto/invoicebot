@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_01_15_083636) do
+ActiveRecord::Schema[8.1].define(version: 2026_01_15_084600) do
   create_table "active_storage_attachments", force: :cascade do |t|
     t.bigint "blob_id", null: false
     t.datetime "created_at", null: false
@@ -56,6 +56,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_15_083636) do
     t.string "from_address"
     t.string "from_name"
     t.string "gmail_id"
+    t.boolean "processed_for_invoices", default: false, null: false
     t.text "snippet"
     t.string "subject"
     t.string "thread_id"
@@ -65,6 +66,19 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_15_083636) do
     t.index ["date"], name: "index_emails_on_date"
     t.index ["user_id", "gmail_id"], name: "index_emails_on_user_id_and_gmail_id", unique: true
     t.index ["user_id"], name: "index_emails_on_user_id"
+  end
+
+  create_table "invoices", force: :cascade do |t|
+    t.decimal "amount", precision: 10, scale: 2
+    t.datetime "created_at", null: false
+    t.string "currency"
+    t.date "delivery_date"
+    t.integer "email_id", null: false
+    t.date "issue_date"
+    t.text "note"
+    t.datetime "updated_at", null: false
+    t.string "vendor_name"
+    t.index ["email_id"], name: "index_invoices_on_email_id"
   end
 
   create_table "users", force: :cascade do |t|
@@ -85,4 +99,5 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_15_083636) do
   add_foreign_key "active_storage_variant_records", "active_storage_blobs", column: "blob_id"
   add_foreign_key "attachments", "emails"
   add_foreign_key "emails", "users"
+  add_foreign_key "invoices", "emails"
 end
