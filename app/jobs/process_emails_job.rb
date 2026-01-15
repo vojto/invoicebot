@@ -28,26 +28,19 @@ class ProcessEmailsJob < ApplicationJob
     pdf_attachments = email.attachments.select(&:file_type_pdf?)
     attachment_names = pdf_attachments.map(&:filename)
 
+    result = DetectInvoiceAgent.new(email, pdf_attachment_names: attachment_names).call
+
+    unless result[:invoice_found]
+      puts "#{"Skip:".yellow} #{email.subject}"
+      return
+    end
+
     puts "\n#{"Subject:".light_blue} #{email.subject}"
     puts "#{"From:".light_blue} #{email.from_name} <#{email.from_address}>"
     puts "#{"Date:".light_blue} #{email.date&.strftime('%Y-%m-%d %H:%M')}"
+    puts "#{"Invoice PDF:".light_blue} #{result[:pdf_filename]}" if result[:pdf_filename]
 
-    if attachment_names.any?
-      puts "#{"PDF Attachments:".light_blue} #{attachment_names.join(', ')}"
-    else
-      puts "#{"PDF Attachments:".light_blue} (none)"
-    end
-
-    result = DetectInvoiceAgent.new(email, pdf_attachment_names: attachment_names).call
-
-    if result[:invoice_found]
-      puts "#{"Invoice detected:".light_blue} #{"YES".green.bold}"
-      puts "#{"Invoice PDF:".light_blue} #{result[:pdf_filename]}" if result[:pdf_filename]
-
-      extract_and_save_invoice(email, pdf_attachments, result[:pdf_filename])
-    else
-      puts "#{"Invoice detected:".light_blue} #{"NO".red}"
-    end
+    extract_and_save_invoice(email, pdf_attachments, result[:pdf_filename])
 
     email.update!(is_processed_for_invoices: true)
     puts "-" * 60
@@ -74,6 +67,8 @@ class ProcessEmailsJob < ApplicationJob
 
     puts "  #{"Vendor:".light_blue} #{extraction[:vendor_name]}"
     puts "  #{"Amount:".light_blue} #{format_amount(extraction[:amount_cents], extraction[:currency])}"
+    puts "  #{"Issue date:".light_blue} #{extraction[:issue_date]}"
+    puts "  #{"Delivery date:".light_blue} #{extraction[:delivery_date]}"
 
     invoice = email.invoice || email.build_invoice
     invoice.assign_attributes(
