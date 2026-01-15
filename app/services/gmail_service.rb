@@ -111,13 +111,21 @@ class GmailService
 
   def find_pdf_attachments(parts, found = [])
     parts.each do |part|
-      if part.mime_type == "application/pdf" && part.filename.present?
+      if pdf_attachment?(part)
         found << part
       elsif part.parts
         find_pdf_attachments(part.parts, found)
       end
     end
     found
+  end
+
+  def pdf_attachment?(part)
+    return false unless part.filename.present?
+
+    # Check MIME type or filename extension (some clients send PDFs as octet-stream)
+    part.mime_type == "application/pdf" ||
+      (part.mime_type == "application/octet-stream" && part.filename.downcase.end_with?(".pdf"))
   end
 
   def extract_headers(message)

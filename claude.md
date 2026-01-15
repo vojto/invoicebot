@@ -1,5 +1,9 @@
 # Claude Instructions
 
+## Development Mode
+
+This project is in active development. If necessary, you can wipe all data except for the `users` table, as everything else can be easily restored by syncing from Gmail.
+
 ## Environment Variables
 
 When adding new environment variables to `.env`, always update `.env.example` with the new variable using a placeholder value. This keeps the example file in sync so other developers know which variables are required.
