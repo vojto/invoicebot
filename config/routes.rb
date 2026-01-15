@@ -22,6 +22,8 @@ Rails.application.routes.draw do
 
   # Banks
   get "/banks", to: "banks#index", as: :banks
+  post "/banks/connect", to: "banks#connect", as: :connect_banks
+  get "/banks/callback", to: "banks#callback", as: :callback_banks
 
   # Invoices
   resources :invoices, only: [] do

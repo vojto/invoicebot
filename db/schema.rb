@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_01_15_210333) do
+ActiveRecord::Schema[8.1].define(version: 2026_01_15_212355) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -54,6 +54,20 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_15_210333) do
     t.index ["email_id"], name: "index_attachments_on_email_id"
   end
 
+  create_table "bank_connections", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.string "institution_id"
+    t.string "institution_name"
+    t.string "reference_id"
+    t.string "requisition_id"
+    t.string "status", default: "pending"
+    t.datetime "updated_at", null: false
+    t.bigint "user_id", null: false
+    t.index ["reference_id"], name: "index_bank_connections_on_reference_id", unique: true
+    t.index ["requisition_id"], name: "index_bank_connections_on_requisition_id", unique: true
+    t.index ["user_id"], name: "index_bank_connections_on_user_id"
+  end
+
   create_table "emails", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.datetime "date"
@@ -89,6 +103,27 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_15_210333) do
     t.index ["user_id"], name: "index_invoices_on_user_id"
   end
 
+  create_table "transactions", force: :cascade do |t|
+    t.integer "amount_cents"
+    t.bigint "bank_connection_id", null: false
+    t.string "bank_transaction_code"
+    t.date "booking_date"
+    t.datetime "created_at", null: false
+    t.string "creditor_iban"
+    t.string "creditor_name"
+    t.string "currency"
+    t.string "debtor_iban"
+    t.string "debtor_name"
+    t.text "description"
+    t.string "internal_transaction_id"
+    t.string "transaction_id"
+    t.datetime "updated_at", null: false
+    t.date "value_date"
+    t.index ["bank_connection_id"], name: "index_transactions_on_bank_connection_id"
+    t.index ["booking_date"], name: "index_transactions_on_booking_date"
+    t.index ["internal_transaction_id"], name: "index_transactions_on_internal_transaction_id", unique: true
+  end
+
   create_table "users", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.string "email"
@@ -111,7 +146,9 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_15_210333) do
   add_foreign_key "active_storage_attachments", "active_storage_blobs", column: "blob_id"
   add_foreign_key "active_storage_variant_records", "active_storage_blobs", column: "blob_id"
   add_foreign_key "attachments", "emails"
+  add_foreign_key "bank_connections", "users"
   add_foreign_key "emails", "users"
   add_foreign_key "invoices", "emails"
   add_foreign_key "invoices", "users"
+  add_foreign_key "transactions", "bank_connections"
 end

@@ -1,4 +1,4 @@
-import { Head } from "@inertiajs/react"
+import { Head, router } from "@inertiajs/react"
 import { Heading, Box, Text, Card, Flex, Avatar } from "@radix-ui/themes"
 import { z } from "zod"
 
@@ -18,6 +18,13 @@ type Props = z.infer<typeof PropsSchema>
 export default function BanksIndex(props: Props) {
   const { institutions } = PropsSchema.parse(props)
 
+  const handleConnect = (institution: z.infer<typeof InstitutionSchema>) => {
+    router.post("/banks/connect", {
+      institution_id: institution.id,
+      institution_name: institution.name,
+    })
+  }
+
   return (
     <>
       <Head title="Connect Bank Account" />
@@ -26,22 +33,35 @@ export default function BanksIndex(props: Props) {
         <Text color="gray" mb="4" as="p">
           Select your bank to connect your account.
         </Text>
-        <Flex direction="column" gap="2" mt="4">
+        <Box
+          mt="4"
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(4, 1fr)",
+            gap: "var(--space-3)",
+          }}
+        >
           {institutions.map((institution) => (
-            <Card key={institution.id} style={{ cursor: "pointer" }}>
-              <Flex align="center" gap="3">
+            <Card
+              key={institution.id}
+              className="cursor-pointer transition-colors hover:bg-gray-100"
+              onClick={() => handleConnect(institution)}
+            >
+              <Flex direction="column" align="center" gap="2" py="2">
                 {institution.logo && (
                   <Avatar
                     src={institution.logo}
                     fallback={institution.name.charAt(0)}
-                    size="3"
+                    size="4"
                   />
                 )}
-                <Text weight="medium">{institution.name}</Text>
+                <Text weight="medium" size="2" align="center">
+                  {institution.name}
+                </Text>
               </Flex>
             </Card>
           ))}
-        </Flex>
+        </Box>
       </Box>
     </>
   )
