@@ -12,6 +12,7 @@ class PeriodicSyncAndProcessJob < ApplicationJob
     Rails.logger.info "Processing emails..."
     ProcessEmailsJob.perform_now
 
+    User.update_all(last_synced_at: Time.current)
     Rails.logger.info "Periodic sync and process complete."
   end
 end
