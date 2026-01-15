@@ -19,8 +19,8 @@ function LandingShow() {
             <Heading size="6" style={{ color: "var(--accent-9)" }}>
               Invoicebot
             </Heading>
-            <Button variant="soft" size="2">
-              Login
+            <Button asChild variant="soft" size="2">
+              <a href="/auth/google_oauth2">Login</a>
             </Button>
           </Flex>
         </Container>
