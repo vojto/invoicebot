@@ -42,7 +42,7 @@ class TransactionSyncService
     internal_id = tx["internalTransactionId"]
     return if internal_id.blank?
 
-    existing = Transaction.find_by(internal_transaction_id: internal_id)
+    existing = @bank_connection.transactions.find_by(internal_transaction_id: internal_id)
     return if existing
 
     amount = parse_amount(tx.dig("transactionAmount", "amount"))
