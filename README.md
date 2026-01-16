@@ -1,6 +1,6 @@
 # InvoiceBot
 
-An AI-powered invoice extraction system that syncs emails from Gmail, detects invoices in PDF attachments, and extracts key data (vendor, amount, dates) using LLMs.
+An AI-powered invoice extraction system that syncs emails from Gmail, detects invoices in PDF attachments, and extracts key data (vendor, amount, dates) using LLMs. Also syncs bank transactions via GoCardless Bank Account Data API to match invoices with payments.
 
 ![Screenshot](screenshot.png)
 
@@ -28,6 +28,7 @@ An AI-powered invoice extraction system that syncs emails from Gmail, detects in
    Edit `.env` and add:
    - `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` - Create OAuth credentials in [Google Cloud Console](https://console.cloud.google.com/apis/credentials) with Gmail API enabled
    - `OPENAI_API_KEY` - For invoice detection and extraction
+   - `NORDIGEN_SECRET_ID` and `NORDIGEN_SECRET_KEY` - For bank transaction sync via [GoCardless Bank Account Data](https://gocardless.com/bank-account-data/) (formerly Nordigen)
 
 3. **Setup database**
 
@@ -48,3 +49,5 @@ An AI-powered invoice extraction system that syncs emails from Gmail, detects in
 1. Sign in with Google to connect your Gmail account
 2. The app syncs emails with PDF attachments from the last 30 days
 3. Background jobs detect invoices and extract data automatically
+4. Connect your bank account via GoCardless to sync transactions
+5. Match transactions with invoices to track payments
