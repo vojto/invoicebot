@@ -17,6 +17,16 @@ Rails.application.routes.draw do
   # Dashboard
   get "/dashboard", to: "dashboard#show", as: :dashboard
 
+  # Transactions
+  get "/transactions", to: "transactions#index", as: :transactions
+  post "/transactions/:id/hide", to: "transactions#hide", as: :hide_transaction
+  post "/transactions/:id/restore", to: "transactions#restore", as: :restore_transaction
+
+  # Banks
+  get "/banks", to: "banks#index", as: :banks
+  post "/banks/connect", to: "banks#connect", as: :connect_banks
+  get "/banks/callback", to: "banks#callback", as: :callback_banks
+
   # Invoices
   resources :invoices, only: [] do
     collection do

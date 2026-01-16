@@ -6,3 +6,7 @@ set :output, "/rails/log/cron.log"
 every 4.hours do
   runner "PeriodicSyncAndProcessJob.perform_later"
 end
+
+every 12.hours do
+  runner "TransactionSyncJob.perform_later"
+end

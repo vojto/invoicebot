@@ -3,6 +3,7 @@ import { Link, router, usePage } from "@inertiajs/react"
 import { Button, Box, Flex, Text } from "@radix-ui/themes"
 import { z } from "zod"
 import PdfDropZone from "../components/PdfDropZone"
+import Nav from "../components/Nav"
 
 const UserSchema = z.object({
   id: z.number(),
@@ -40,18 +41,21 @@ export default function DefaultLayout({ children }: { children: ReactNode }) {
             justify="between"
             align="center"
           >
-            {/* Logo */}
-            <Link
-              href="/"
-              style={{
-                fontSize: "var(--font-size-5)",
-                fontWeight: "var(--font-weight-semibold)",
-                color: "var(--accent-11)",
-                textDecoration: "none"
-              }}
-            >
-              Invoicebot
-            </Link>
+            {/* Logo and Navigation */}
+            <Flex align="center" gap="6">
+              <Link
+                href="/"
+                style={{
+                  fontSize: "var(--font-size-5)",
+                  fontWeight: "var(--font-weight-semibold)",
+                  color: "var(--accent-11)",
+                  textDecoration: "none"
+                }}
+              >
+                Invoicebot
+              </Link>
+              {signed_in && <Nav />}
+            </Flex>
 
             {/* User info and logout button */}
             {signed_in && user && (
