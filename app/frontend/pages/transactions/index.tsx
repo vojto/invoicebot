@@ -123,10 +123,9 @@ export default function TransactionsIndex(props: Props) {
                     <Table.Row>
                       <Table.ColumnHeaderCell width="110px">Bank</Table.ColumnHeaderCell>
                       <Table.ColumnHeaderCell width="110px">Date</Table.ColumnHeaderCell>
-                      <Table.ColumnHeaderCell width="200px">Amount</Table.ColumnHeaderCell>
-                      <Table.ColumnHeaderCell width="200px">Vendor</Table.ColumnHeaderCell>
-                      <Table.ColumnHeaderCell width="200px">From / To</Table.ColumnHeaderCell>
-                      <Table.ColumnHeaderCell>Description</Table.ColumnHeaderCell>
+                      <Table.ColumnHeaderCell width="140px">Amount</Table.ColumnHeaderCell>
+                      <Table.ColumnHeaderCell width="140px">Original</Table.ColumnHeaderCell>
+                      <Table.ColumnHeaderCell>Vendor</Table.ColumnHeaderCell>
                       <Table.ColumnHeaderCell width="100px">Actions</Table.ColumnHeaderCell>
                     </Table.Row>
                   </Table.Header>
@@ -137,52 +136,40 @@ export default function TransactionsIndex(props: Props) {
 
                       return (
                         <Table.Row key={tx.id}>
-                          <Table.Cell><span className={hiddenClass}>{tx.bank_name}</span></Table.Cell>
-                          <Table.Cell><span className={hiddenClass}>{formatDate(tx.booking_date)}</span></Table.Cell>
-                          <Table.Cell>
-                            <Flex direction="column" className={hiddenClass}>
-                              <Text color={isHidden ? "gray" : (tx.amount_cents >= 0 ? "green" : undefined)}>
-                                {formatAmount(tx.amount_cents, tx.currency)}
-                              </Text>
-                              {tx.original_currency && tx.original_amount_cents && (
-                                <Text size="1" color="gray">
-                                  {formatAmount(tx.original_amount_cents, tx.original_currency)}
-                                </Text>
-                              )}
-                            </Flex>
-                          </Table.Cell>
-                          <Table.Cell><span className={hiddenClass}>{tx.vendor_name}</span></Table.Cell>
-                          <Table.Cell>
-                            <span className={hiddenClass}>
-                              {tx.amount_cents >= 0 ? tx.debtor_name : tx.creditor_name}
-                            </span>
-                          </Table.Cell>
-                          <Table.Cell>
-                            <Text size="1" color="gray" className={`line-clamp-3 ${hiddenClass}`}>
-                              {tx.description}
+                          <Table.Cell className="!align-middle"><span className={hiddenClass}>{tx.bank_name}</span></Table.Cell>
+                          <Table.Cell className="!align-middle"><span className={hiddenClass}>{formatDate(tx.booking_date)}</span></Table.Cell>
+                          <Table.Cell className="!align-middle">
+                            <Text className={hiddenClass} color={isHidden ? "gray" : (tx.amount_cents >= 0 ? "green" : undefined)}>
+                              {formatAmount(tx.amount_cents, tx.currency)}
                             </Text>
                           </Table.Cell>
-                          <Table.Cell>
-                            <Flex align="center" className="h-full">
-                              {isHidden ? (
-                                <Button
-                                  size="1"
-                                  variant="ghost"
-                                  onClick={() => router.post(`/transactions/${tx.id}/restore`)}
-                                >
-                                  Restore
-                                </Button>
-                              ) : (
-                                <Button
-                                  size="1"
-                                  variant="ghost"
-                                  color="red"
-                                  onClick={() => router.post(`/transactions/${tx.id}/hide`)}
-                                >
-                                  Hide
-                                </Button>
-                              )}
-                            </Flex>
+                          <Table.Cell className="!align-middle">
+                            <span className={hiddenClass}>
+                              {tx.original_currency && tx.original_amount_cents
+                                ? formatAmount(tx.original_amount_cents, tx.original_currency)
+                                : "—"}
+                            </span>
+                          </Table.Cell>
+                          <Table.Cell className="!align-middle"><span className={hiddenClass}>{tx.vendor_name}</span></Table.Cell>
+                          <Table.Cell className="!align-middle">
+                            {isHidden ? (
+                              <Button
+                                size="1"
+                                variant="ghost"
+                                onClick={() => router.post(`/transactions/${tx.id}/restore`)}
+                              >
+                                Restore
+                              </Button>
+                            ) : (
+                              <Button
+                                size="1"
+                                variant="ghost"
+                                color="red"
+                                onClick={() => router.post(`/transactions/${tx.id}/hide`)}
+                              >
+                                Hide
+                              </Button>
+                            )}
                           </Table.Cell>
                         </Table.Row>
                       )
