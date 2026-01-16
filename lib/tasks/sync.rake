@@ -22,4 +22,13 @@ namespace :sync do
     processing_service = InvoiceProcessingService.new
     processing_service.process_all_users(verbose: true)
   end
+
+  desc "Sync transactions from all connected bank accounts"
+  task transactions: :environment do
+    puts "Syncing transactions from all bank connections..."
+    TransactionSyncService.sync_all
+    puts "Enriching transactions..."
+    TransactionEnrichmentService.enrich_all
+    puts "Done."
+  end
 end

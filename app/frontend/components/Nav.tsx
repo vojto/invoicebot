@@ -1,30 +1,39 @@
-import { Link } from "@inertiajs/react"
+import { Link, usePage } from "@inertiajs/react"
 import { Flex } from "@radix-ui/themes"
 
-export default function Nav() {
+interface NavLinkProps {
+  href: string
+  children: React.ReactNode
+  isActive: boolean
+}
+
+function NavLink({ href, children, isActive }: NavLinkProps) {
   return (
-    <Flex asChild gap="4">
+    <Link
+      href={href}
+      className={`px-3 py-1.5 rounded-md text-sm no-underline ${
+        isActive
+          ? "bg-white text-gray-900 border border-gray-200"
+          : "text-gray-600 hover:text-gray-900 border border-transparent"
+      }`}
+    >
+      {children}
+    </Link>
+  )
+}
+
+export default function Nav() {
+  const { url } = usePage()
+
+  return (
+    <Flex asChild gap="1" align="center">
       <nav>
-        <Link
-          href="/dashboard"
-          style={{
-            color: "var(--gray-11)",
-            textDecoration: "none",
-            fontSize: "var(--font-size-2)",
-          }}
-        >
+        <NavLink href="/dashboard" isActive={url.startsWith("/dashboard")}>
           Dashboard
-        </Link>
-        <Link
-          href="/transactions"
-          style={{
-            color: "var(--gray-11)",
-            textDecoration: "none",
-            fontSize: "var(--font-size-2)",
-          }}
-        >
+        </NavLink>
+        <NavLink href="/transactions" isActive={url.startsWith("/transactions")}>
           Transactions
-        </Link>
+        </NavLink>
       </nav>
     </Flex>
   )
