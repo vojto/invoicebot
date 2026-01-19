@@ -10,9 +10,15 @@ class DashboardController < ApplicationController
 
     render inertia: "dashboard/show", props: {
       invoices: invoices.map { |invoice| serialize_invoice(invoice) },
-      last_synced_at: format_last_synced(current_user.last_synced_at),
-      last_sync_error: current_user.last_sync_error
+      sync_running: current_user.sync_running,
+      sync_completed_at: format_last_synced(current_user.sync_completed_at),
+      sync_error: current_user.sync_error
     }
+  end
+
+  def sync
+    PeriodicSyncAndProcessJob.perform_later(user_id: current_user.id)
+    redirect_to dashboard_path
   end
 
   private

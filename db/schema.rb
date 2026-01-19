@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_01_16_065742) do
+ActiveRecord::Schema[8.1].define(version: 2026_01_19_201901) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -136,13 +136,14 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_16_065742) do
     t.text "google_refresh_token"
     t.datetime "google_token_expires_at"
     t.string "google_uid"
-    t.text "last_sync_error"
-    t.datetime "last_synced_at"
     t.string "name"
     t.text "nordigen_access_token"
     t.text "nordigen_refresh_token"
     t.datetime "nordigen_token_expires_at"
     t.string "picture_url"
+    t.datetime "sync_completed_at"
+    t.text "sync_error"
+    t.boolean "sync_running", default: false, null: false
     t.datetime "updated_at", null: false
     t.index ["email"], name: "index_users_on_email"
     t.index ["google_uid"], name: "index_users_on_google_uid", unique: true

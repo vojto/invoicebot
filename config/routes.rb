@@ -16,6 +16,7 @@ Rails.application.routes.draw do
 
   # Dashboard
   get "/dashboard", to: "dashboard#show", as: :dashboard
+  post "/dashboard/sync", to: "dashboard#sync", as: :sync_dashboard
 
   # Transactions
   get "/transactions", to: "transactions#index", as: :transactions

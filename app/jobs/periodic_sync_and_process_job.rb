@@ -19,39 +19,38 @@ class PeriodicSyncAndProcessJob < ApplicationJob
 
   def sync_and_process_user(user, sync_service, processing_service)
     Rails.logger.info "[SyncJob] Starting sync for #{user.email}..."
+    user.update!(sync_running: true, sync_error: nil)
 
     begin
       sync_service.sync_user(user)
-      user.update!(last_sync_error: nil)
     rescue => e
       Rails.logger.error "[SyncJob] Sync failed for #{user.email}: #{e.message}"
-      user.update!(last_sync_error: e.message)
+      user.update!(sync_running: false, sync_error: e.message)
       return
     end
 
     Rails.logger.info "[SyncJob] Processing emails for #{user.email}..."
     processing_service.process_user(user)
 
-    user.update!(last_synced_at: Time.current)
+    user.update!(sync_running: false, sync_completed_at: Time.current)
     Rails.logger.info "[SyncJob] Sync complete for #{user.email}."
   end
 
   def sync_and_process_all_users(sync_service, processing_service)
     Rails.logger.info "[SyncJob] Starting periodic sync and process for all users..."
+    User.update_all(sync_running: true, sync_error: nil)
 
     sync_service.sync_all_users do |user, error|
       if error
         Rails.logger.error "[SyncJob] Sync failed for #{user.email}: #{error.message}"
-        user.update!(last_sync_error: error.message)
-      else
-        user.update!(last_sync_error: nil)
+        user.update!(sync_error: error.message)
       end
     end
 
     Rails.logger.info "[SyncJob] Processing emails..."
     processing_service.process_all_users(verbose: true)
 
-    User.update_all(last_synced_at: Time.current)
+    User.update_all(sync_running: false, sync_completed_at: Time.current)
     Rails.logger.info "[SyncJob] Periodic sync and process complete."
   end
 end

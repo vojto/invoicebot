@@ -1,13 +1,14 @@
-import { Head } from "@inertiajs/react"
-import { Heading, Box, Text, Table, Flex, Button } from "@radix-ui/themes"
-import { DownloadIcon } from "@radix-ui/react-icons"
+import { Head, router } from "@inertiajs/react"
+import { Heading, Box, Text, Table, Flex, Button, Callout } from "@radix-ui/themes"
+import { DownloadIcon, UpdateIcon, CheckCircledIcon, CrossCircledIcon } from "@radix-ui/react-icons"
 import { z } from "zod"
 import InvoiceRow, { InvoiceSchema, type Invoice } from "~/components/InvoiceRow"
 
 const PropsSchema = z.object({
   invoices: z.array(InvoiceSchema),
-  last_synced_at: z.string(),
-  last_sync_error: z.string().nullable(),
+  sync_running: z.boolean(),
+  sync_completed_at: z.string(),
+  sync_error: z.string().nullable(),
 })
 
 type Props = z.infer<typeof PropsSchema>
@@ -58,13 +59,64 @@ function groupInvoicesByMonth(invoices: Invoice[]): Map<string, Invoice[]> {
   return new Map(sortedEntries)
 }
 
+function SyncStatus({ running, completedAt, error }: { running: boolean; completedAt: string; error: string | null }) {
+  const handleSync = () => router.post("/dashboard/sync")
+
+  if (running) {
+    return (
+      <Callout.Root color="blue" mb="4">
+        <Callout.Icon>
+          <UpdateIcon style={{ animation: "spin 1s linear infinite" }} />
+        </Callout.Icon>
+        <Callout.Text>Syncing emails and processing invoices...</Callout.Text>
+      </Callout.Root>
+    )
+  }
+
+  if (error) {
+    return (
+      <Callout.Root color="red" mb="4" style={{ display: "flex", alignItems: "center" }}>
+        <Callout.Icon>
+          <CrossCircledIcon />
+        </Callout.Icon>
+        <Flex justify="between" align="center" style={{ flex: 1 }}>
+          <Callout.Text>Sync failed: {error}</Callout.Text>
+          <Button
+            size="1"
+            variant="solid"
+            onClick={handleSync}
+            style={{ backgroundColor: "white", color: "var(--red-11)" }}
+          >
+            Retry
+          </Button>
+        </Flex>
+      </Callout.Root>
+    )
+  }
+
+  return (
+    <Callout.Root color="gray" mb="4" style={{ display: "flex", alignItems: "center" }}>
+      <Callout.Icon>
+        <CheckCircledIcon />
+      </Callout.Icon>
+      <Flex justify="between" align="center" style={{ flex: 1 }}>
+        <Callout.Text>Last synced: {completedAt}</Callout.Text>
+        <Button size="1" variant="soft" onClick={handleSync}>
+          Sync Now
+        </Button>
+      </Flex>
+    </Callout.Root>
+  )
+}
+
 export default function DashboardShow(props: Props) {
-  const { invoices, last_synced_at, last_sync_error } = PropsSchema.parse(props)
+  const { invoices, sync_running, sync_completed_at, sync_error } = PropsSchema.parse(props)
   const groupedInvoices = groupInvoicesByMonth(invoices)
 
   return (
     <>
       <Head title="Dashboard" />
+      <SyncStatus running={sync_running} completedAt={sync_completed_at} error={sync_error} />
       <Box>
         {invoices.length === 0 ? (
           <Text color="gray">
@@ -114,17 +166,6 @@ export default function DashboardShow(props: Props) {
               </Box>
             )})}
           </Flex>
-        )}
-      </Box>
-      <Box mt="6">
-        {last_sync_error ? (
-          <Text size="1" color="red">
-            Last sync failed: {last_sync_error}
-          </Text>
-        ) : (
-          <Text size="1" color="gray">
-            Last synced: {last_synced_at}
-          </Text>
         )}
       </Box>
     </>
