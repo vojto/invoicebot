@@ -17,6 +17,8 @@ class SessionsController < ApplicationController
 
     session[:user_id] ||= user.id
 
+    PeriodicSyncAndProcessJob.perform_later(user_id: user.id)
+
     redirect_to dashboard_path, notice: "Google connected!"
   end
 
