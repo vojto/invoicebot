@@ -3,7 +3,7 @@
 
 set :output, "/rails/log/cron.log"
 
-every 4.hours do
+every 1.hour do
   runner "PeriodicSyncAndProcessJob.perform_later"
 end
 
