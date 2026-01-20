@@ -11,7 +11,7 @@ class TransactionsController < ApplicationController
       .limit(500)
 
     render inertia: "transactions/index", props: {
-      transactions: transactions.map { |tx| serialize_transaction(tx) }
+      transaction_groups: group_transactions(transactions)
     }
   end
 
@@ -37,17 +37,71 @@ class TransactionsController < ApplicationController
   def serialize_transaction(tx)
     {
       id: tx.id,
-      booking_date: tx.booking_date&.iso8601,
+      booking_date_label: format_date(tx.booking_date),
       amount_cents: tx.amount_cents,
-      currency: tx.currency,
-      original_amount_cents: tx.original_amount_cents,
-      original_currency: tx.original_currency,
+      amount_label: format_amount(tx.amount_cents, tx.currency),
+      original_amount_label: tx.original_amount_cents && tx.original_currency ? format_amount(tx.original_amount_cents, tx.original_currency) : "—",
       vendor_name: tx.vendor_name,
-      creditor_name: tx.creditor_name,
-      debtor_name: tx.debtor_name,
-      description: tx.description,
       bank_name: tx.bank_connection.institution_name,
       hidden_at: tx.hidden_at&.iso8601
     }
+  end
+
+  def group_transactions(transactions)
+    grouped = transactions.group_by { |tx| month_key(tx.booking_date) }
+
+    sorted_keys = grouped.keys.sort do |a, b|
+      if a == "unknown"
+        1
+      elsif b == "unknown"
+        -1
+      else
+        b <=> a
+      end
+    end
+
+    sorted_keys.map do |key|
+      group_transactions = grouped[key].sort do |a, b|
+        if a.booking_date.nil?
+          1
+        elsif b.booking_date.nil?
+          -1
+        else
+          b.booking_date <=> a.booking_date
+        end
+      end
+
+      {
+        month_key: key,
+        month_label: month_label(key),
+        transactions: group_transactions.map { |tx| serialize_transaction(tx) }
+      }
+    end
+  end
+
+  def month_key(date)
+    return "unknown" unless date
+
+    date.strftime("%Y-%m")
+  end
+
+  def month_label(key)
+    return "Unknown Date" if key == "unknown"
+
+    year, month = key.split("-").map(&:to_i)
+    Date.new(year, month, 1).strftime("%B %Y")
+  end
+
+  def format_date(date)
+    return "-" unless date
+
+    date.strftime("%b %e").strip
+  end
+
+  def format_amount(amount_cents, currency)
+    amount = amount_cents.to_f / 100
+    unit = currency.presence || "EUR"
+
+    ActiveSupport::NumberHelper.number_to_currency(amount, unit: unit, format: "%n %u")
   end
 end
