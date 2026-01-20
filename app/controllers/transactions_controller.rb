@@ -1,6 +1,6 @@
 class TransactionsController < ApplicationController
   before_action :require_authentication
-  before_action :set_transaction, only: [ :hide, :restore, :invoice_matches, :link_invoice ]
+  before_action :set_transaction, only: [ :hide, :restore, :invoice_matches, :link_invoice, :update_vendor ]
 
   def index
     transactions = Transaction
@@ -22,6 +22,11 @@ class TransactionsController < ApplicationController
 
   def restore
     @transaction.update!(hidden_at: nil)
+    redirect_to transactions_path
+  end
+
+  def update_vendor
+    @transaction.update!(vendor_name: params[:vendor_name].presence)
     redirect_to transactions_path
   end
 

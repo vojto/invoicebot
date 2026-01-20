@@ -22,6 +22,7 @@ Rails.application.routes.draw do
   get "/transactions", to: "transactions#index", as: :transactions
   get "/transactions/:id/invoice_matches", to: "transactions#invoice_matches", as: :transaction_invoice_matches
   post "/transactions/:id/link_invoice", to: "transactions#link_invoice", as: :link_transaction_invoice
+  post "/transactions/:id/update_vendor", to: "transactions#update_vendor", as: :update_transaction_vendor
   post "/transactions/:id/hide", to: "transactions#hide", as: :hide_transaction
   post "/transactions/:id/restore", to: "transactions#restore", as: :restore_transaction
 

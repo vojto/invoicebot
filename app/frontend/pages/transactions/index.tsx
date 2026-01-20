@@ -3,6 +3,7 @@ import { Heading, Box, Text, Button, Flex, Table } from "@radix-ui/themes"
 import { CheckIcon, FileTextIcon, PlusIcon } from "@radix-ui/react-icons"
 import { z } from "zod"
 import InvoiceSelector from "../../components/InvoiceSelector"
+import VendorEditor from "../../components/VendorEditor"
 
 const TransactionSchema = z.object({
   id: z.number(),
@@ -92,7 +93,7 @@ export default function TransactionsIndex(props: Props) {
                         ? "bg-gray-50"
                         : isLinked
                           ? "bg-blue-50"
-                          : ""
+                          : "bg-yellow-50"
 
                       return (
                         <Table.Row key={tx.id} className={rowClass}>
@@ -111,7 +112,12 @@ export default function TransactionsIndex(props: Props) {
                               {tx.original_amount_label}
                             </span>
                           </Table.Cell>
-                          <Table.Cell><span className={hiddenClass}>{tx.vendor_name}</span></Table.Cell>
+                          <Table.Cell>
+                            <Flex align="center" gap="2">
+                              <span className={hiddenClass}>{tx.vendor_name}</span>
+                              <VendorEditor transactionId={tx.id} vendorName={tx.vendor_name} />
+                            </Flex>
+                          </Table.Cell>
                           <Table.Cell>
                             {tx.invoice ? (
                               <Button size="1" variant="soft" color="blue" className="gap-1">
