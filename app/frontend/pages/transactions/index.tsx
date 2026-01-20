@@ -128,7 +128,7 @@ export default function TransactionsIndex(props: Props) {
                                 size="1"
                                 variant="soft"
                                 color="gray"
-                                onClick={() => router.post(`/transactions/${tx.id}/restore`)}
+                                onClick={() => router.post(`/transactions/${tx.id}/restore`, {}, { preserveScroll: true })}
                               >
                                 Restore
                               </Button>
@@ -137,7 +137,7 @@ export default function TransactionsIndex(props: Props) {
                                 size="1"
                                 variant="soft"
                                 color="red"
-                                onClick={() => router.post(`/transactions/${tx.id}/hide`)}
+                                onClick={() => router.post(`/transactions/${tx.id}/hide`, {}, { preserveScroll: true })}
                               >
                                 Hide
                               </Button>
