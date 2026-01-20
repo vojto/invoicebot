@@ -15,7 +15,7 @@ class Invoice < ApplicationRecord
   belongs_to :user
   belongs_to :email, optional: true
   has_one_attached :pdf
-  has_one :transaction
+  has_one :bank_transaction, class_name: "Transaction"
 
   validates :vendor_name, presence: true
   validates :amount_cents, presence: true
