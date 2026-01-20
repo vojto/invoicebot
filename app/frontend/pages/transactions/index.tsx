@@ -1,12 +1,18 @@
 import { Head, Link, router } from "@inertiajs/react"
 import { Heading, Box, Text, Button, Flex, Table } from "@radix-ui/themes"
-import { PlusIcon } from "@radix-ui/react-icons"
+import { CheckIcon, FileTextIcon, PlusIcon } from "@radix-ui/react-icons"
 import { z } from "zod"
 import InvoiceSelector from "../../components/InvoiceSelector"
 
 const TransactionSchema = z.object({
   id: z.number(),
   invoice_id: z.number().nullable(),
+  invoice: z
+    .object({
+      id: z.number(),
+      label: z.string(),
+    })
+    .nullable(),
   booking_date_label: z.string(),
   amount_cents: z.number(),
   amount_label: z.string(),
@@ -64,6 +70,7 @@ export default function TransactionsIndex(props: Props) {
                 <Table.Root variant="surface" size="2">
                   <Table.Header>
                     <Table.Row>
+                      <Table.ColumnHeaderCell width="36px"></Table.ColumnHeaderCell>
                       <Table.ColumnHeaderCell width="110px">Bank</Table.ColumnHeaderCell>
                       <Table.ColumnHeaderCell width="110px">Date</Table.ColumnHeaderCell>
                       <Table.ColumnHeaderCell width="140px">Amount</Table.ColumnHeaderCell>
@@ -76,10 +83,19 @@ export default function TransactionsIndex(props: Props) {
                   <Table.Body>
                     {group.transactions.map((tx) => {
                       const isHidden = !!tx.hidden_at
+                      const isLinked = !!tx.invoice_id
                       const hiddenClass = isHidden ? "line-through opacity-40" : ""
+                      const rowClass = isHidden
+                        ? "bg-gray-50"
+                        : isLinked
+                          ? "bg-blue-50"
+                          : ""
 
                       return (
-                        <Table.Row key={tx.id}>
+                        <Table.Row key={tx.id} className={rowClass}>
+                          <Table.Cell>
+                            {isLinked && <CheckIcon className="text-blue-600" />}
+                          </Table.Cell>
                           <Table.Cell><span className={hiddenClass}>{tx.bank_name}</span></Table.Cell>
                           <Table.Cell><span className={hiddenClass}>{tx.booking_date_label}</span></Table.Cell>
                           <Table.Cell>
@@ -94,7 +110,14 @@ export default function TransactionsIndex(props: Props) {
                           </Table.Cell>
                           <Table.Cell><span className={hiddenClass}>{tx.vendor_name}</span></Table.Cell>
                           <Table.Cell>
-                            {!tx.invoice_id && <InvoiceSelector />}
+                            {tx.invoice ? (
+                              <Button size="1" variant="soft" color="blue" className="gap-1">
+                                <FileTextIcon />
+                                {tx.invoice.label}
+                              </Button>
+                            ) : (
+                              !isHidden && <InvoiceSelector transactionId={tx.id} />
+                            )}
                           </Table.Cell>
                           <Table.Cell>
                             {isHidden ? (
