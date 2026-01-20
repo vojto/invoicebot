@@ -37,6 +37,7 @@ class TransactionsController < ApplicationController
   def serialize_transaction(tx)
     {
       id: tx.id,
+      invoice_id: tx.invoice_id,
       booking_date_label: format_date(tx.booking_date),
       amount_cents: tx.amount_cents,
       amount_label: format_amount(tx.amount_cents, tx.currency),

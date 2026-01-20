@@ -2,9 +2,11 @@ import { Head, Link, router } from "@inertiajs/react"
 import { Heading, Box, Text, Button, Flex, Table } from "@radix-ui/themes"
 import { PlusIcon } from "@radix-ui/react-icons"
 import { z } from "zod"
+import InvoiceSelector from "../../components/InvoiceSelector"
 
 const TransactionSchema = z.object({
   id: z.number(),
+  invoice_id: z.number().nullable(),
   booking_date_label: z.string(),
   amount_cents: z.number(),
   amount_label: z.string(),
@@ -91,12 +93,15 @@ export default function TransactionsIndex(props: Props) {
                             </span>
                           </Table.Cell>
                           <Table.Cell><span className={hiddenClass}>{tx.vendor_name}</span></Table.Cell>
-                          <Table.Cell><span className={hiddenClass}>Invoice goes here</span></Table.Cell>
+                          <Table.Cell>
+                            {!tx.invoice_id && <InvoiceSelector />}
+                          </Table.Cell>
                           <Table.Cell>
                             {isHidden ? (
                               <Button
                                 size="1"
-                                variant="ghost"
+                                variant="soft"
+                                color="gray"
                                 onClick={() => router.post(`/transactions/${tx.id}/restore`)}
                               >
                                 Restore
@@ -104,7 +109,7 @@ export default function TransactionsIndex(props: Props) {
                             ) : (
                               <Button
                                 size="1"
-                                variant="ghost"
+                                variant="soft"
                                 color="red"
                                 onClick={() => router.post(`/transactions/${tx.id}/hide`)}
                               >
