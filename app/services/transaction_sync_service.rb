@@ -46,6 +46,7 @@ class TransactionSyncService
     return if existing
 
     amount = parse_amount(tx.dig("transactionAmount", "amount"))
+    direction = amount.negative? ? "outflow" : "inflow"
     description = [
       tx["remittanceInformationUnstructured"],
       tx["additionalInformation"]
@@ -57,8 +58,9 @@ class TransactionSyncService
       internal_transaction_id: internal_id,
       booking_date: tx["bookingDate"],
       value_date: tx["valueDate"],
-      amount_cents: amount,
+      amount_cents: amount.abs,
       currency: tx.dig("transactionAmount", "currency"),
+      direction: direction,
       creditor_name: tx["creditorName"],
       creditor_iban: tx.dig("creditorAccount", "iban"),
       debtor_name: tx["debtorName"],

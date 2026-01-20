@@ -36,7 +36,15 @@ class TransactionsController < ApplicationController
 
   def link_invoice
     invoice = Invoice.find_by!(id: params[:invoice_id], user_id: current_user.id)
-    @transaction.update!(invoice_id: invoice.id)
+    Transaction.transaction do
+      existing = Transaction
+        .joins(:bank_connection)
+        .where(bank_connections: { user_id: current_user.id })
+        .find_by(invoice_id: invoice.id)
+
+      existing&.update!(invoice_id: nil) if existing && existing.id != @transaction.id
+      @transaction.update!(invoice_id: invoice.id)
+    end
     redirect_to transactions_path
   end
 
@@ -54,6 +62,7 @@ class TransactionsController < ApplicationController
       id: tx.id,
       invoice_id: tx.invoice_id,
       invoice: tx.invoice ? serialize_invoice_summary(tx.invoice) : nil,
+      direction: tx.direction,
       booking_date_label: format_date(tx.booking_date),
       amount_cents: tx.amount_cents,
       amount_label: format_amount(tx.amount_cents, tx.currency),
@@ -175,7 +184,7 @@ class TransactionsController < ApplicationController
   end
 
   def format_amount(amount_cents, currency)
-    amount = amount_cents.to_f / 100
+    amount = amount_cents.to_f.abs / 100
     unit = currency.presence || "EUR"
 
     ActiveSupport::NumberHelper.number_to_currency(amount, unit: unit, format: "%n %u")

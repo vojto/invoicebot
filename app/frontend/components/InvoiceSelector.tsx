@@ -23,6 +23,11 @@ function formatOffset(offset: number | null): string {
   return `${sign}${offset}`
 }
 
+function offsetTone(offset: number | null): "green" | "red" | "gray" {
+  if (offset === null || Number.isNaN(offset)) return "gray"
+  return Math.abs(offset) <= 14 ? "green" : "red"
+}
+
 export default function InvoiceSelector({ transactionId }: Props) {
   const [open, setOpen] = useState(false)
   const [matches, setMatches] = useState<InvoiceMatch[] | null>(null)
@@ -63,10 +68,11 @@ export default function InvoiceSelector({ transactionId }: Props) {
       <Popover.Portal>
         <Theme asChild>
           <Popover.Content
+            side="bottom"
             align="end"
             sideOffset={6}
             className="z-50 rounded-md border border-gray-200 bg-white p-3 shadow-lg"
-            style={{ width: 260 }}
+            style={{ width: 300 }}
           >
             <Box>
               <Text size="2" weight="medium">
@@ -83,7 +89,7 @@ export default function InvoiceSelector({ transactionId }: Props) {
                       <Button
                         key={invoice.id}
                         variant="ghost"
-                        className="h-auto justify-between px-2 py-2 text-left"
+                        className="h-auto w-full justify-start px-2 py-2 text-left"
                         onClick={() => {
                           router.post(`/transactions/${transactionId}/link_invoice`, {
                             invoice_id: invoice.id,
@@ -91,17 +97,24 @@ export default function InvoiceSelector({ transactionId }: Props) {
                           setOpen(false)
                         }}
                       >
-                        <Flex direction="column" align="start">
+                        <Flex direction="column" gap="1" align="start" className="w-full">
                           <Text size="2" weight="medium">
                             {invoice.vendor_name || "Unknown vendor"}
                           </Text>
-                          <Text size="1" color="gray">
-                            {invoice.amount_label} · {invoice.date_label}
-                          </Text>
+                          <Flex align="center" justify="between" className="w-full">
+                            <Flex align="center" gap="2">
+                              <Text size="2" color="gray">
+                                {invoice.amount_label}
+                              </Text>
+                              <Text size="2" color="gray">
+                                {invoice.date_label}
+                              </Text>
+                            </Flex>
+                            <Text size="2" weight="medium" color={offsetTone(invoice.date_offset_days)}>
+                              {formatOffset(invoice.date_offset_days)}d
+                            </Text>
+                          </Flex>
                         </Flex>
-                        <Text size="1" color="gray">
-                          {formatOffset(invoice.date_offset_days)}d
-                        </Text>
                       </Button>
                     ))}
                   </Flex>

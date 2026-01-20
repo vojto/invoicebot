@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_01_20_090000) do
+ActiveRecord::Schema[8.1].define(version: 2026_01_20_101500) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -115,6 +115,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_20_090000) do
     t.string "debtor_iban"
     t.string "debtor_name"
     t.text "description"
+    t.string "direction", null: false
     t.datetime "hidden_at"
     t.string "internal_transaction_id"
     t.bigint "invoice_id"
@@ -128,6 +129,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_20_090000) do
     t.index ["bank_connection_id", "internal_transaction_id"], name: "idx_on_bank_connection_id_internal_transaction_id_7e9d222c1d", unique: true
     t.index ["bank_connection_id"], name: "index_transactions_on_bank_connection_id"
     t.index ["booking_date"], name: "index_transactions_on_booking_date"
+    t.index ["direction"], name: "index_transactions_on_direction"
     t.index ["invoice_id"], name: "index_transactions_on_invoice_id", unique: true
   end
 
