@@ -15,15 +15,22 @@ class GoogleCredentials
   def self.ensure_fresh!(user, scopes:, force_refresh: false)
     creds = build(user, scopes: scopes)
     if force_refresh || creds.expired?
+      reason = force_refresh ? "force_refresh requested" : "token expired at #{user.google_token_expires_at}"
+      Rails.logger.info "[GoogleCredentials] Refreshing token for #{user.email} (#{reason})"
+      Rails.logger.info "[GoogleCredentials] Refresh token present: #{user.google_refresh_token.present?}, length: #{user.google_refresh_token&.length}"
+
       begin
         creds.refresh!
         user.update!(
           google_access_token: creds.access_token,
           google_token_expires_at: Time.at(creds.expires_at.to_i)
         )
+        Rails.logger.info "[GoogleCredentials] Token refreshed successfully for #{user.email}, expires at #{user.google_token_expires_at}"
       rescue Signet::AuthorizationError => e
-        Rails.logger.error "Failed to refresh Google credentials: #{e.message}"
-        raise Google::Apis::AuthorizationError.new("Token refresh failed", status_code: 401)
+        Rails.logger.error "[GoogleCredentials] Failed to refresh token for #{user.email}"
+        Rails.logger.error "[GoogleCredentials] Error: #{e.class}: #{e.message}"
+        Rails.logger.error "[GoogleCredentials] Response body: #{e.response.body}" if e.respond_to?(:response) && e.response
+        raise Google::Apis::AuthorizationError.new("Token refresh failed: #{e.message}", status_code: 401)
       end
     end
     creds
