@@ -91,9 +91,11 @@ export default function InvoiceSelector({ transactionId }: Props) {
                         variant="ghost"
                         className="h-auto w-full justify-start px-2 py-2 text-left"
                         onClick={() => {
-                          router.post(`/transactions/${transactionId}/link_invoice`, {
-                            invoice_id: invoice.id,
-                          })
+                          router.post(
+                            `/transactions/${transactionId}/link_invoice`,
+                            { invoice_id: invoice.id },
+                            { preserveScroll: true }
+                          )
                           setOpen(false)
                         }}
                       >
