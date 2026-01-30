@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_01_19_201901) do
+ActiveRecord::Schema[8.1].define(version: 2026_01_30_070458) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -87,7 +87,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_19_201901) do
   end
 
   create_table "invoices", force: :cascade do |t|
-    t.virtual "accounting_date", type: :date, as: "COALESCE(delivery_date, issue_date)", stored: true
+    t.virtual "accounting_date", type: :date, as: "COALESCE(accounting_date_override, delivery_date, issue_date)", stored: true
+    t.date "accounting_date_override"
     t.integer "amount_cents", default: 0, null: false
     t.datetime "created_at", null: false
     t.string "currency"
@@ -115,8 +116,10 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_19_201901) do
     t.string "debtor_iban"
     t.string "debtor_name"
     t.text "description"
+    t.string "direction", null: false
     t.datetime "hidden_at"
     t.string "internal_transaction_id"
+    t.bigint "invoice_id"
     t.boolean "is_enriched", default: false, null: false
     t.integer "original_amount_cents"
     t.string "original_currency"
@@ -127,6 +130,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_19_201901) do
     t.index ["bank_connection_id", "internal_transaction_id"], name: "idx_on_bank_connection_id_internal_transaction_id_7e9d222c1d", unique: true
     t.index ["bank_connection_id"], name: "index_transactions_on_bank_connection_id"
     t.index ["booking_date"], name: "index_transactions_on_booking_date"
+    t.index ["direction"], name: "index_transactions_on_direction"
+    t.index ["invoice_id"], name: "index_transactions_on_invoice_id", unique: true
   end
 
   create_table "users", force: :cascade do |t|
@@ -157,4 +162,5 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_19_201901) do
   add_foreign_key "invoices", "emails"
   add_foreign_key "invoices", "users"
   add_foreign_key "transactions", "bank_connections"
+  add_foreign_key "transactions", "invoices"
 end

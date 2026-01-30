@@ -1,6 +1,6 @@
 class InvoicesController < ApplicationController
   before_action :require_authentication
-  before_action :set_invoice, only: [ :remove, :restore ]
+  before_action :set_invoice, only: [ :remove, :restore, :update_accounting_date ]
 
   def remove
     @invoice.soft_delete!
@@ -10,6 +10,15 @@ class InvoicesController < ApplicationController
   def restore
     @invoice.restore!
     redirect_to dashboard_path
+  end
+
+  def update_accounting_date
+    date_string = params[:accounting_date]
+    date = date_string.present? ? Date.parse(date_string) : nil
+    @invoice.update!(accounting_date_override: date)
+    redirect_to dashboard_path
+  rescue ArgumentError
+    redirect_to dashboard_path, alert: "Invalid date format"
   end
 
   def upload
