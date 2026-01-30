@@ -37,6 +37,7 @@ Rails.application.routes.draw do
     member do
       post :remove
       post :restore
+      post :update_accounting_date
     end
   end
 
