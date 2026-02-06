@@ -14,7 +14,7 @@ const TransactionSchema = z.object({
       label: z.string(),
     })
     .nullable(),
-  direction: z.enum(["credit", "debit"]),
+  direction: z.enum(["credit", "debit", "inflow", "outflow"]),
   booking_date_label: z.string(),
   amount_cents: z.number(),
   amount_label: z.string(),
@@ -90,7 +90,7 @@ export default function TransactionsIndex(props: Props) {
                       const isLinked = !!tx.invoice_id
                       const hiddenClass = isHidden ? "line-through opacity-40" : ""
                       const bankLabel = tx.bank_name?.split(" ")[0] || ""
-                      const directionColor = tx.direction === "credit" ? "green" : "red"
+                      const directionColor = (tx.direction === "credit" || tx.direction === "inflow") ? "green" : "red"
                       const rowClass = isHidden
                         ? "bg-gray-50"
                         : isLinked
