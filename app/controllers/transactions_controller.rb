@@ -31,12 +31,21 @@ class TransactionsController < ApplicationController
   end
 
   def invoice_matches
-    matches = invoice_match_candidates(@transaction)
-    matches = sort_invoice_matches(@transaction, matches).take(5)
-
-    render json: {
-      matches: matches.map { |invoice| serialize_invoice_match(@transaction, invoice) }
-    }
+    exact = invoice_match_candidates(@transaction, exact: true)
+    if exact.any?
+      matches = sort_invoice_matches(@transaction, exact).take(5)
+      render json: {
+        match_type: "exact",
+        matches: matches.map { |invoice| serialize_invoice_match(@transaction, invoice) }
+      }
+    else
+      close = invoice_match_candidates(@transaction, exact: false)
+      matches = sort_invoice_matches(@transaction, close).take(5)
+      render json: {
+        match_type: "close",
+        matches: matches.map { |invoice| serialize_invoice_match(@transaction, invoice) }
+      }
+    end
   end
 
   def link_invoice
@@ -120,29 +129,51 @@ class TransactionsController < ApplicationController
   end
 
   def serialize_invoice_match(transaction, invoice)
+    amount_diff = invoice.amount_cents - transaction.amount_cents
     {
       id: invoice.id,
       vendor_name: invoice.vendor_name,
       amount_label: format_amount(invoice.amount_cents, invoice.currency),
       date_label: format_invoice_date(invoice),
-      date_offset_days: date_offset_days(transaction, invoice)
+      date_offset_days: date_offset_days(transaction, invoice),
+      amount_diff_label: amount_diff != 0 ? format_signed_amount(amount_diff, invoice.currency) : nil
     }
   end
 
-  def invoice_match_candidates(transaction)
+  def invoice_match_candidates(transaction, exact: true)
     scope = Invoice.where(user_id: current_user.id, deleted_at: nil)
-    matches = scope.where(currency: transaction.currency, amount_cents: transaction.amount_cents)
 
-    if transaction.original_amount_cents.present? && transaction.original_currency.present?
-      matches = matches.or(
-        scope.where(
-          currency: transaction.original_currency,
-          amount_cents: transaction.original_amount_cents
+    if exact
+      matches = scope.where(currency: transaction.currency, amount_cents: transaction.amount_cents)
+
+      if transaction.original_amount_cents.present? && transaction.original_currency.present?
+        matches = matches.or(
+          scope.where(
+            currency: transaction.original_currency,
+            amount_cents: transaction.original_amount_cents
+          )
         )
-      )
-    end
+      end
 
-    matches
+      matches
+    else
+      threshold = 500 # 5.00 in cents
+      amt = transaction.amount_cents
+      matches = scope.where(currency: transaction.currency)
+        .where("amount_cents BETWEEN ? AND ?", amt - threshold, amt + threshold)
+        .where.not(amount_cents: amt)
+
+      if transaction.original_amount_cents.present? && transaction.original_currency.present?
+        orig = transaction.original_amount_cents
+        matches = matches.or(
+          scope.where(currency: transaction.original_currency)
+            .where("amount_cents BETWEEN ? AND ?", orig - threshold, orig + threshold)
+            .where.not(amount_cents: orig)
+        )
+      end
+
+      matches
+    end
   end
 
   def sort_invoice_matches(transaction, invoices)
@@ -193,6 +224,11 @@ class TransactionsController < ApplicationController
     unit = currency.presence || "EUR"
 
     ActiveSupport::NumberHelper.number_to_currency(amount, unit: unit, format: "%n %u")
+  end
+
+  def format_signed_amount(amount_cents, currency)
+    sign = amount_cents > 0 ? "+" : ""
+    "#{sign}#{format_amount(amount_cents, currency)}"
   end
 
   def serialize_bank_sync_status(connection)

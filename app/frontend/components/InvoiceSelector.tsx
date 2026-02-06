@@ -10,6 +10,12 @@ type InvoiceMatch = {
   amount_label: string
   date_label: string
   date_offset_days: number | null
+  amount_diff_label: string | null
+}
+
+type MatchResponse = {
+  match_type: "exact" | "close"
+  matches: InvoiceMatch[]
 }
 
 type Props = {
@@ -30,27 +36,30 @@ function offsetTone(offset: number | null): "green" | "red" | "gray" {
 
 export default function InvoiceSelector({ transactionId }: Props) {
   const [open, setOpen] = useState(false)
-  const [matches, setMatches] = useState<InvoiceMatch[] | null>(null)
+  const [data, setData] = useState<MatchResponse | null>(null)
   const [isLoading, setIsLoading] = useState(false)
 
   useEffect(() => {
-    if (!open || matches !== null || isLoading) return
+    if (!open || data !== null || isLoading) return
 
     const loadMatches = async () => {
       setIsLoading(true)
       try {
         const response = await fetch(`/transactions/${transactionId}/invoice_matches`)
-        const data = await response.json()
-        setMatches(data.matches || [])
+        const json = await response.json()
+        setData({ match_type: json.match_type, matches: json.matches || [] })
       } catch {
-        setMatches([])
+        setData({ match_type: "exact", matches: [] })
       } finally {
         setIsLoading(false)
       }
     }
 
     loadMatches()
-  }, [open, matches, isLoading, transactionId])
+  }, [open, data, isLoading, transactionId])
+
+  const matches = data?.matches ?? []
+  const isClose = data?.match_type === "close"
 
   return (
     <Popover.Root open={open} onOpenChange={setOpen}>
@@ -75,15 +84,15 @@ export default function InvoiceSelector({ transactionId }: Props) {
             style={{ width: 300 }}
           >
             <Box>
-              <Text size="2" weight="medium">
-                Matching invoices
+              <Text size="2" weight="medium" color={isClose ? "orange" : undefined}>
+                {isClose ? "Close amounts" : "Matching invoices"}
               </Text>
               <Box mt="2">
                 {isLoading ? (
                   <Flex align="center" justify="center" py="3">
                     <span className="h-4 w-4 animate-spin rounded-full border-2 border-gray-200 border-t-gray-500" />
                   </Flex>
-                ) : matches && matches.length > 0 ? (
+                ) : matches.length > 0 ? (
                   <Flex direction="column" gap="2">
                     {matches.map((invoice) => (
                       <Button
@@ -93,7 +102,7 @@ export default function InvoiceSelector({ transactionId }: Props) {
                         onClick={() => {
                           router.post(`/transactions/${transactionId}/link_invoice`, {
                             invoice_id: invoice.id,
-                          })
+                          }, { preserveScroll: true })
                           setOpen(false)
                         }}
                       >
@@ -110,9 +119,16 @@ export default function InvoiceSelector({ transactionId }: Props) {
                                 {invoice.date_label}
                               </Text>
                             </Flex>
-                            <Text size="2" weight="medium" color={offsetTone(invoice.date_offset_days)}>
-                              {formatOffset(invoice.date_offset_days)}d
-                            </Text>
+                            <Flex align="center" gap="2">
+                              {invoice.amount_diff_label && (
+                                <Text size="2" weight="medium" color="orange">
+                                  {invoice.amount_diff_label}
+                                </Text>
+                              )}
+                              <Text size="2" weight="medium" color={offsetTone(invoice.date_offset_days)}>
+                                {formatOffset(invoice.date_offset_days)}d
+                              </Text>
+                            </Flex>
                           </Flex>
                         </Flex>
                       </Button>
