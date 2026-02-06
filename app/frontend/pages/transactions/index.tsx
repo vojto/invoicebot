@@ -95,7 +95,7 @@ export default function TransactionsIndex(props: Props) {
                         ? "bg-gray-50"
                         : isLinked
                           ? "bg-blue-50"
-                          : ""
+                          : "bg-yellow-50/50"
 
                       return (
                         <Table.Row key={tx.id} className={rowClass}>
