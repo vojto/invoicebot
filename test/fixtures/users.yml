@@ -1,9 +1,0 @@
-one:
-  email: one@example.com
-  google_uid: google-uid-1
-  name: User One
-
-two:
-  email: two@example.com
-  google_uid: google-uid-2
-  name: User Two
