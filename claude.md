@@ -55,3 +55,29 @@ export default function MyComponent(props: Props) {
   // ...
 }
 ```
+
+## Deployment
+
+Deployed via **Kamal** to `65.108.228.167` (Hetzner). Domain: `invoices.rinik.net`.
+
+Three roles: `web` (Puma/Thruster), `job` (Solid Queue via `bin/jobs`), `cron` (whenever gem).
+
+Useful Kamal commands:
+- `bin/kamal console` — Rails console on production
+- `bin/kamal shell` — Bash shell on production
+- `bin/kamal logs -r job` — Tail job processor logs
+- `bin/kamal app exec 'bin/rails runner "SomeJob.perform_later"'` — Run a job
+
+## Key Jobs
+
+- `TransactionSyncJob` — Syncs bank transactions via GoCardless/Nordigen. Runs every 12h.
+- `PeriodicSyncAndProcessJob` — Syncs Gmail and processes invoices. Runs every 1h.
+- Rake: `sync:transactions`, `sync:emails`, `sync:process`, `sync:all`
+
+## Architecture
+
+- Rails + Inertia.js + React frontend
+- Solid Queue for jobs, Solid Cache for caching
+- PostgreSQL database (shared on same server)
+- Bank integration: GoCardless/Nordigen API
+- Email sync: Gmail API with Google OAuth
