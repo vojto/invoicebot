@@ -2,6 +2,7 @@ import { Head, Link, router } from "@inertiajs/react"
 import { Heading, Box, Text, Button, Flex, Table } from "@radix-ui/themes"
 import { PlusIcon } from "@radix-ui/react-icons"
 import { z } from "zod"
+import BankSyncStatusList, { BankSyncStatusSchema } from "../../components/BankSyncStatusList"
 
 const TransactionSchema = z.object({
   id: z.number(),
@@ -22,6 +23,7 @@ type Transaction = z.infer<typeof TransactionSchema>
 
 const PropsSchema = z.object({
   transactions: z.array(TransactionSchema),
+  bank_sync_statuses: z.array(BankSyncStatusSchema),
 })
 
 type Props = z.infer<typeof PropsSchema>
@@ -90,7 +92,7 @@ function formatDate(dateString: string | null): string {
 }
 
 export default function TransactionsIndex(props: Props) {
-  const { transactions } = PropsSchema.parse(props)
+  const { transactions, bank_sync_statuses } = PropsSchema.parse(props)
   const groupedTransactions = groupTransactionsByMonth(transactions)
 
   return (
@@ -106,6 +108,7 @@ export default function TransactionsIndex(props: Props) {
             </Link>
           </Button>
         </Flex>
+        <BankSyncStatusList bankSyncStatuses={bank_sync_statuses} />
 
         {transactions.length === 0 ? (
           <Text color="gray">
