@@ -6,7 +6,17 @@ This project is in active development. If necessary, you can wipe all data excep
 
 ## Dependencies
 
-Ruby and Node versions are managed with [mise](https://mise.jdx.dev/). Run `mise install` to install the correct versions. When updating language versions, edit `.mise.toml` (not `.ruby-version` or `.node-version`).
+Ruby and Node versions are managed with [mise](https://mise.jdx.dev/). Run `mise trust` first, then `mise install` to install the correct versions. When updating language versions, edit `.mise.toml` (not `.ruby-version` or `.node-version`).
+
+Do not set a local Bundler path (for example, do not run `bundle config set --local path vendor/bundle`). Use the default gem path from the active `mise` Ruby toolchain.
+
+## Testing
+
+Use specs instead of tests for new coverage.
+
+Keep all specs as simple as possible: focus on the core behavior, avoid over-mocking, and avoid unnecessary setup.
+
+Use FactoryBot factories for test data instead of YAML fixtures.
 
 ## Environment Variables
 

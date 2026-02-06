@@ -7,6 +7,7 @@ one:
   booking_date: 2026-01-15
   value_date: 2026-01-15
   amount_cents: 1
+  direction: credit
   currency: MyString
   creditor_name: MyString
   creditor_iban: MyString
@@ -22,6 +23,7 @@ two:
   booking_date: 2026-01-15
   value_date: 2026-01-15
   amount_cents: 1
+  direction: credit
   currency: MyString
   creditor_name: MyString
   creditor_iban: MyString

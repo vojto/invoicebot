@@ -10,8 +10,13 @@ class TransactionsController < ApplicationController
       .order(booking_date: :desc, created_at: :desc)
       .limit(500)
 
+    bank_sync_statuses = current_user.bank_connections
+      .linked
+      .order(:institution_name)
+
     render inertia: "transactions/index", props: {
-      transactions: transactions.map { |tx| serialize_transaction(tx) }
+      transactions: transactions.map { |tx| serialize_transaction(tx) },
+      bank_sync_statuses: bank_sync_statuses.map { |connection| serialize_bank_sync_status(connection) }
     }
   end
 
@@ -49,5 +54,21 @@ class TransactionsController < ApplicationController
       bank_name: tx.bank_connection.institution_name,
       hidden_at: tx.hidden_at&.iso8601
     }
+  end
+
+  def serialize_bank_sync_status(connection)
+    {
+      id: connection.id,
+      bank_name: connection.institution_name.presence || "Bank ##{connection.id}",
+      sync_running: connection.sync_running,
+      sync_completed_at: format_last_synced(connection.sync_completed_at),
+      sync_error: connection.sync_error
+    }
+  end
+
+  def format_last_synced(time)
+    return "Never" if time.nil?
+
+    time.strftime("%b %d, %Y at %l:%M %p")
   end
 end

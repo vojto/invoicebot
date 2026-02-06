@@ -7,11 +7,20 @@ class TransactionSyncService
   def sync
     return unless @bank_connection.linked?
 
-    client = NordigenService.new(@user).client
-    requisition_data = client.requisition.get_requisition_by_id(@bank_connection.requisition_id)
+    @bank_connection.update!(sync_running: true, sync_error: nil)
 
-    requisition_data["accounts"].each do |account_id|
-      sync_account(client, account_id)
+    begin
+      client = NordigenService.new(@user).client
+      requisition_data = client.requisition.get_requisition_by_id(@bank_connection.requisition_id)
+
+      requisition_data["accounts"].each do |account_id|
+        sync_account(client, account_id)
+      end
+
+      @bank_connection.update!(sync_running: false, sync_completed_at: Time.current, sync_error: nil)
+    rescue => e
+      @bank_connection.update(sync_running: false, sync_error: e.message)
+      raise
     end
   end
 
@@ -58,6 +67,7 @@ class TransactionSyncService
       booking_date: tx["bookingDate"],
       value_date: tx["valueDate"],
       amount_cents: amount,
+      direction: amount >= 0 ? "credit" : "debit",
       currency: tx.dig("transactionAmount", "currency"),
       creditor_name: tx["creditorName"],
       creditor_iban: tx.dig("creditorAccount", "iban"),
