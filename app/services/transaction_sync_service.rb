@@ -54,7 +54,7 @@ class TransactionSyncService
     existing = @bank_connection.transactions.find_by(internal_transaction_id: internal_id)
     return if existing
 
-    amount = parse_amount(tx.dig("transactionAmount", "amount"))
+    raw_amount = parse_amount(tx.dig("transactionAmount", "amount"))
     description = [
       tx["remittanceInformationUnstructured"],
       tx["additionalInformation"]
@@ -66,8 +66,8 @@ class TransactionSyncService
       internal_transaction_id: internal_id,
       booking_date: tx["bookingDate"],
       value_date: tx["valueDate"],
-      amount_cents: amount,
-      direction: amount >= 0 ? "credit" : "debit",
+      amount_cents: raw_amount.abs,
+      direction: raw_amount >= 0 ? "credit" : "debit",
       currency: tx.dig("transactionAmount", "currency"),
       creditor_name: tx["creditorName"],
       creditor_iban: tx.dig("creditorAccount", "iban"),

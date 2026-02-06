@@ -76,6 +76,7 @@ class TransactionSyncServiceTest < ActiveSupport::TestCase
     assert_equal false, connection.sync_running
     assert_nil connection.sync_error
     assert_not_nil connection.sync_completed_at
+    assert_equal 1234, created_tx.amount_cents
     assert_equal "debit", created_tx.direction
   end
 

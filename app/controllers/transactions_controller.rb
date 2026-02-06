@@ -189,7 +189,7 @@ class TransactionsController < ApplicationController
   end
 
   def format_amount(amount_cents, currency)
-    amount = amount_cents.to_f.abs / 100
+    amount = amount_cents.to_f / 100
     unit = currency.presence || "EUR"
 
     ActiveSupport::NumberHelper.number_to_currency(amount, unit: unit, format: "%n %u")
