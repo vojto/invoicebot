@@ -38,6 +38,7 @@ class InvoiceExtractionAgent
        - currency: The three-letter currency code (USD, EUR, CZK, GBP, etc.)
        - issue_date: The date the invoice was issued (YYYY-MM-DD format). Most invoices have this, but set to null if not present.
        - delivery_date: The date of delivery or service (YYYY-MM-DD format). This is optional and many invoices don't have it. Only extract if explicitly stated, otherwise set to null.
+         If a service/billing period range is explicitly shown (for example, "Zuctovacie obdobie: 1.1.2026 - 31.1.2026"), use the end date of that range as delivery_date.
        - note: Any relevant notes, invoice number, or reference number
 
     If is_invoice is false, set all other fields to null.
