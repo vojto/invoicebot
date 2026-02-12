@@ -19,6 +19,19 @@ RSpec.describe "GET /transactions/:id/invoice_matches", type: :request do
     expect(body["matches"].map { |m| m["id"] }).to eq([exact.id])
   end
 
+  it "omits amount difference when match is exact in original currency" do
+    transaction.update!(original_amount_cents: 1420, original_currency: "USD")
+    exact_original = create(:invoice, user: user, amount_cents: 1420, currency: "USD", issue_date: Date.new(2026, 2, 1))
+
+    get "/transactions/#{transaction.id}/invoice_matches"
+
+    expect(response).to have_http_status(:ok)
+    body = response.parsed_body
+    expect(body["match_type"]).to eq("exact")
+    expect(body["matches"].map { |m| m["id"] }).to eq([exact_original.id])
+    expect(body["matches"].first["amount_diff_label"]).to be_nil
+  end
+
   it "returns close matches within 5 EUR when no exact match exists" do
     close = create(:invoice, user: user, amount_cents: 5300, currency: "EUR", issue_date: Date.new(2026, 2, 1))
     create(:invoice, user: user, amount_cents: 9999, currency: "EUR") # too far

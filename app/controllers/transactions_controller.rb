@@ -129,15 +129,23 @@ class TransactionsController < ApplicationController
   end
 
   def serialize_invoice_match(transaction, invoice)
-    amount_diff = invoice.amount_cents - transaction.amount_cents
+    amount_diff = amount_diff_for_match(transaction, invoice)
     {
       id: invoice.id,
       vendor_name: invoice.vendor_name,
       amount_label: format_amount(invoice.amount_cents, invoice.currency),
       date_label: format_invoice_date(invoice),
       date_offset_days: date_offset_days(transaction, invoice),
-      amount_diff_label: amount_diff != 0 ? format_signed_amount(amount_diff, invoice.currency) : nil
+      amount_diff_label: amount_diff.present? && amount_diff != 0 ? format_signed_amount(amount_diff, invoice.currency) : nil
     }
+  end
+
+  def amount_diff_for_match(transaction, invoice)
+    if invoice.currency == transaction.currency
+      invoice.amount_cents - transaction.amount_cents
+    elsif invoice.currency == transaction.original_currency && transaction.original_amount_cents.present?
+      invoice.amount_cents - transaction.original_amount_cents
+    end
   end
 
   def invoice_match_candidates(transaction, exact: true)
