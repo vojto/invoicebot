@@ -37,7 +37,7 @@ class StatementsController < ApplicationController
       primary_section: {
         month_key: @month_key,
         month_label: month_label(@month_key),
-        description: "All transactions booked in #{month_label(@month_key)}.",
+        description: "Vsetky transakcie zauctovane v #{month_label(@month_key)}.",
         rows: primary_transactions.map { |tx| serialize_transaction_row(tx) }
       },
       supplemental_sections: supplemental_sections,
@@ -85,7 +85,7 @@ class StatementsController < ApplicationController
       {
         month_key: key,
         month_label: month_label(key),
-        description: "Transactions linked to invoices accounted in #{month_label(@month_key)}.",
+        description: "Transakcie pre faktury zauctovane v #{month_label(@month_key)}.",
         rows: section_transactions.map { |tx| serialize_transaction_row(tx) }
       }
     end
@@ -104,7 +104,7 @@ class StatementsController < ApplicationController
       amount_label: format_amount(transaction.amount_cents, transaction.currency),
       original_amount_label: transaction.original_amount_cents && transaction.original_currency ? format_amount(transaction.original_amount_cents, transaction.original_currency) : "—",
       vendor_label: vendor_label_for(transaction, invoice),
-      invoice_label: invoice ? invoice_label(invoice) : "INVOICE MISSING",
+      invoice_label: invoice ? invoice_label(invoice) : "CHYBA FAKTURA",
       hidden: transaction.hidden_at.present?,
       invoice_missing: invoice.nil?,
       transaction_missing: false
@@ -145,16 +145,31 @@ class StatementsController < ApplicationController
   end
 
   def month_label(key)
-    return "Unknown Date" if key == "unknown"
+    return "Neznamy datum" if key == "unknown"
 
     year, month = key.split("-").map(&:to_i)
-    Date.new(year, month, 1).strftime("%B %Y")
+    month_name = {
+      1 => "januar",
+      2 => "februar",
+      3 => "marec",
+      4 => "april",
+      5 => "maj",
+      6 => "jun",
+      7 => "jul",
+      8 => "august",
+      9 => "september",
+      10 => "oktober",
+      11 => "november",
+      12 => "december"
+    }[month]
+
+    "#{month_name} #{year}"
   end
 
   def format_date(date)
     return "—" unless date
 
-    date.strftime("%b %e").strip
+    date.strftime("%-d. %-m. %Y")
   end
 
   def format_amount(amount_cents, currency)

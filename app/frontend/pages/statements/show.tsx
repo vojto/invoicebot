@@ -52,13 +52,13 @@ function SectionTable({ title, description, rows }: { title: string, description
         <table className="statement-table w-full border-collapse text-sm">
           <thead>
             <tr>
-              <th className="border border-gray-300 px-2 py-1 text-left font-semibold">Bank</th>
-              <th className="border border-gray-300 px-2 py-1 text-left font-semibold">Tx Date</th>
-              <th className="border border-gray-300 px-2 py-1 text-left font-semibold">Accounting Date</th>
-              <th className="border border-gray-300 px-2 py-1 text-left font-semibold">Amount</th>
-              <th className="border border-gray-300 px-2 py-1 text-left font-semibold">Original</th>
-              <th className="border border-gray-300 px-2 py-1 text-left font-semibold">Vendor</th>
-              <th className="border border-gray-300 px-2 py-1 text-left font-semibold">Invoice</th>
+              <th className="border border-gray-300 px-2 py-1 text-left font-semibold">Banka</th>
+              <th className="border border-gray-300 px-2 py-1 text-left font-semibold">Datum transakcie</th>
+              <th className="border border-gray-300 px-2 py-1 text-left font-semibold">Datum zauctovania</th>
+              <th className="border border-gray-300 px-2 py-1 text-left font-semibold">Suma</th>
+              <th className="border border-gray-300 px-2 py-1 text-left font-semibold">Povodna suma</th>
+              <th className="border border-gray-300 px-2 py-1 text-left font-semibold">Dodavatel</th>
+              <th className="border border-gray-300 px-2 py-1 text-left font-semibold">Faktura</th>
             </tr>
           </thead>
           <tbody>
@@ -72,10 +72,10 @@ function SectionTable({ title, description, rows }: { title: string, description
                 <td className="border border-gray-300 px-2 py-1 align-top">{row.vendor_label}</td>
                 <td className="border border-gray-300 px-2 py-1 align-top">
                   {row.invoice_missing ? (
-                    <span className="font-semibold uppercase tracking-wide">INVOICE MISSING</span>
+                    <span className="font-semibold uppercase tracking-wide">CHYBA FAKTURA</span>
                   ) : row.transaction_missing ? (
                     <span>
-                      <span className="font-semibold uppercase tracking-wide">TRANSACTION MISSING</span>
+                      <span className="font-semibold uppercase tracking-wide">CHYBA TRANSAKCIA</span>
                       <span> · {row.invoice_label}</span>
                     </span>
                   ) : (
@@ -101,7 +101,7 @@ export default function StatementsShow(props: Props) {
     invoice_only_rows,
   } = PropsSchema.parse(props)
 
-  const generatedAtLabel = new Date(generated_at).toLocaleString("en-US", {
+  const generatedAtLabel = new Date(generated_at).toLocaleString("sk-SK", {
     year: "numeric",
     month: "short",
     day: "numeric",
@@ -111,7 +111,7 @@ export default function StatementsShow(props: Props) {
 
   return (
     <>
-      <Head title={`Statement ${statement_month_label}`} />
+      <Head title={`Vypis ${statement_month_label}`} />
       <style>{`
         @media print {
           .no-print { display: none !important; }
@@ -124,18 +124,18 @@ export default function StatementsShow(props: Props) {
       <Box className="statement-shell mx-auto max-w-[1200px] bg-white px-5 py-6 text-black">
         <Flex className="no-print mb-5" justify="between" align="center">
           <Button variant="soft" asChild>
-            <Link href="/transactions">Back to transactions</Link>
+            <Link href="/transactions">Spat na transakcie</Link>
           </Button>
-          <Button onClick={() => window.print()}>Print</Button>
+          <Button onClick={() => window.print()}>Tlacit</Button>
         </Flex>
 
-        <Heading size="6" mb="1">Monthly Statement: {statement_month_label}</Heading>
+        <Heading size="6" mb="1">Mesacny vypis: {statement_month_label}</Heading>
         <Text as="p" size="2" color="gray" mb="6">
-          Period key: {statement_month_key}. Generated: {generatedAtLabel}
+          Obdobie: {statement_month_key}. Vygenerovane: {generatedAtLabel}
         </Text>
 
         <SectionTable
-          title={`${primary_section.month_label} Transactions`}
+          title={`Transakcie: ${primary_section.month_label}`}
           description={primary_section.description}
           rows={primary_section.rows}
         />
@@ -143,15 +143,15 @@ export default function StatementsShow(props: Props) {
         {supplemental_sections.map((section) => (
           <SectionTable
             key={`supplemental-${section.month_key}`}
-            title={`${section.month_label} Transactions`}
+            title={`Transakcie: ${section.month_label}`}
             description={section.description}
             rows={section.rows}
           />
         ))}
 
         <SectionTable
-          title={`Invoices in ${statement_month_label} Without Linked Transactions`}
-          description={`These invoices are accounted in ${statement_month_label} but are not linked to any bank transaction.`}
+          title={`Faktury v ${statement_month_label} bez priradenej transakcie`}
+          description={`Tieto faktury su zauctovane v ${statement_month_label}, ale nie su prepojene so ziadnou bankovou transakciou.`}
           rows={invoice_only_rows}
         />
       </Box>
