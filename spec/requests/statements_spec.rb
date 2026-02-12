@@ -86,6 +86,7 @@ RSpec.describe "GET /statements/:month", type: :request do
 
     expect(primary_ids).to include(january_tx_missing_invoice.id, january_tx_hidden.id)
     expect(primary_ids).not_to include(february_tx_linked_to_january_invoice.id)
+    expect(primary_ids).to eq([january_tx_missing_invoice.id, january_tx_hidden.id])
 
     missing_invoice_row = primary_rows.find { |row| row["transaction_id"] == january_tx_missing_invoice.id }
     expect(missing_invoice_row["invoice_missing"]).to eq(true)
@@ -97,6 +98,7 @@ RSpec.describe "GET /statements/:month", type: :request do
     supplemental_ids = supplemental_rows.map { |row| row["transaction_id"] }
     expect(props.dig("supplemental_sections", 0, "month_key")).to eq("2026-02")
     expect(supplemental_ids).to eq([february_tx_linked_to_january_invoice.id])
+    expect(supplemental_rows.first["vendor_label"]).to eq("OPENAI")
 
     invoice_only_ids = props["invoice_only_rows"].map { |row| row["invoice_id"] }
     expect(invoice_only_ids).to include(january_invoice_without_transaction.id)

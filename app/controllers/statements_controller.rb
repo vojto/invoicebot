@@ -5,7 +5,7 @@ class StatementsController < ApplicationController
   def show
     primary_transactions = transactions_scope
       .where(booking_date: @month_range)
-      .order(booking_date: :desc, created_at: :desc)
+      .order(booking_date: :asc, created_at: :asc)
       .to_a
 
     month_invoices = current_user.invoices
@@ -79,7 +79,7 @@ class StatementsController < ApplicationController
     sorted_keys.map do |key|
       section_transactions = grouped[key].sort_by do |tx|
         date = tx.booking_date || tx.value_date
-        [ date ? -date.jd : 9_999_999, -tx.created_at.to_i ]
+        [ date ? date.jd : 9_999_999, tx.created_at.to_i ]
       end
 
       {
@@ -130,11 +130,7 @@ class StatementsController < ApplicationController
   end
 
   def vendor_label_for(transaction, invoice)
-    base_vendor = transaction&.vendor_name.presence || invoice&.vendor_name.presence
-    parts = [ base_vendor ]
-    parts << invoice.note if invoice&.note.present?
-
-    parts.compact.join(" — ").presence || "—"
+    transaction&.vendor_name.presence || invoice&.vendor_name.presence || "—"
   end
 
   def invoice_label(invoice)
