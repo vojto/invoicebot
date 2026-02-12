@@ -10,6 +10,10 @@ Ruby and Node versions are managed with [mise](https://mise.jdx.dev/). Run `mise
 
 Do not set a local Bundler path (for example, do not run `bundle config set --local path vendor/bundle`). Use the default gem path from the active `mise` Ruby toolchain.
 
+### Command Execution
+
+Run Ruby/Bundler/Kamal commands through `mise exec -- ...` to avoid accidentally using system Ruby/Bundler.
+
 ## Testing
 
 Use specs instead of tests for new coverage.
@@ -67,6 +71,13 @@ Useful Kamal commands:
 - `bin/kamal shell` — Bash shell on production
 - `bin/kamal logs -r job` — Tail job processor logs
 - `bin/kamal app exec 'bin/rails runner "SomeJob.perform_later"'` — Run a job
+
+Before running Kamal deploy commands, export `.env` in the same shell session so `.kamal/secrets` variables are available:
+
+```bash
+set -a; source .env; set +a
+mise exec -- bin/kamal deploy
+```
 
 ## Key Jobs
 

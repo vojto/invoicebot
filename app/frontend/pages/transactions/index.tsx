@@ -68,9 +68,18 @@ export default function TransactionsIndex(props: Props) {
           <Flex direction="column" gap="6">
             {transaction_groups.map((group: TransactionGroup) => (
               <Box key={group.month_key}>
-                <Heading size="5" as="h2" mb="4">
-                  {group.month_label}
-                </Heading>
+                <Flex justify="between" align="center" mb="4">
+                  <Heading size="5" as="h2">
+                    {group.month_label}
+                  </Heading>
+                  {group.month_key !== "unknown" && (
+                    <Button size="1" variant="soft" asChild>
+                      <Link href={`/statements/${group.month_key}`}>
+                        Print
+                      </Link>
+                    </Button>
+                  )}
+                </Flex>
                 <Table.Root variant="surface" size="2">
                   <Table.Header>
                     <Table.Row>

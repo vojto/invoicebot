@@ -25,6 +25,9 @@ Rails.application.routes.draw do
   post "/transactions/:id/hide", to: "transactions#hide", as: :hide_transaction
   post "/transactions/:id/restore", to: "transactions#restore", as: :restore_transaction
 
+  # Statements
+  get "/statements/:month", to: "statements#show", as: :statement
+
   # Banks
   get "/banks", to: "banks#index", as: :banks
   post "/banks/connect", to: "banks#connect", as: :connect_banks
