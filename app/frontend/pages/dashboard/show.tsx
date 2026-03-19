@@ -154,6 +154,7 @@ export default function DashboardShow(props: Props) {
                       <Table.ColumnHeaderCell width="140px">Accounting Date</Table.ColumnHeaderCell>
                       <Table.ColumnHeaderCell width="200px">Email Date</Table.ColumnHeaderCell>
                       <Table.ColumnHeaderCell>Email Subject</Table.ColumnHeaderCell>
+                      <Table.ColumnHeaderCell>Transaction</Table.ColumnHeaderCell>
                       <Table.ColumnHeaderCell width="140px">Actions</Table.ColumnHeaderCell>
                     </Table.Row>
                   </Table.Header>

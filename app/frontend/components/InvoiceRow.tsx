@@ -1,5 +1,5 @@
 import { router } from "@inertiajs/react"
-import { Text, Table, Flex, Button } from "@radix-ui/themes"
+import { Text, Table, Flex, Button, Badge } from "@radix-ui/themes"
 import { z } from "zod"
 import DateDifferenceBadge from "./DateDifferenceBadge"
 import AccountingDateEditor from "./AccountingDateEditor"
@@ -22,6 +22,10 @@ export const InvoiceSchema = z.object({
   note: z.string().nullable(),
   pdf_url: z.string().nullish(),
   email: EmailSchema.nullable(),
+  bank_transaction: z.object({
+    id: z.number(),
+    vendor_name: z.string().nullable(),
+  }).nullable(),
 })
 
 export type Invoice = z.infer<typeof InvoiceSchema>
@@ -57,10 +61,12 @@ type Props = {
 
 export default function InvoiceRow({ invoice }: Props) {
   const isDeleted = !!invoice.deleted_at
+  const isLinked = !!invoice.bank_transaction
   const deletedStyle = isDeleted ? { textDecoration: "line-through", opacity: 0.4 } : undefined
+  const rowClass = isLinked && !isDeleted ? "bg-blue-50" : ""
 
   return (
-    <Table.Row>
+    <Table.Row className={rowClass}>
       <Table.Cell>
         <Text weight="medium" style={deletedStyle}>
           {invoice.vendor_name || "Unknown"}
@@ -97,6 +103,13 @@ export default function InvoiceRow({ invoice }: Props) {
         <Text size="2" color="gray" style={deletedStyle}>
           {invoice.email?.subject || "—"}
         </Text>
+      </Table.Cell>
+      <Table.Cell>
+        {invoice.bank_transaction && (
+          <Badge size="1" variant="soft" color="blue">
+            {invoice.bank_transaction.vendor_name || "Transaction"}
+          </Badge>
+        )}
       </Table.Cell>
       <Table.Cell>
         <Flex gap="2" justify="end">
