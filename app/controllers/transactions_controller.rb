@@ -7,7 +7,7 @@ class TransactionsController < ApplicationController
   # - transactions.invoice_id is unique, so relinking must clear any existing owner first.
   # - Browsers do not always send application/pdf, so we also accept .pdf filenames.
   before_action :require_authentication
-  before_action :set_transaction, only: [ :hide, :restore, :invoice_matches, :link_invoice, :upload_invoice ]
+  before_action :set_transaction, only: [ :hide, :restore, :invoice_matches, :search_invoices, :link_invoice, :upload_invoice ]
 
   def index
     transactions = Transaction
@@ -38,21 +38,25 @@ class TransactionsController < ApplicationController
   end
 
   def invoice_matches
-    exact = invoice_match_candidates(@transaction, exact: true)
-    if exact.any?
-      matches = sort_invoice_matches(@transaction, exact).take(5)
-      render json: {
-        match_type: "exact",
-        matches: matches.map { |invoice| serialize_invoice_match(@transaction, invoice) }
-      }
-    else
-      close = invoice_match_candidates(@transaction, exact: false)
-      matches = sort_invoice_matches(@transaction, close).take(5)
-      render json: {
-        match_type: "close",
-        matches: matches.map { |invoice| serialize_invoice_match(@transaction, invoice) }
-      }
-    end
+    exact = invoice_match_candidates(@transaction)
+    matches = sort_invoice_matches(@transaction, exact).take(5)
+    render json: {
+      matches: matches.map { |invoice| serialize_invoice_match(@transaction, invoice) }
+    }
+  end
+
+  def search_invoices
+    query = params[:q].to_s.strip
+    return render json: { matches: [] } if query.blank?
+
+    invoices = Invoice.where(user_id: current_user.id, deleted_at: nil)
+      .where("vendor_name ILIKE ?", "%#{Invoice.sanitize_sql_like(query)}%")
+      .limit(10)
+
+    matches = sort_invoice_matches(@transaction, invoices).take(10)
+    render json: {
+      matches: matches.map { |invoice| serialize_invoice_match(@transaction, invoice) }
+    }
   end
 
   def link_invoice
@@ -173,40 +177,20 @@ class TransactionsController < ApplicationController
     end
   end
 
-  def invoice_match_candidates(transaction, exact: true)
+  def invoice_match_candidates(transaction)
     scope = Invoice.where(user_id: current_user.id, deleted_at: nil)
+    matches = scope.where(currency: transaction.currency, amount_cents: transaction.amount_cents)
 
-    if exact
-      matches = scope.where(currency: transaction.currency, amount_cents: transaction.amount_cents)
-
-      if transaction.original_amount_cents.present? && transaction.original_currency.present?
-        matches = matches.or(
-          scope.where(
-            currency: transaction.original_currency,
-            amount_cents: transaction.original_amount_cents
-          )
+    if transaction.original_amount_cents.present? && transaction.original_currency.present?
+      matches = matches.or(
+        scope.where(
+          currency: transaction.original_currency,
+          amount_cents: transaction.original_amount_cents
         )
-      end
-
-      matches
-    else
-      threshold = 500 # 5.00 in cents
-      amt = transaction.amount_cents
-      matches = scope.where(currency: transaction.currency)
-        .where("amount_cents BETWEEN ? AND ?", amt - threshold, amt + threshold)
-        .where.not(amount_cents: amt)
-
-      if transaction.original_amount_cents.present? && transaction.original_currency.present?
-        orig = transaction.original_amount_cents
-        matches = matches.or(
-          scope.where(currency: transaction.original_currency)
-            .where("amount_cents BETWEEN ? AND ?", orig - threshold, orig + threshold)
-            .where.not(amount_cents: orig)
-        )
-      end
-
-      matches
+      )
     end
+
+    matches
   end
 
   def sort_invoice_matches(transaction, invoices)

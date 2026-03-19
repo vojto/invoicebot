@@ -1,7 +1,7 @@
 import { MagnifyingGlassIcon } from "@radix-ui/react-icons"
 import { router } from "@inertiajs/react"
-import { Box, Button, Flex, Text, Theme } from "@radix-ui/themes"
-import { useEffect, useState } from "react"
+import { Box, Button, Flex, Text, TextField, Theme } from "@radix-ui/themes"
+import { useCallback, useEffect, useRef, useState } from "react"
 import * as Popover from "@radix-ui/react-popover"
 
 type InvoiceMatch = {
@@ -11,11 +11,6 @@ type InvoiceMatch = {
   date_label: string
   date_offset_days: number | null
   amount_diff_label: string | null
-}
-
-type MatchResponse = {
-  match_type: "exact" | "close"
-  matches: InvoiceMatch[]
 }
 
 type Props = {
@@ -34,32 +29,99 @@ function offsetTone(offset: number | null): "green" | "red" | "gray" {
   return Math.abs(offset) <= 14 ? "green" : "red"
 }
 
+function InvoiceMatchRow({ invoice, transactionId, onSelect }: { invoice: InvoiceMatch; transactionId: number; onSelect: () => void }) {
+  return (
+    <Button
+      variant="ghost"
+      className="h-auto w-full justify-start px-2 py-2 text-left"
+      onClick={() => {
+        router.post(`/transactions/${transactionId}/link_invoice`, {
+          invoice_id: invoice.id,
+        }, { preserveScroll: true })
+        onSelect()
+      }}
+    >
+      <Flex direction="column" gap="1" align="start" className="w-full">
+        <Text size="2" weight="medium">
+          {invoice.vendor_name || "Unknown vendor"}
+        </Text>
+        <Flex align="center" justify="between" className="w-full">
+          <Text size="2" color="gray">
+            {invoice.amount_label}
+          </Text>
+          <Text size="2" weight="medium" color={offsetTone(invoice.date_offset_days)}>
+            {formatOffset(invoice.date_offset_days)}d
+          </Text>
+        </Flex>
+      </Flex>
+    </Button>
+  )
+}
+
 export default function InvoiceSelector({ transactionId }: Props) {
   const [open, setOpen] = useState(false)
-  const [data, setData] = useState<MatchResponse | null>(null)
+  const [exactMatches, setExactMatches] = useState<InvoiceMatch[] | null>(null)
   const [isLoading, setIsLoading] = useState(false)
+  const [searchQuery, setSearchQuery] = useState("")
+  const [searchResults, setSearchResults] = useState<InvoiceMatch[]>([])
+  const [isSearching, setIsSearching] = useState(false)
+  const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
-    if (!open || data !== null || isLoading) return
+    if (!open || exactMatches !== null || isLoading) return
 
     const loadMatches = async () => {
       setIsLoading(true)
       try {
         const response = await fetch(`/transactions/${transactionId}/invoice_matches`)
         const json = await response.json()
-        setData({ match_type: json.match_type, matches: json.matches || [] })
+        setExactMatches(json.matches || [])
       } catch {
-        setData({ match_type: "exact", matches: [] })
+        setExactMatches([])
       } finally {
         setIsLoading(false)
       }
     }
 
     loadMatches()
-  }, [open, data, isLoading, transactionId])
+  }, [open, exactMatches, isLoading, transactionId])
 
-  const matches = data?.matches ?? []
-  const isClose = data?.match_type === "close"
+  const doSearch = useCallback(async (query: string) => {
+    if (query.trim().length === 0) {
+      setSearchResults([])
+      setIsSearching(false)
+      return
+    }
+
+    setIsSearching(true)
+    try {
+      const response = await fetch(`/transactions/${transactionId}/search_invoices?q=${encodeURIComponent(query)}`)
+      const json = await response.json()
+      setSearchResults(json.matches || [])
+    } catch {
+      setSearchResults([])
+    } finally {
+      setIsSearching(false)
+    }
+  }, [transactionId])
+
+  const handleSearchChange = (value: string) => {
+    setSearchQuery(value)
+    if (searchTimerRef.current) clearTimeout(searchTimerRef.current)
+    searchTimerRef.current = setTimeout(() => doSearch(value), 300)
+  }
+
+  // Reset state when closed
+  useEffect(() => {
+    if (!open) {
+      setExactMatches(null)
+      setSearchQuery("")
+      setSearchResults([])
+    }
+  }, [open])
+
+  const hasExactMatches = exactMatches !== null && exactMatches.length > 0
+  const showSearch = exactMatches !== null && exactMatches.length === 0
 
   return (
     <Popover.Root open={open} onOpenChange={setOpen}>
@@ -81,65 +143,54 @@ export default function InvoiceSelector({ transactionId }: Props) {
             align="end"
             sideOffset={6}
             className="z-50 rounded-md border border-gray-200 bg-white p-3 shadow-lg"
-            style={{ width: 300 }}
+            style={{ width: 320 }}
           >
             <Box>
-              <Text size="2" weight="medium" color={isClose ? "orange" : undefined}>
-                {isClose ? "Close amounts" : "Matching invoices"}
-              </Text>
-              <Box mt="2">
-                {isLoading ? (
-                  <Flex align="center" justify="center" py="3">
-                    <span className="h-4 w-4 animate-spin rounded-full border-2 border-gray-200 border-t-gray-500" />
-                  </Flex>
-                ) : matches.length > 0 ? (
-                  <Flex direction="column" gap="2">
-                    {matches.map((invoice) => (
-                      <Button
-                        key={invoice.id}
-                        variant="ghost"
-                        className="h-auto w-full justify-start px-2 py-2 text-left"
-                        onClick={() => {
-                          router.post(`/transactions/${transactionId}/link_invoice`, {
-                            invoice_id: invoice.id,
-                          }, { preserveScroll: true })
-                          setOpen(false)
-                        }}
-                      >
-                        <Flex direction="column" gap="1" align="start" className="w-full">
-                          <Text size="2" weight="medium">
-                            {invoice.vendor_name || "Unknown vendor"}
-                          </Text>
-                          <Flex align="center" justify="between" className="w-full">
-                            <Flex align="center" gap="2">
-                              <Text size="2" color="gray">
-                                {invoice.amount_label}
-                              </Text>
-                              <Text size="2" color="gray">
-                                {invoice.date_label}
-                              </Text>
-                            </Flex>
-                            <Flex align="center" gap="2">
-                              {invoice.amount_diff_label && (
-                                <Text size="2" weight="medium" color="orange">
-                                  {invoice.amount_diff_label}
-                                </Text>
-                              )}
-                              <Text size="2" weight="medium" color={offsetTone(invoice.date_offset_days)}>
-                                {formatOffset(invoice.date_offset_days)}d
-                              </Text>
-                            </Flex>
-                          </Flex>
-                        </Flex>
-                      </Button>
+              {isLoading ? (
+                <Flex align="center" justify="center" py="3">
+                  <span className="h-4 w-4 animate-spin rounded-full border-2 border-gray-200 border-t-gray-500" />
+                </Flex>
+              ) : hasExactMatches ? (
+                <>
+                  <Text size="2" weight="medium">Matching invoices</Text>
+                  <Flex direction="column" gap="2" mt="2">
+                    {exactMatches!.map((invoice) => (
+                      <InvoiceMatchRow key={invoice.id} invoice={invoice} transactionId={transactionId} onSelect={() => setOpen(false)} />
                     ))}
                   </Flex>
-                ) : (
-                  <Text size="1" color="gray">
-                    No matching invoices found.
-                  </Text>
-                )}
-              </Box>
+                </>
+              ) : showSearch ? (
+                <>
+                  <TextField.Root
+                    size="2"
+                    placeholder="Search invoices by vendor..."
+                    value={searchQuery}
+                    onChange={(e) => handleSearchChange(e.target.value)}
+                    autoFocus
+                  >
+                    <TextField.Slot>
+                      <MagnifyingGlassIcon />
+                    </TextField.Slot>
+                  </TextField.Root>
+                  <Box mt="2">
+                    {isSearching ? (
+                      <Flex align="center" justify="center" py="3">
+                        <span className="h-4 w-4 animate-spin rounded-full border-2 border-gray-200 border-t-gray-500" />
+                      </Flex>
+                    ) : searchQuery.trim().length > 0 && searchResults.length === 0 ? (
+                      <Text size="1" color="gray">No invoices found.</Text>
+                    ) : searchResults.length > 0 ? (
+                      <Flex direction="column" gap="2">
+                        {searchResults.map((invoice) => (
+                          <InvoiceMatchRow key={invoice.id} invoice={invoice} transactionId={transactionId} onSelect={() => setOpen(false)} />
+                        ))}
+                      </Flex>
+                    ) : (
+                      <Text size="1" color="gray">Type to search invoices.</Text>
+                    )}
+                  </Box>
+                </>
+              ) : null}
             </Box>
             <Popover.Arrow className="fill-white" />
           </Popover.Content>
