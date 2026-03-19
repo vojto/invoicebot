@@ -50,6 +50,7 @@ class InvoicesController < ApplicationController
     invoices = current_user.invoices
       .where(deleted_at: nil)
       .where(accounting_date: start_date..end_date)
+      .joins(:transaction)
       .includes(pdf_attachment: :blob)
 
     return head :not_found if invoices.empty?

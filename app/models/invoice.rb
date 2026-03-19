@@ -14,6 +14,7 @@
 class Invoice < ApplicationRecord
   belongs_to :user
   belongs_to :email, optional: true
+  has_one :transaction
   has_one_attached :pdf
 
   validates :vendor_name, presence: true
