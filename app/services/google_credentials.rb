@@ -8,7 +8,7 @@ class GoogleCredentials
       scope: scopes,
       access_token: user.google_access_token,
       refresh_token: user.google_refresh_token,
-      expiration_time_millis: (user.google_token_expires_at&.to_i || 0) * 1000
+      expires_at: user.google_token_expires_at&.to_i
     )
   end
 
