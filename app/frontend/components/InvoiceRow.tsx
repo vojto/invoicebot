@@ -111,7 +111,7 @@ export default function InvoiceRow({ invoice }: Props) {
             <Button
               size="1"
               variant="soft"
-              onClick={() => router.post(`/invoices/${invoice.id}/restore`)}
+              onClick={() => router.post(`/invoices/${invoice.id}/restore`, {}, { preserveScroll: true })}
             >
               Restore
             </Button>
@@ -120,7 +120,7 @@ export default function InvoiceRow({ invoice }: Props) {
               size="1"
               variant="soft"
               color="red"
-              onClick={() => router.post(`/invoices/${invoice.id}/remove`)}
+              onClick={() => router.post(`/invoices/${invoice.id}/remove`, {}, { preserveScroll: true })}
             >
               Remove
             </Button>
