@@ -34,7 +34,8 @@ class InvoiceExtractionAgent
 
     3. Extract the following information:
        - vendor_name: The name of the business or company issuing the invoice
-       - amount_cents: The total amount to pay, converted to cents (multiply by 100). For example, $19.99 becomes 1999
+       - amount_cents: The original invoice total, converted to cents (multiply by 100). For example, $19.99 becomes 1999.
+         If the invoice shows a total and then subtracts prior payments resulting in a lower balance due (or zero), extract the original total — not the remaining balance.
        - currency: The three-letter currency code (USD, EUR, CZK, GBP, etc.)
        - issue_date: The date the invoice was issued (YYYY-MM-DD format). Most invoices have this, but set to null if not present.
        - delivery_date: The date of delivery or service (YYYY-MM-DD format). This is optional and many invoices don't have it. Only extract if explicitly stated, otherwise set to null.
