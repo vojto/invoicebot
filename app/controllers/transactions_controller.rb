@@ -1,6 +1,13 @@
 class TransactionsController < ApplicationController
+  # Expected behavior:
+  # - Linking keeps invoices one-to-one across the current user's transactions.
+  # - Manual PDF uploads create a normal Invoice record, attach the PDF, and link it immediately.
+  #
+  # Gotchas:
+  # - transactions.invoice_id is unique, so relinking must clear any existing owner first.
+  # - Browsers do not always send application/pdf, so we also accept .pdf filenames.
   before_action :require_authentication
-  before_action :set_transaction, only: [ :hide, :restore, :invoice_matches, :link_invoice ]
+  before_action :set_transaction, only: [ :hide, :restore, :invoice_matches, :link_invoice, :upload_invoice ]
 
   def index
     transactions = Transaction
@@ -50,16 +57,34 @@ class TransactionsController < ApplicationController
 
   def link_invoice
     invoice = Invoice.find_by!(id: params[:invoice_id], user_id: current_user.id)
-    Transaction.transaction do
-      existing = Transaction
-        .joins(:bank_connection)
-        .where(bank_connections: { user_id: current_user.id })
-        .find_by(invoice_id: invoice.id)
 
-      existing&.update!(invoice_id: nil) if existing && existing.id != @transaction.id
-      @transaction.update!(invoice_id: invoice.id)
+    Transaction.transaction do
+      link_invoice_to_transaction!(invoice)
     end
+
     redirect_to transactions_path
+  end
+
+  def upload_invoice
+    file = pdf_upload_param
+    return head :bad_request unless file
+
+    processing_service = InvoiceProcessingService.new
+    invoice = processing_service.extract_invoice_from_pdf(
+      current_user,
+      file.tempfile,
+      filename: file.original_filename
+    )
+
+    if invoice
+      Transaction.transaction do
+        link_invoice_to_transaction!(invoice)
+      end
+
+      redirect_to transactions_path, notice: "Invoice uploaded and linked to transaction"
+    else
+      redirect_to transactions_path, alert: "Could not extract invoice from PDF"
+    end
   end
 
   private
@@ -253,5 +278,15 @@ class TransactionsController < ApplicationController
     return "Never" if time.nil?
 
     time.strftime("%b %d, %Y at %l:%M %p")
+  end
+
+  def link_invoice_to_transaction!(invoice)
+    existing = Transaction
+      .joins(:bank_connection)
+      .where(bank_connections: { user_id: current_user.id })
+      .find_by(invoice_id: invoice.id)
+
+    existing&.update!(invoice_id: nil) if existing && existing.id != @transaction.id
+    @transaction.update!(invoice_id: invoice.id)
   end
 end

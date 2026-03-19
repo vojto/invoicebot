@@ -4,6 +4,7 @@ import { CheckIcon, FileTextIcon, PlusIcon } from "@radix-ui/react-icons"
 import { z } from "zod"
 import BankSyncStatusList, { BankSyncStatusSchema } from "../../components/BankSyncStatusList"
 import InvoiceSelector from "../../components/InvoiceSelector"
+import TransactionInvoiceUploadButton from "../../components/TransactionInvoiceUploadButton"
 
 const TransactionSchema = z.object({
   id: z.number(),
@@ -131,7 +132,12 @@ export default function TransactionsIndex(props: Props) {
                                 {tx.invoice.label}
                               </Button>
                             ) : (
-                              !isHidden && <InvoiceSelector transactionId={tx.id} />
+                              !isHidden && (
+                                <Flex gap="2" wrap="wrap">
+                                  <InvoiceSelector transactionId={tx.id} />
+                                  <TransactionInvoiceUploadButton transactionId={tx.id} />
+                                </Flex>
+                              )
                             )}
                           </Table.Cell>
                           <Table.Cell>

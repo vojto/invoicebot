@@ -22,8 +22,8 @@ class InvoicesController < ApplicationController
   end
 
   def upload
-    file = params[:file]
-    return head :bad_request unless file.present? && file.content_type == "application/pdf"
+    file = pdf_upload_param
+    return head :bad_request unless file
 
     processing_service = InvoiceProcessingService.new
     invoice = processing_service.extract_invoice_from_pdf(

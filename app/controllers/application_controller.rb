@@ -3,7 +3,7 @@ class ApplicationController < ActionController::Base
   allow_browser versions: :modern
 
   before_action :refresh_google_token_if_needed, if: :user_signed_in?
-  inertia_share user: -> { current_user_props }, signed_in: -> { user_signed_in? }
+  inertia_share user: -> { current_user_props }, signed_in: -> { user_signed_in? }, flash: -> { flash_props }
 
   helper_method :current_user, :user_signed_in?
 
@@ -42,5 +42,20 @@ class ApplicationController < ActionController::Base
       name: current_user.name,
       picture_url: current_user.picture_url
     }
+  end
+
+  def flash_props
+    flash.to_hash.slice("notice", "alert")
+  end
+
+  def pdf_upload_param(key = :file)
+    file = params[key]
+    return nil unless file.present?
+    return nil unless file.respond_to?(:content_type) && file.respond_to?(:original_filename)
+
+    return file if file.content_type == "application/pdf"
+    return file if file.original_filename.to_s.downcase.end_with?(".pdf")
+
+    nil
   end
 end
