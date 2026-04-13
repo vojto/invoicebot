@@ -1,6 +1,6 @@
 class InvoicesController < ApplicationController
   before_action :require_authentication
-  before_action :set_invoice, only: [ :pdf, :remove, :restore, :update_accounting_date ]
+  before_action :set_invoice, only: [ :pdf, :pages, :remove, :restore, :update_accounting_date ]
 
   def pdf
     unless @invoice.pdf.attached?
@@ -11,6 +11,19 @@ class InvoicesController < ApplicationController
       filename: @invoice.pdf.filename.to_s,
       type: @invoice.pdf.content_type,
       disposition: "inline"
+  end
+
+  def pages
+    page_images = @invoice.page_images.order(:page_number).includes(image_attachment: :blob)
+
+    render json: {
+      pages: page_images.map { |pi|
+        {
+          page_number: pi.page_number,
+          image_url: url_for(pi.image)
+        }
+      }
+    }
   end
 
   def remove

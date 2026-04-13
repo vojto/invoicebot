@@ -16,7 +16,7 @@ WORKDIR /rails
 
 # Install base packages (including cron for scheduled jobs)
 RUN apt-get update -qq && \
-    apt-get install --no-install-recommends -y curl libjemalloc2 libvips sqlite3 libpq-dev qpdf cron && \
+    apt-get install --no-install-recommends -y curl libjemalloc2 libvips sqlite3 libpq-dev qpdf cron poppler-utils && \
     rm -rf /var/lib/apt/lists /var/cache/apt/archives && \
     rm -rf /etc/cron.*/*
 

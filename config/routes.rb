@@ -44,6 +44,7 @@ Rails.application.routes.draw do
     end
     member do
       get :pdf
+      get :pages
       post :remove
       post :restore
       post :update_accounting_date
