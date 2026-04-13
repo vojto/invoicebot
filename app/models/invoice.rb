@@ -16,6 +16,9 @@ class Invoice < ApplicationRecord
   belongs_to :email, optional: true
   has_one :bank_transaction, class_name: "Transaction"
   has_one_attached :pdf
+  has_many :page_images, class_name: "InvoicePageImage", dependent: :destroy
+
+  after_commit :enqueue_page_extraction
 
   validates :vendor_name, presence: true
   validates :amount_cents, presence: true
@@ -31,5 +34,11 @@ class Invoice < ApplicationRecord
 
   def restore!
     update!(deleted_at: nil)
+  end
+
+  private
+
+  def enqueue_page_extraction
+    InvoicePageExtractionJob.perform_later(id) if pdf.attached?
   end
 end

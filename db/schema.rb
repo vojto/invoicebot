@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_02_06_120002) do
+ActiveRecord::Schema[8.1].define(version: 2026_04_13_144644) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -89,6 +89,15 @@ ActiveRecord::Schema[8.1].define(version: 2026_02_06_120002) do
     t.index ["user_id"], name: "index_emails_on_user_id"
   end
 
+  create_table "invoice_page_images", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.bigint "invoice_id", null: false
+    t.integer "page_number", null: false
+    t.datetime "updated_at", null: false
+    t.index ["invoice_id", "page_number"], name: "index_invoice_page_images_on_invoice_id_and_page_number", unique: true
+    t.index ["invoice_id"], name: "index_invoice_page_images_on_invoice_id"
+  end
+
   create_table "invoices", force: :cascade do |t|
     t.virtual "accounting_date", type: :date, as: "COALESCE(accounting_date_override, delivery_date, issue_date)", stored: true
     t.date "accounting_date_override"
@@ -162,6 +171,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_02_06_120002) do
   add_foreign_key "attachments", "emails"
   add_foreign_key "bank_connections", "users"
   add_foreign_key "emails", "users"
+  add_foreign_key "invoice_page_images", "invoices"
   add_foreign_key "invoices", "emails"
   add_foreign_key "invoices", "users"
   add_foreign_key "transactions", "bank_connections"
