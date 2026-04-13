@@ -15,15 +15,14 @@ const appName = (import.meta.env.VITE_APP_NAME ?? "Invoicebot") as string
 void createInertiaApp({
   title: (title) => `${title} - ${appName}`,
 
-  resolve: (name) => {
-    const pages = import.meta.glob<ResolvedComponent>("../pages/**/*.tsx", {
-      eager: true,
-    })
-    const page = pages[`../pages/${name}.tsx`]
-    if (!page) {
+  resolve: async (name) => {
+    const pages = import.meta.glob<ResolvedComponent>("../pages/**/*.tsx")
+    const loader = pages[`../pages/${name}.tsx`]
+    if (!loader) {
       console.error(`Missing Inertia page component: '${name}.tsx'`)
     }
 
+    const page = await loader()
     page.default.layout ??= (page) => createElement(DefaultLayout, null, page)
 
     return page

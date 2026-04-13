@@ -2,6 +2,7 @@ import { Head, Link } from "@inertiajs/react"
 import { Box, Flex, Heading, Text, Table, Button, Badge } from "@radix-ui/themes"
 import { ArrowLeftIcon, FileTextIcon } from "@radix-ui/react-icons"
 import { z } from "zod"
+import PdfPreview from "../../components/PdfPreview"
 
 const InvoiceSchema = z.object({
   id: z.number(),
@@ -59,74 +60,82 @@ export default function TransactionsShow(props: Props) {
   return (
     <>
       <Head title={`Transaction – ${tx.vendor_name || "Unknown"}`} />
-      <Box style={{ maxWidth: 700 }}>
-        <Flex mb="4" align="center" gap="2">
-          <Button variant="ghost" size="1" asChild>
-            <Link href="/transactions">
-              <ArrowLeftIcon /> Back to transactions
-            </Link>
-          </Button>
-        </Flex>
+      <Flex mb="4" align="center" gap="2">
+        <Button variant="ghost" size="1" asChild>
+          <Link href="/transactions">
+            <ArrowLeftIcon /> Back to transactions
+          </Link>
+        </Button>
+      </Flex>
 
-        <Heading size="6" mb="4">Transaction Details</Heading>
+      <Heading size="6" mb="4">Transaction Details</Heading>
 
-        <Table.Root variant="surface" size="2">
-          <Table.Body>
-            <DetailRow label="Vendor" value={tx.vendor_name} />
-            <DetailRow label="Bank" value={tx.bank_name} />
-            <DetailRow
-              label="Amount"
-              value={
-                <Text color={tx.direction === "credit" ? "green" : "red"}>
-                  {tx.amount_label}
-                </Text>
-              }
-            />
-            {tx.original_amount_label && (
-              <DetailRow label="Original Amount" value={tx.original_amount_label} />
-            )}
-            <DetailRow label="Direction" value={
-              <Badge color={tx.direction === "credit" ? "green" : "red"}>
-                {tx.direction}
-              </Badge>
-            } />
-            <DetailRow label="Booking Date" value={formatDate(tx.booking_date)} />
-            <DetailRow label="Value Date" value={formatDate(tx.value_date)} />
-            <DetailRow label="Description" value={tx.description} />
-            <DetailRow label="Creditor" value={tx.creditor_name} />
-            <DetailRow label="Creditor IBAN" value={tx.creditor_iban} />
-            <DetailRow label="Debtor" value={tx.debtor_name} />
-            <DetailRow label="Debtor IBAN" value={tx.debtor_iban} />
-            {tx.hidden_at && (
-              <DetailRow label="Status" value={
-                <Badge color="gray">Hidden</Badge>
+      <Flex gap="6" wrap="wrap">
+        <Box style={{ flex: "1 1 400px", minWidth: 0 }}>
+          <Table.Root variant="surface" size="2">
+            <Table.Body>
+              <DetailRow label="Vendor" value={tx.vendor_name} />
+              <DetailRow label="Bank" value={tx.bank_name} />
+              <DetailRow
+                label="Amount"
+                value={
+                  <Text color={tx.direction === "credit" ? "green" : "red"}>
+                    {tx.amount_label}
+                  </Text>
+                }
+              />
+              {tx.original_amount_label && (
+                <DetailRow label="Original Amount" value={tx.original_amount_label} />
+              )}
+              <DetailRow label="Direction" value={
+                <Badge color={tx.direction === "credit" ? "green" : "red"}>
+                  {tx.direction}
+                </Badge>
               } />
-            )}
-          </Table.Body>
-        </Table.Root>
+              <DetailRow label="Booking Date" value={formatDate(tx.booking_date)} />
+              <DetailRow label="Value Date" value={formatDate(tx.value_date)} />
+              <DetailRow label="Description" value={tx.description} />
+              <DetailRow label="Creditor" value={tx.creditor_name} />
+              <DetailRow label="Creditor IBAN" value={tx.creditor_iban} />
+              <DetailRow label="Debtor" value={tx.debtor_name} />
+              <DetailRow label="Debtor IBAN" value={tx.debtor_iban} />
+              {tx.hidden_at && (
+                <DetailRow label="Status" value={
+                  <Badge color="gray">Hidden</Badge>
+                } />
+              )}
+            </Table.Body>
+          </Table.Root>
 
-        {tx.invoice && (
-          <Box mt="6">
-            <Heading size="4" mb="3">Linked Invoice</Heading>
-            <Table.Root variant="surface" size="2">
-              <Table.Body>
-                <DetailRow label="Vendor" value={tx.invoice.vendor_name} />
-                <DetailRow label="Amount" value={tx.invoice.amount_label} />
-                <DetailRow label="Issue Date" value={formatDate(tx.invoice.issue_date)} />
-                {tx.invoice.pdf_url && (
-                  <DetailRow label="PDF" value={
-                    <Button size="1" variant="soft" asChild>
-                      <a href={tx.invoice.pdf_url} target="_blank" rel="noopener noreferrer">
-                        <FileTextIcon /> Open PDF
-                      </a>
-                    </Button>
-                  } />
-                )}
-              </Table.Body>
-            </Table.Root>
+          {tx.invoice && (
+            <Box mt="6">
+              <Heading size="4" mb="3">Linked Invoice</Heading>
+              <Table.Root variant="surface" size="2">
+                <Table.Body>
+                  <DetailRow label="Vendor" value={tx.invoice.vendor_name} />
+                  <DetailRow label="Amount" value={tx.invoice.amount_label} />
+                  <DetailRow label="Issue Date" value={formatDate(tx.invoice.issue_date)} />
+                  {tx.invoice.pdf_url && (
+                    <DetailRow label="PDF" value={
+                      <Button size="1" variant="soft" asChild>
+                        <a href={tx.invoice.pdf_url} target="_blank" rel="noopener noreferrer">
+                          <FileTextIcon /> Open PDF
+                        </a>
+                      </Button>
+                    } />
+                  )}
+                </Table.Body>
+              </Table.Root>
+            </Box>
+          )}
+        </Box>
+
+        {tx.invoice?.pdf_url && (
+          <Box style={{ flex: "0 0 auto" }}>
+            <PdfPreview url={tx.invoice.pdf_url} />
           </Box>
         )}
-      </Box>
+      </Flex>
     </>
   )
 }
