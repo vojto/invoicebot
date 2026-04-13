@@ -1,6 +1,17 @@
 class InvoicesController < ApplicationController
   before_action :require_authentication
-  before_action :set_invoice, only: [ :remove, :restore, :update_accounting_date ]
+  before_action :set_invoice, only: [ :pdf, :remove, :restore, :update_accounting_date ]
+
+  def pdf
+    unless @invoice.pdf.attached?
+      return head :not_found
+    end
+
+    send_data @invoice.pdf.download,
+      filename: @invoice.pdf.filename.to_s,
+      type: @invoice.pdf.content_type,
+      disposition: "inline"
+  end
 
   def remove
     @invoice.soft_delete!

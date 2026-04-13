@@ -7,7 +7,7 @@ class TransactionsController < ApplicationController
   # - transactions.invoice_id is unique, so relinking must clear any existing owner first.
   # - Browsers do not always send application/pdf, so we also accept .pdf filenames.
   before_action :require_authentication
-  before_action :set_transaction, only: [ :hide, :restore, :invoice_matches, :search_invoices, :link_invoice, :upload_invoice ]
+  before_action :set_transaction, only: [ :show, :hide, :restore, :invoice_matches, :search_invoices, :link_invoice, :upload_invoice ]
 
   def index
     transactions = Transaction
@@ -24,6 +24,12 @@ class TransactionsController < ApplicationController
     render inertia: "transactions/index", props: {
       transaction_groups: group_transactions(transactions),
       bank_sync_statuses: bank_sync_statuses.map { |connection| serialize_bank_sync_status(connection) }
+    }
+  end
+
+  def show
+    render inertia: "transactions/show", props: {
+      transaction: serialize_transaction_detail(@transaction)
     }
   end
 
@@ -262,6 +268,33 @@ class TransactionsController < ApplicationController
     return "Never" if time.nil?
 
     time.strftime("%b %d, %Y at %l:%M %p")
+  end
+
+  def serialize_transaction_detail(tx)
+    invoice = tx.invoice
+    {
+      id: tx.id,
+      direction: tx.direction,
+      booking_date: tx.booking_date&.iso8601,
+      value_date: tx.value_date&.iso8601,
+      amount_label: format_amount(tx.amount_cents, tx.currency),
+      original_amount_label: tx.original_amount_cents && tx.original_currency ? format_amount(tx.original_amount_cents, tx.original_currency) : nil,
+      vendor_name: tx.vendor_name,
+      description: tx.description,
+      creditor_name: tx.creditor_name,
+      creditor_iban: tx.creditor_iban,
+      debtor_name: tx.debtor_name,
+      debtor_iban: tx.debtor_iban,
+      bank_name: tx.bank_connection.institution_name,
+      hidden_at: tx.hidden_at&.iso8601,
+      invoice: invoice ? {
+        id: invoice.id,
+        vendor_name: invoice.vendor_name,
+        amount_label: format_amount(invoice.amount_cents, invoice.currency),
+        issue_date: invoice.issue_date&.iso8601,
+        pdf_url: invoice.pdf.attached? ? pdf_invoice_path(invoice) : nil
+      } : nil
+    }
   end
 
   def link_invoice_to_transaction!(invoice)

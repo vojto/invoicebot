@@ -113,7 +113,17 @@ export default function TransactionsIndex(props: Props) {
                             {isLinked && <CheckIcon className="text-blue-600" />}
                           </Table.Cell>
                           <Table.Cell><span className={hiddenClass}>{bankLabel}</span></Table.Cell>
-                          <Table.Cell><span className={hiddenClass}>{tx.booking_date_label}</span></Table.Cell>
+                          <Table.Cell>
+                            <Link
+                              href={`/transactions/${tx.id}`}
+                              className={hiddenClass}
+                              style={{ color: 'inherit', textDecoration: 'underline dotted', textUnderlineOffset: 3 }}
+                              onMouseEnter={e => { e.currentTarget.style.textDecoration = 'none' }}
+                              onMouseLeave={e => { e.currentTarget.style.textDecoration = 'underline dotted' }}
+                            >
+                              {tx.booking_date_label}
+                            </Link>
+                          </Table.Cell>
                           <Table.Cell>
                             <Text className={hiddenClass} color={isHidden ? "gray" : directionColor}>
                               {tx.amount_label}

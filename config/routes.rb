@@ -20,6 +20,7 @@ Rails.application.routes.draw do
 
   # Transactions
   get "/transactions", to: "transactions#index", as: :transactions
+  get "/transactions/:id", to: "transactions#show", as: :transaction
   get "/transactions/:id/invoice_matches", to: "transactions#invoice_matches", as: :transaction_invoice_matches
   get "/transactions/:id/search_invoices", to: "transactions#search_invoices", as: :search_transaction_invoices
   post "/transactions/:id/link_invoice", to: "transactions#link_invoice", as: :link_transaction_invoice
@@ -42,6 +43,7 @@ Rails.application.routes.draw do
       post :upload
     end
     member do
+      get :pdf
       post :remove
       post :restore
       post :update_accounting_date
