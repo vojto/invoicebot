@@ -1,6 +1,6 @@
 import { Head, Link } from "@inertiajs/react"
 import { Box, Flex, Heading, Text, Table, Button, Badge } from "@radix-ui/themes"
-import { ArrowLeftIcon, FileTextIcon } from "@radix-ui/react-icons"
+import { ArrowLeftIcon, ExternalLinkIcon, FileTextIcon } from "@radix-ui/react-icons"
 import { z } from "zod"
 import PdfPreview from "../../components/PdfPreview"
 
@@ -124,6 +124,13 @@ export default function TransactionsShow(props: Props) {
                       </Button>
                     } />
                   )}
+                  <DetailRow label="Details" value={
+                    <Button size="1" variant="soft" asChild>
+                      <Link href={`/invoices/${tx.invoice.id}`}>
+                        <ExternalLinkIcon /> View invoice
+                      </Link>
+                    </Button>
+                  } />
                 </Table.Body>
               </Table.Root>
             </Box>

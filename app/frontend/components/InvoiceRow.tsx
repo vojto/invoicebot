@@ -73,7 +73,7 @@ export default function InvoiceRow({ invoice }: Props) {
         </Text>
       </Table.Cell>
       <Table.Cell>
-        <Text family="mono" style={deletedStyle}>
+        <Text style={{ ...deletedStyle, fontFamily: "monospace" }}>
           {formatCurrency(invoice.amount_cents, invoice.currency)}
         </Text>
       </Table.Cell>
@@ -113,6 +113,13 @@ export default function InvoiceRow({ invoice }: Props) {
       </Table.Cell>
       <Table.Cell>
         <Flex gap="2" justify="end">
+          {!isDeleted && (
+            <Button size="1" variant="soft" asChild>
+              <a href={`/invoices/${invoice.id}`}>
+                View
+              </a>
+            </Button>
+          )}
           {invoice.pdf_url && !isDeleted && (
             <Button size="1" variant="soft" asChild>
               <a href={invoice.pdf_url} target="_blank" rel="noopener noreferrer">

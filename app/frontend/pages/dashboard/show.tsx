@@ -2,7 +2,7 @@ import { Head, router } from "@inertiajs/react"
 import { Heading, Box, Text, Table, Flex, Button, Callout } from "@radix-ui/themes"
 import { DownloadIcon, UpdateIcon, CheckCircledIcon, CrossCircledIcon } from "@radix-ui/react-icons"
 import { z } from "zod"
-import InvoiceRow, { InvoiceSchema, type Invoice } from "~/components/InvoiceRow"
+import InvoiceRow, { InvoiceSchema, type Invoice } from "../../components/InvoiceRow"
 
 const PropsSchema = z.object({
   invoices: z.array(InvoiceSchema),

@@ -40,7 +40,7 @@ Rails.application.routes.draw do
   get "/banks/callback", to: "banks#callback", as: :callback_banks
 
   # Invoices
-  resources :invoices, only: [] do
+  resources :invoices, only: [ :show ] do
     collection do
       get :download
       post :upload

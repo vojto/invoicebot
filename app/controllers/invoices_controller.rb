@@ -1,6 +1,12 @@
 class InvoicesController < ApplicationController
   before_action :require_authentication
-  before_action :set_invoice, only: [ :pdf, :pages, :remove, :restore, :update_accounting_date ]
+  before_action :set_invoice, only: [ :show, :pdf, :pages, :remove, :restore, :update_accounting_date ]
+
+  def show
+    render inertia: "invoices/show", props: {
+      invoice: serialize_invoice_detail(@invoice)
+    }
+  end
 
   def pdf
     unless @invoice.pdf.attached?
@@ -87,7 +93,47 @@ class InvoicesController < ApplicationController
   private
 
   def set_invoice
-    @invoice = current_user.invoices.find(params[:id])
+    @invoice = current_user.invoices
+      .includes(:email, :bank_transaction, pdf_attachment: :blob)
+      .find(params[:id])
+  end
+
+  def serialize_invoice_detail(invoice)
+    email = invoice.email
+    bank_transaction = invoice.bank_transaction
+
+    {
+      id: invoice.id,
+      vendor_name: invoice.vendor_name,
+      amount_label: format_amount(invoice.amount_cents, invoice.currency),
+      currency: invoice.currency,
+      accounting_date: invoice.accounting_date&.iso8601,
+      issue_date: invoice.issue_date&.iso8601,
+      delivery_date: invoice.delivery_date&.iso8601,
+      note: invoice.note,
+      deleted_at: invoice.deleted_at&.iso8601,
+      pdf_url: invoice.pdf.attached? ? pdf_invoice_path(invoice) : nil,
+      email: email ? {
+        id: email.id,
+        subject: email.subject,
+        from_name: email.from_name,
+        from_address: email.from_address,
+        date: email.date&.iso8601
+      } : nil,
+      bank_transaction: bank_transaction ? {
+        id: bank_transaction.id,
+        vendor_name: bank_transaction.vendor_name,
+        amount_label: format_amount(bank_transaction.amount_cents, bank_transaction.currency),
+        booking_date: bank_transaction.booking_date&.iso8601
+      } : nil
+    }
+  end
+
+  def format_amount(amount_cents, currency)
+    amount = amount_cents.to_f / 100
+    unit = currency.presence || "EUR"
+
+    ActiveSupport::NumberHelper.number_to_currency(amount, unit: unit, format: "%n %u")
   end
 
   def create_zip(invoices)

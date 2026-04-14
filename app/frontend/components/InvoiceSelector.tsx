@@ -1,4 +1,4 @@
-import { MagnifyingGlassIcon } from "@radix-ui/react-icons"
+import { ExternalLinkIcon, MagnifyingGlassIcon } from "@radix-ui/react-icons"
 import { router } from "@inertiajs/react"
 import { Box, Button, Flex, Text, TextField, Theme } from "@radix-ui/themes"
 import { useCallback, useEffect, useRef, useState } from "react"
@@ -31,30 +31,50 @@ function offsetTone(offset: number | null): "green" | "red" | "gray" {
 
 function InvoiceMatchRow({ invoice, transactionId, onSelect }: { invoice: InvoiceMatch; transactionId: number; onSelect: () => void }) {
   return (
-    <Button
-      variant="ghost"
-      className="h-auto w-full justify-start px-2 py-2 text-left"
-      onClick={() => {
-        router.post(`/transactions/${transactionId}/link_invoice`, {
-          invoice_id: invoice.id,
-        }, { preserveScroll: true })
-        onSelect()
-      }}
+    <Flex
+      align="start"
+      gap="2"
+      className="rounded-md border border-transparent px-1 py-1 hover:border-gray-200 hover:bg-gray-50"
     >
-      <Flex direction="column" gap="1" align="start" className="w-full">
-        <Text size="2" weight="medium">
-          {invoice.vendor_name || "Unknown vendor"}
-        </Text>
-        <Flex align="center" justify="between" className="w-full">
-          <Text size="2" color="gray">
-            {invoice.amount_label}
-          </Text>
-          <Text size="2" weight="medium" color={offsetTone(invoice.date_offset_days)}>
-            {formatOffset(invoice.date_offset_days)}d
-          </Text>
+      <button
+        type="button"
+        className="min-w-0 flex-1 rounded-md px-2 py-2 text-left"
+        onClick={() => {
+          router.post(`/transactions/${transactionId}/link_invoice`, {
+            invoice_id: invoice.id,
+          }, { preserveScroll: true })
+          onSelect()
+        }}
+      >
+        <Flex direction="column" gap="1" align="start" className="w-full min-w-0">
+          <Flex align="center" gap="2" className="w-full min-w-0">
+            <Text size="2" weight="medium" className="min-w-0 flex-1 truncate text-left">
+              {invoice.vendor_name || "Unknown vendor"}
+            </Text>
+          </Flex>
+          <Flex align="center" justify="between" className="w-full">
+            <Text size="2" color="gray">
+              {invoice.amount_label}
+            </Text>
+            <Text size="2" weight="medium" color={offsetTone(invoice.date_offset_days)}>
+              {formatOffset(invoice.date_offset_days)}d
+            </Text>
+          </Flex>
         </Flex>
-      </Flex>
-    </Button>
+      </button>
+
+      <Button size="1" variant="ghost" color="gray" asChild>
+        <a
+          href={`/invoices/${invoice.id}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label={`Open ${invoice.vendor_name || "invoice"} in a new tab`}
+          title="Open invoice in a new tab"
+        >
+          <ExternalLinkIcon />
+        </a>
+      </Button>
+    </Flex>
   )
 }
 

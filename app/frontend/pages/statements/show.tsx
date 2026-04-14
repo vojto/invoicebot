@@ -27,8 +27,6 @@ const StatementSectionSchema = z.object({
   rows: z.array(StatementRowSchema),
 })
 
-type StatementSection = z.infer<typeof StatementSectionSchema>
-
 const PropsSchema = z.object({
   statement_month_key: z.string(),
   statement_month_label: z.string(),
