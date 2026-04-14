@@ -64,7 +64,11 @@ export default function InvoiceRow({ invoice }: Props) {
   const isDeleted = !!invoice.deleted_at
   const isLinked = !!invoice.bank_transaction
   const deletedStyle = isDeleted ? { textDecoration: "line-through", opacity: 0.4 } : undefined
-  const rowClass = isLinked && !isDeleted ? "bg-blue-50" : ""
+  const rowClass = isDeleted
+    ? "bg-gray-50"
+    : isLinked
+      ? "bg-blue-50"
+      : "bg-yellow-50/50"
 
   return (
     <Table.Row className={rowClass}>

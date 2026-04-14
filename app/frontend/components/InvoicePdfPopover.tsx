@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react"
 import { Text, Flex, Spinner } from "@radix-ui/themes"
-import { EyeOpenIcon } from "@radix-ui/react-icons"
+import { MagnifyingGlassIcon } from "@radix-ui/react-icons"
 import { createPortal } from "react-dom"
 
 interface PageData {
@@ -44,7 +44,7 @@ export default function InvoicePdfPopover({ invoiceId }: InvoicePdfPopoverProps)
     const rect = iconRef.current.getBoundingClientRect()
     const vh = window.innerHeight
     const vw = window.innerWidth
-    const popoverHeight = vh * 0.8
+    const popoverHeight = vh * 0.9
     const top = (vh - popoverHeight) / 2
     const iconCenterX = rect.left + rect.width / 2
     const gap = 12
@@ -89,7 +89,6 @@ export default function InvoicePdfPopover({ invoiceId }: InvoicePdfPopoverProps)
         zIndex: 9999,
         borderRadius: 8,
         overflow: "hidden",
-        boxShadow: "0 8px 30px rgba(0,0,0,0.2)",
         backgroundColor: "white",
         border: "1px solid var(--gray-5)",
         pointerEvents: "none",
@@ -127,13 +126,10 @@ export default function InvoicePdfPopover({ invoiceId }: InvoicePdfPopoverProps)
           padding: 2,
           display: "inline-flex",
           alignItems: "center",
-          color: "var(--blue-9)",
-          opacity: 0.6,
+          color: "var(--gray-8)",
         }}
-        onMouseOver={e => (e.currentTarget.style.opacity = "1")}
-        onMouseOut={e => (e.currentTarget.style.opacity = "0.6")}
       >
-        <EyeOpenIcon width={15} height={15} />
+        <MagnifyingGlassIcon width={14} height={14} />
       </button>
       {popover}
     </>
