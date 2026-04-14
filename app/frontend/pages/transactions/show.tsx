@@ -21,6 +21,7 @@ const TransactionSchema = z.object({
   amount_label: z.string(),
   original_amount_label: z.string().nullable(),
   vendor_name: z.string().nullable(),
+  custom_note: z.string().nullable(),
   description: z.string().nullable(),
   creditor_name: z.string().nullable(),
   creditor_iban: z.string().nullable(),
@@ -148,6 +149,7 @@ export default function TransactionsShow(props: Props) {
               } />
               <DetailRow label="Booking Date" value={formatDate(tx.booking_date)} />
               <DetailRow label="Value Date" value={formatDate(tx.value_date)} />
+              <DetailRow label="Note" value={tx.custom_note} />
               <DetailRow label="Description" value={tx.description} />
               <DetailRow label="Creditor" value={tx.creditor_name} />
               <DetailRow label="Creditor IBAN" value={tx.creditor_iban} />
