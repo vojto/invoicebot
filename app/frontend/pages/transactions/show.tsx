@@ -38,10 +38,10 @@ const PropsSchema = z.object({
 
 type Props = z.infer<typeof PropsSchema>
 
-function DetailRow({ label, value }: { label: string; value: React.ReactNode }) {
+function DetailRow({ label, value, className }: { label: string; value: React.ReactNode; className?: string }) {
   if (!value) return null
   return (
-    <Table.Row>
+    <Table.Row className={className}>
       <Table.Cell style={{ width: 180 }}>
         <Text weight="medium" color="gray">{label}</Text>
       </Table.Cell>
@@ -149,7 +149,7 @@ export default function TransactionsShow(props: Props) {
               } />
               <DetailRow label="Booking Date" value={formatDate(tx.booking_date)} />
               <DetailRow label="Value Date" value={formatDate(tx.value_date)} />
-              <DetailRow label="Note" value={tx.custom_note} />
+              <DetailRow label="Note" value={tx.custom_note} className="bg-yellow-50/50" />
               <DetailRow label="Description" value={tx.description} />
               <DetailRow label="Creditor" value={tx.creditor_name} />
               <DetailRow label="Creditor IBAN" value={tx.creditor_iban} />
