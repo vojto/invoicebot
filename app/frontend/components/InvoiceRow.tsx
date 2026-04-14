@@ -3,6 +3,7 @@ import { Text, Table, Flex, Button, Badge } from "@radix-ui/themes"
 import { z } from "zod"
 import DateDifferenceBadge from "./DateDifferenceBadge"
 import AccountingDateEditor from "./AccountingDateEditor"
+import InvoicePdfPopover from "./InvoicePdfPopover"
 
 const EmailSchema = z.object({
   id: z.number(),
@@ -68,15 +69,20 @@ export default function InvoiceRow({ invoice }: Props) {
   return (
     <Table.Row className={rowClass}>
       <Table.Cell>
-        <Link
-          href={`/invoices/${invoice.id}`}
-          className="text-inherit underline decoration-dotted hover:decoration-solid underline-offset-2"
-          style={deletedStyle}
-        >
-          <Text as="span" weight="medium">
-            {invoice.vendor_name || "Unknown"}
-          </Text>
-        </Link>
+        <Flex align="center" gap="1">
+          <Link
+            href={`/invoices/${invoice.id}`}
+            className="text-inherit underline decoration-dotted hover:decoration-solid underline-offset-2"
+            style={deletedStyle}
+          >
+            <Text as="span" weight="medium">
+              {invoice.vendor_name || "Unknown"}
+            </Text>
+          </Link>
+          {invoice.pdf_url && !isDeleted && (
+            <InvoicePdfPopover invoiceId={invoice.id} />
+          )}
+        </Flex>
       </Table.Cell>
       <Table.Cell>
         <Text style={deletedStyle}>
@@ -119,20 +125,6 @@ export default function InvoiceRow({ invoice }: Props) {
       </Table.Cell>
       <Table.Cell>
         <Flex gap="2" justify="end">
-          {!isDeleted && (
-            <Button size="1" variant="soft" asChild>
-              <a href={`/invoices/${invoice.id}`}>
-                View
-              </a>
-            </Button>
-          )}
-          {invoice.pdf_url && !isDeleted && (
-            <Button size="1" variant="soft" asChild>
-              <a href={invoice.pdf_url} target="_blank" rel="noopener noreferrer">
-                Open
-              </a>
-            </Button>
-          )}
           {isDeleted ? (
             <Button
               size="1"
