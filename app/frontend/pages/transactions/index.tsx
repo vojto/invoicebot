@@ -167,10 +167,7 @@ export default function TransactionsIndex(props: Props) {
                           <Table.Cell>
                             <Link
                               href={`/transactions/${tx.id}`}
-                              className={hiddenClass}
-                              style={{ color: 'inherit', textDecoration: 'underline dotted', textUnderlineOffset: 3 }}
-                              onMouseEnter={e => { e.currentTarget.style.textDecoration = 'none' }}
-                              onMouseLeave={e => { e.currentTarget.style.textDecoration = 'underline dotted' }}
+                              className={`${hiddenClass} text-inherit underline decoration-dotted hover:decoration-solid underline-offset-2`}
                             >
                               {tx.booking_date_label}
                             </Link>

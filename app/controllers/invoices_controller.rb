@@ -46,9 +46,9 @@ class InvoicesController < ApplicationController
     date_string = params[:accounting_date]
     date = date_string.present? ? Date.parse(date_string) : nil
     @invoice.update!(accounting_date_override: date)
-    redirect_to dashboard_path
+    redirect_back fallback_location: invoice_path(@invoice)
   rescue ArgumentError
-    redirect_to dashboard_path, alert: "Invalid date format"
+    redirect_back fallback_location: invoice_path(@invoice), alert: "Invalid date format"
   end
 
   def upload

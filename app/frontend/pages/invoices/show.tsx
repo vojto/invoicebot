@@ -2,6 +2,7 @@ import { Head, Link } from "@inertiajs/react"
 import { ArrowLeftIcon, ExternalLinkIcon, FileTextIcon } from "@radix-ui/react-icons"
 import { Badge, Box, Button, Flex, Heading, Table, Text } from "@radix-ui/themes"
 import { z } from "zod"
+import AccountingDateEditor from "../../components/AccountingDateEditor"
 import PdfPreview from "../../components/PdfPreview"
 
 const EmailSchema = z.object({
@@ -63,6 +64,7 @@ function formatDate(iso: string | null) {
   })
 }
 
+
 export default function InvoicesShow(props: Props) {
   const { invoice } = PropsSchema.parse(props)
 
@@ -86,7 +88,22 @@ export default function InvoicesShow(props: Props) {
               <DetailRow label="Vendor" value={invoice.vendor_name} />
               <DetailRow label="Amount" value={invoice.amount_label} />
               <DetailRow label="Currency" value={invoice.currency} />
-              <DetailRow label="Accounting Date" value={formatDate(invoice.accounting_date)} />
+              <DetailRow
+                label="Accounting Date"
+                value={
+                  <Flex align="center" gap="2">
+                    <Text color={invoice.accounting_date ? undefined : "gray"}>
+                      {formatDate(invoice.accounting_date) || "—"}
+                    </Text>
+                    {!invoice.deleted_at && (
+                      <AccountingDateEditor
+                        invoiceId={invoice.id}
+                        accountingDate={invoice.accounting_date}
+                      />
+                    )}
+                  </Flex>
+                }
+              />
               <DetailRow label="Issue Date" value={formatDate(invoice.issue_date)} />
               <DetailRow label="Delivery Date" value={formatDate(invoice.delivery_date)} />
               <DetailRow label="Note" value={invoice.note} />

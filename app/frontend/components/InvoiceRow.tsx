@@ -1,4 +1,4 @@
-import { router } from "@inertiajs/react"
+import { Link, router } from "@inertiajs/react"
 import { Text, Table, Flex, Button, Badge } from "@radix-ui/themes"
 import { z } from "zod"
 import DateDifferenceBadge from "./DateDifferenceBadge"
@@ -68,12 +68,18 @@ export default function InvoiceRow({ invoice }: Props) {
   return (
     <Table.Row className={rowClass}>
       <Table.Cell>
-        <Text weight="medium" style={deletedStyle}>
-          {invoice.vendor_name || "Unknown"}
-        </Text>
+        <Link
+          href={`/invoices/${invoice.id}`}
+          className="text-inherit underline decoration-dotted hover:decoration-solid underline-offset-2"
+          style={deletedStyle}
+        >
+          <Text as="span" weight="medium">
+            {invoice.vendor_name || "Unknown"}
+          </Text>
+        </Link>
       </Table.Cell>
       <Table.Cell>
-        <Text style={{ ...deletedStyle, fontFamily: "monospace" }}>
+        <Text style={deletedStyle}>
           {formatCurrency(invoice.amount_cents, invoice.currency)}
         </Text>
       </Table.Cell>
