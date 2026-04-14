@@ -1,7 +1,8 @@
-import { Head, Link } from "@inertiajs/react"
+import { Head, Link, router } from "@inertiajs/react"
 import { Box, Flex, Heading, Text, Table, Button, Badge } from "@radix-ui/themes"
 import { ArrowLeftIcon, ExternalLinkIcon, FileTextIcon } from "@radix-ui/react-icons"
 import { z } from "zod"
+import { useCallback, useState } from "react"
 import PdfPreview from "../../components/PdfPreview"
 
 const InvoiceSchema = z.object({
@@ -52,6 +53,59 @@ function formatDate(iso: string | null) {
   if (!iso) return null
   const d = new Date(iso + "T00:00:00")
   return d.toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" })
+}
+
+function InvoiceDropZone({ transactionId }: { transactionId: number }) {
+  const [isDragging, setIsDragging] = useState(false)
+  const [isUploading, setIsUploading] = useState(false)
+
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault()
+    setIsDragging(false)
+
+    const file = e.dataTransfer?.files?.[0]
+    if (!file || file.type !== "application/pdf") return
+
+    setIsUploading(true)
+    router.post(`/transactions/${transactionId}/upload_invoice`, { file }, {
+      forceFormData: true,
+      preserveScroll: true,
+      onFinish: () => setIsUploading(false),
+    })
+  }, [transactionId])
+
+  return (
+    <Box
+      onDragOver={(e) => { e.preventDefault(); setIsDragging(true) }}
+      onDragLeave={(e) => { e.preventDefault(); if (e.currentTarget.contains(e.relatedTarget as Node)) return; setIsDragging(false) }}
+      onDrop={handleDrop}
+      style={{
+        aspectRatio: "1 / 1.4142",
+        width: "100%",
+        border: isDragging ? "2px dashed var(--accent-9)" : "2px dashed var(--gray-6)",
+        borderRadius: "var(--radius-3)",
+        backgroundColor: isDragging ? "var(--accent-a3)" : "var(--gray-a2)",
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "center",
+        transition: "border-color 0.15s, background-color 0.15s",
+      }}
+    >
+      {isUploading ? (
+        <Text size="3" color="gray">Uploading...</Text>
+      ) : (
+        <>
+          <Text size="3" color="gray" weight="medium" mb="2">
+            No invoice linked
+          </Text>
+          <Text size="2" color="gray">
+            Drop a PDF here to upload and link an invoice
+          </Text>
+        </>
+      )}
+    </Box>
+  )
 }
 
 export default function TransactionsShow(props: Props) {
@@ -137,11 +191,16 @@ export default function TransactionsShow(props: Props) {
           )}
         </Box>
 
-        {tx.invoice && (
-          <Box style={{ flex: "1 1 0", minWidth: 0 }}>
-            <PdfPreview invoiceId={tx.invoice.id} />
-          </Box>
-        )}
+        <Box style={{ flex: "1 1 0", minWidth: 0 }}>
+          {tx.invoice ? (
+            <PdfPreview
+              invoiceId={tx.invoice.id}
+              onUnlink={() => router.post(`/transactions/${tx.id}/unlink_invoice`)}
+            />
+          ) : (
+            <InvoiceDropZone transactionId={tx.id} />
+          )}
+        </Box>
       </Flex>
     </>
   )

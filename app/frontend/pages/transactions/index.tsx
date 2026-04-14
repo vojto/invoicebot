@@ -7,6 +7,7 @@ import BankSyncStatusList, { BankSyncStatusSchema } from "../../components/BankS
 import InvoiceSelector from "../../components/InvoiceSelector"
 import TransactionNoteEditor from "../../components/TransactionNoteEditor"
 import TransactionInvoiceUploadButton from "../../components/TransactionInvoiceUploadButton"
+import PdfDropZone from "../../components/PdfDropZone"
 
 const TransactionSchema = z.object({
   id: z.number(),
@@ -95,7 +96,7 @@ export default function TransactionsIndex(props: Props) {
   const hasTransactions = transaction_groups.length > 0
 
   return (
-    <>
+    <PdfDropZone enabled={true}>
       <Head title="Transactions" />
       <Box>
         <Flex justify="between" align="center" mb="4">
@@ -235,6 +236,6 @@ export default function TransactionsIndex(props: Props) {
           </Flex>
         )}
       </Box>
-    </>
+    </PdfDropZone>
   )
 }

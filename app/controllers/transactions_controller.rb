@@ -7,7 +7,7 @@ class TransactionsController < ApplicationController
   # - transactions.invoice_id is unique, so relinking must clear any existing owner first.
   # - Browsers do not always send application/pdf, so we also accept .pdf filenames.
   before_action :require_authentication
-  before_action :set_transaction, only: [ :show, :hide, :restore, :flag, :unflag, :update_custom_note, :invoice_matches, :search_invoices, :link_invoice, :upload_invoice ]
+  before_action :set_transaction, only: [ :show, :hide, :restore, :flag, :unflag, :update_custom_note, :invoice_matches, :search_invoices, :link_invoice, :upload_invoice, :unlink_invoice ]
 
   def index
     transactions = Transaction
@@ -90,6 +90,11 @@ class TransactionsController < ApplicationController
     redirect_to transactions_path
   end
 
+  def unlink_invoice
+    @transaction.update!(invoice: nil)
+    redirect_to transaction_path(@transaction), notice: "Invoice unlinked from transaction"
+  end
+
   def upload_invoice
     file = pdf_upload_param
     return head :bad_request unless file
@@ -106,9 +111,9 @@ class TransactionsController < ApplicationController
         link_invoice_to_transaction!(invoice)
       end
 
-      redirect_to transactions_path, notice: "Invoice uploaded and linked to transaction"
+      redirect_to transaction_path(@transaction), notice: "Invoice uploaded and linked to transaction"
     else
-      redirect_to transactions_path, alert: "Could not extract invoice from PDF"
+      redirect_to transaction_path(@transaction), alert: "Could not extract invoice from PDF"
     end
   end
 

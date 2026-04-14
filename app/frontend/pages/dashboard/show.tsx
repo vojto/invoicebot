@@ -3,6 +3,7 @@ import { Heading, Box, Text, Table, Flex, Button, Callout } from "@radix-ui/them
 import { DownloadIcon, UpdateIcon, CheckCircledIcon, CrossCircledIcon } from "@radix-ui/react-icons"
 import { z } from "zod"
 import InvoiceRow, { InvoiceSchema, type Invoice } from "../../components/InvoiceRow"
+import PdfDropZone from "../../components/PdfDropZone"
 
 const PropsSchema = z.object({
   invoices: z.array(InvoiceSchema),
@@ -114,7 +115,7 @@ export default function DashboardShow(props: Props) {
   const groupedInvoices = groupInvoicesByMonth(invoices)
 
   return (
-    <>
+    <PdfDropZone enabled={true}>
       <Head title="Dashboard" />
       <SyncStatus running={sync_running} completedAt={sync_completed_at} error={sync_error} />
       <Box>
@@ -169,6 +170,6 @@ export default function DashboardShow(props: Props) {
           </Flex>
         )}
       </Box>
-    </>
+    </PdfDropZone>
   )
 }
