@@ -48,13 +48,15 @@ type Props = z.infer<typeof PropsSchema>
 type ActionButtonProps = {
   transactionId: number
   isFlagged: boolean
+  isLinked: boolean
 }
 
 function postTransactionAction(url: string) {
   router.post(url, {}, { preserveScroll: true })
 }
 
-function TransactionActions({ transactionId, isFlagged }: ActionButtonProps) {
+function TransactionActions({ transactionId, isFlagged, isLinked }: ActionButtonProps) {
+  const itemClass = "cursor-pointer select-none rounded px-2 py-1.5 text-sm text-gray-800 outline-none hover:bg-gray-100 focus:bg-gray-100"
   return (
     <DropdownMenu.Root>
       <DropdownMenu.Trigger asChild>
@@ -69,14 +71,22 @@ function TransactionActions({ transactionId, isFlagged }: ActionButtonProps) {
           sideOffset={6}
           className="z-50 min-w-28 rounded-md border border-gray-200 bg-white p-1 shadow-lg"
         >
+          {isLinked && (
+            <DropdownMenu.Item
+              className={itemClass}
+              onSelect={() => postTransactionAction(`/transactions/${transactionId}/unlink_invoice`)}
+            >
+              Unlink invoice
+            </DropdownMenu.Item>
+          )}
           <DropdownMenu.Item
-            className="cursor-pointer select-none rounded px-2 py-1.5 text-sm text-gray-800 outline-none hover:bg-gray-100 focus:bg-gray-100"
+            className={itemClass}
             onSelect={() => postTransactionAction(`/transactions/${transactionId}/hide`)}
           >
             Hide
           </DropdownMenu.Item>
           <DropdownMenu.Item
-            className="cursor-pointer select-none rounded px-2 py-1.5 text-sm text-gray-800 outline-none hover:bg-gray-100 focus:bg-gray-100"
+            className={itemClass}
             onSelect={() => postTransactionAction(
               isFlagged
                 ? `/transactions/${transactionId}/unflag`
@@ -223,7 +233,7 @@ export default function TransactionsIndex(props: Props) {
                                 {isHidden ? "Restore" : "Unflag"}
                               </Button>
                             ) : (
-                              <TransactionActions transactionId={tx.id} isFlagged={isFlagged} />
+                              <TransactionActions transactionId={tx.id} isFlagged={isFlagged} isLinked={isLinked} />
                             )}
                           </Table.Cell>
                         </Table.Row>

@@ -122,9 +122,11 @@ export default function InvoiceRow({ invoice }: Props) {
       </Table.Cell>
       <Table.Cell>
         {invoice.bank_transaction && (
-          <Badge size="1" variant="soft" color="blue">
-            {invoice.bank_transaction.vendor_name || "Transaction"}
-          </Badge>
+          <Link href={`/transactions/${invoice.bank_transaction.id}`}>
+            <Badge size="1" variant="soft" color="blue" style={{ cursor: "pointer" }}>
+              {invoice.bank_transaction.vendor_name || "Transaction"}
+            </Badge>
+          </Link>
         )}
       </Table.Cell>
       <Table.Cell>
