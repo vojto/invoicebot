@@ -106,7 +106,7 @@ class TransactionsController < ApplicationController
       filename: file.original_filename,
       require_extraction: false,
       fallback_date: @transaction.booking_date || @transaction.value_date,
-      fallback_vendor: @transaction.vendor_name,
+      fallback_vendor: @transaction.custom_note.presence || @transaction.vendor_name,
       fallback_currency: @transaction.currency
     )
 
