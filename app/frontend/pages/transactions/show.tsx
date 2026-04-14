@@ -7,7 +7,7 @@ import PdfPreview from "../../components/PdfPreview"
 
 const InvoiceSchema = z.object({
   id: z.number(),
-  vendor_name: z.string(),
+  vendor_name: z.string().nullable(),
   amount_label: z.string(),
   issue_date: z.string().nullable(),
   pdf_url: z.string().nullable(),

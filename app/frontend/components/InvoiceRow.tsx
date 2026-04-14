@@ -15,7 +15,7 @@ const EmailSchema = z.object({
 export const InvoiceSchema = z.object({
   id: z.number(),
   vendor_name: z.string().nullable(),
-  amount_cents: z.number(),
+  amount_cents: z.number().nullable(),
   currency: z.string().nullable(),
   accounting_date: z.string().nullish(),
   deleted_at: z.string().nullish(),
@@ -80,7 +80,7 @@ export default function InvoiceRow({ invoice }: Props) {
       </Table.Cell>
       <Table.Cell>
         <Text style={deletedStyle}>
-          {formatCurrency(invoice.amount_cents, invoice.currency)}
+          {invoice.amount_cents != null ? formatCurrency(invoice.amount_cents, invoice.currency) : "—"}
         </Text>
       </Table.Cell>
       <Table.Cell>

@@ -130,6 +130,8 @@ class InvoicesController < ApplicationController
   end
 
   def format_amount(amount_cents, currency)
+    return "—" if amount_cents.nil?
+
     amount = amount_cents.to_f / 100
     unit = currency.presence || "EUR"
 
@@ -145,7 +147,7 @@ class InvoicesController < ApplicationController
 
         # Create a safe filename with date prefix, vendor name, and invoice id
         date_prefix = invoice.accounting_date.strftime("%Y-%m-%d")
-        safe_vendor = invoice.vendor_name.gsub(/[^a-zA-Z0-9\-_]/, "_").truncate(50, omission: "")
+        safe_vendor = (invoice.vendor_name || "unknown").gsub(/[^a-zA-Z0-9\-_]/, "_").truncate(50, omission: "")
         filename = "#{date_prefix}__#{safe_vendor}_#{invoice.id}.pdf"
 
         zip.put_next_entry(filename)

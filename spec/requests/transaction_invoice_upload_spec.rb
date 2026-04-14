@@ -15,14 +15,18 @@ RSpec.describe "POST /transactions/:id/upload_invoice", type: :request do
     expect(processing_service).to receive(:extract_invoice_from_pdf).with(
       user,
       instance_of(Tempfile),
-      filename: "invoice.pdf"
+      filename: "invoice.pdf",
+      require_extraction: false,
+      fallback_date: transaction.booking_date || transaction.value_date,
+      fallback_vendor: transaction.vendor_name,
+      fallback_currency: transaction.currency
     ).and_return(invoice)
 
     post "/transactions/#{transaction.id}/upload_invoice", params: {
       file: uploaded_file(filename: "invoice.pdf", content_type: "application/octet-stream")
     }
 
-    expect(response).to redirect_to("/transactions")
+    expect(response).to redirect_to("/transactions/#{transaction.id}")
     expect(transaction.reload.invoice).to eq(invoice)
   end
 

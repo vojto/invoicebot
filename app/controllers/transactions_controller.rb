@@ -103,18 +103,18 @@ class TransactionsController < ApplicationController
     invoice = processing_service.extract_invoice_from_pdf(
       current_user,
       file.tempfile,
-      filename: file.original_filename
+      filename: file.original_filename,
+      require_extraction: false,
+      fallback_date: @transaction.booking_date || @transaction.value_date,
+      fallback_vendor: @transaction.vendor_name,
+      fallback_currency: @transaction.currency
     )
 
-    if invoice
-      Transaction.transaction do
-        link_invoice_to_transaction!(invoice)
-      end
-
-      redirect_to transaction_path(@transaction), notice: "Invoice uploaded and linked to transaction"
-    else
-      redirect_to transaction_path(@transaction), alert: "Could not extract invoice from PDF"
+    Transaction.transaction do
+      link_invoice_to_transaction!(invoice)
     end
+
+    redirect_to transaction_path(@transaction), notice: "Invoice uploaded and linked to transaction"
   end
 
   private
@@ -198,6 +198,8 @@ class TransactionsController < ApplicationController
   end
 
   def amount_diff_for_match(transaction, invoice)
+    return nil if invoice.amount_cents.nil?
+
     if invoice.currency == transaction.currency
       invoice.amount_cents - transaction.amount_cents
     elsif invoice.currency == transaction.original_currency && transaction.original_amount_cents.present?
@@ -265,6 +267,8 @@ class TransactionsController < ApplicationController
   end
 
   def format_amount(amount_cents, currency)
+    return "—" if amount_cents.nil?
+
     amount = amount_cents.to_f / 100
     unit = currency.presence || "EUR"
 

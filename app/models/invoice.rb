@@ -14,22 +14,23 @@
 class Invoice < ApplicationRecord
   belongs_to :user
   belongs_to :email, optional: true
-  has_one :bank_transaction, class_name: "Transaction"
+  has_one :bank_transaction, class_name: "Transaction", dependent: :nullify
   has_one_attached :pdf
   has_many :page_images, class_name: "InvoicePageImage", dependent: :destroy
 
+
   after_commit :enqueue_page_extraction
 
-  validates :vendor_name, presence: true
-  validates :amount_cents, presence: true
-  validates :currency, presence: true
 
   def soft_deleted?
     deleted_at.present?
   end
 
   def soft_delete!
-    update!(deleted_at: Time.current)
+    transaction do
+      bank_transaction&.update!(invoice_id: nil)
+      update!(deleted_at: Time.current)
+    end
   end
 
   def restore!

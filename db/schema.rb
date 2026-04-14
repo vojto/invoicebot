@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_04_14_120000) do
+ActiveRecord::Schema[8.1].define(version: 2026_04_14_120001) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -101,7 +101,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_04_14_120000) do
   create_table "invoices", force: :cascade do |t|
     t.virtual "accounting_date", type: :date, as: "COALESCE(accounting_date_override, delivery_date, issue_date)", stored: true
     t.date "accounting_date_override"
-    t.integer "amount_cents", default: 0, null: false
+    t.integer "amount_cents"
     t.datetime "created_at", null: false
     t.string "currency"
     t.datetime "deleted_at"
