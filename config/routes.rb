@@ -27,6 +27,9 @@ Rails.application.routes.draw do
   post "/transactions/:id/upload_invoice", to: "transactions#upload_invoice", as: :upload_transaction_invoice
   post "/transactions/:id/hide", to: "transactions#hide", as: :hide_transaction
   post "/transactions/:id/restore", to: "transactions#restore", as: :restore_transaction
+  post "/transactions/:id/flag", to: "transactions#flag", as: :flag_transaction
+  post "/transactions/:id/unflag", to: "transactions#unflag", as: :unflag_transaction
+  post "/transactions/:id/update_custom_note", to: "transactions#update_custom_note", as: :update_transaction_custom_note
 
   # Statements
   get "/statements/:month", to: "statements#show", as: :statement

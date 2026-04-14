@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_04_13_144644) do
+ActiveRecord::Schema[8.1].define(version: 2026_04_14_120000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -125,6 +125,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_04_13_144644) do
     t.string "creditor_iban"
     t.string "creditor_name"
     t.string "currency"
+    t.text "custom_note"
     t.string "debtor_iban"
     t.string "debtor_name"
     t.text "description"
@@ -133,6 +134,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_04_13_144644) do
     t.string "internal_transaction_id"
     t.bigint "invoice_id"
     t.boolean "is_enriched", default: false, null: false
+    t.boolean "is_flagged", default: false, null: false
     t.integer "original_amount_cents"
     t.string "original_currency"
     t.string "transaction_id"

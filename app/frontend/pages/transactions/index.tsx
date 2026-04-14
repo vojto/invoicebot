@@ -1,9 +1,11 @@
 import { Head, Link, router } from "@inertiajs/react"
 import { Heading, Box, Text, Button, Flex, Table } from "@radix-ui/themes"
-import { CheckIcon, FileTextIcon, PlusIcon } from "@radix-ui/react-icons"
+import { CheckIcon, ChevronDownIcon, FileTextIcon, PlusIcon } from "@radix-ui/react-icons"
+import * as DropdownMenu from "@radix-ui/react-dropdown-menu"
 import { z } from "zod"
 import BankSyncStatusList, { BankSyncStatusSchema } from "../../components/BankSyncStatusList"
 import InvoiceSelector from "../../components/InvoiceSelector"
+import TransactionNoteEditor from "../../components/TransactionNoteEditor"
 import TransactionInvoiceUploadButton from "../../components/TransactionInvoiceUploadButton"
 
 const TransactionSchema = z.object({
@@ -21,11 +23,11 @@ const TransactionSchema = z.object({
   amount_label: z.string(),
   original_amount_label: z.string(),
   vendor_name: z.string().nullable(),
+  custom_note: z.string().nullable(),
   bank_name: z.string().nullable(),
   hidden_at: z.string().nullable(),
+  is_flagged: z.boolean(),
 })
-
-type Transaction = z.infer<typeof TransactionSchema>
 
 const TransactionGroupSchema = z.object({
   month_key: z.string(),
@@ -41,6 +43,52 @@ const PropsSchema = z.object({
 })
 
 type Props = z.infer<typeof PropsSchema>
+
+type ActionButtonProps = {
+  transactionId: number
+  isFlagged: boolean
+}
+
+function postTransactionAction(url: string) {
+  router.post(url, {}, { preserveScroll: true })
+}
+
+function TransactionActions({ transactionId, isFlagged }: ActionButtonProps) {
+  return (
+    <DropdownMenu.Root>
+      <DropdownMenu.Trigger asChild>
+        <Button size="1" variant="soft" color="gray">
+          Actions
+          <ChevronDownIcon />
+        </Button>
+      </DropdownMenu.Trigger>
+      <DropdownMenu.Portal>
+        <DropdownMenu.Content
+          align="end"
+          sideOffset={6}
+          className="z-50 min-w-28 rounded-md border border-gray-200 bg-white p-1 shadow-lg"
+        >
+          <DropdownMenu.Item
+            className="cursor-pointer select-none rounded px-2 py-1.5 text-sm text-gray-800 outline-none hover:bg-gray-100 focus:bg-gray-100"
+            onSelect={() => postTransactionAction(`/transactions/${transactionId}/hide`)}
+          >
+            Hide
+          </DropdownMenu.Item>
+          <DropdownMenu.Item
+            className="cursor-pointer select-none rounded px-2 py-1.5 text-sm text-gray-800 outline-none hover:bg-gray-100 focus:bg-gray-100"
+            onSelect={() => postTransactionAction(
+              isFlagged
+                ? `/transactions/${transactionId}/unflag`
+                : `/transactions/${transactionId}/flag`
+            )}
+          >
+            {isFlagged ? "Remove flag" : "Flag"}
+          </DropdownMenu.Item>
+        </DropdownMenu.Content>
+      </DropdownMenu.Portal>
+    </DropdownMenu.Root>
+  )
+}
 
 export default function TransactionsIndex(props: Props) {
   const { transaction_groups, bank_sync_statuses } = PropsSchema.parse(props)
@@ -89,7 +137,7 @@ export default function TransactionsIndex(props: Props) {
                       <Table.ColumnHeaderCell width="110px">Date</Table.ColumnHeaderCell>
                       <Table.ColumnHeaderCell width="140px">Amount</Table.ColumnHeaderCell>
                       <Table.ColumnHeaderCell width="140px">Original</Table.ColumnHeaderCell>
-                      <Table.ColumnHeaderCell>Vendor</Table.ColumnHeaderCell>
+                      <Table.ColumnHeaderCell>Note</Table.ColumnHeaderCell>
                       <Table.ColumnHeaderCell>Invoice</Table.ColumnHeaderCell>
                       <Table.ColumnHeaderCell width="100px">Actions</Table.ColumnHeaderCell>
                     </Table.Row>
@@ -97,12 +145,15 @@ export default function TransactionsIndex(props: Props) {
                   <Table.Body>
                     {group.transactions.map((tx) => {
                       const isHidden = !!tx.hidden_at
+                      const isFlagged = tx.is_flagged
                       const isLinked = !!tx.invoice_id
                       const hiddenClass = isHidden ? "line-through opacity-40" : ""
                       const bankLabel = tx.bank_name?.split(" ")[0] || ""
                       const directionColor = tx.direction === "credit" ? "green" : "red"
                       const rowClass = isHidden
                         ? "bg-gray-50"
+                        : isFlagged
+                          ? "bg-red-50"
                         : isLinked
                           ? "bg-blue-50"
                           : "bg-yellow-50/50"
@@ -134,41 +185,47 @@ export default function TransactionsIndex(props: Props) {
                               {tx.original_amount_label}
                             </span>
                           </Table.Cell>
-                          <Table.Cell><span className={hiddenClass}>{tx.vendor_name}</span></Table.Cell>
                           <Table.Cell>
-                            {tx.invoice ? (
-                              <Button size="1" variant="soft" color="blue" className="gap-1">
-                                <FileTextIcon />
-                                {tx.invoice.label}
-                              </Button>
-                            ) : (
-                              !isHidden && (
+                            <TransactionNoteEditor
+                              transactionId={tx.id}
+                              customNote={tx.custom_note}
+                              vendorName={tx.vendor_name}
+                              textClassName={hiddenClass}
+                            />
+                          </Table.Cell>
+                          <Table.Cell>
+                            {!isFlagged && (
+                              tx.invoice ? (
+                                <Button size="1" variant="soft" color="blue" className="gap-1">
+                                  <FileTextIcon />
+                                  {tx.invoice.label}
+                                </Button>
+                              ) : (
+                                !isHidden && (
                                 <Flex gap="2" wrap="wrap">
                                   <InvoiceSelector transactionId={tx.id} />
                                   <TransactionInvoiceUploadButton transactionId={tx.id} />
                                 </Flex>
+                                )
                               )
                             )}
                           </Table.Cell>
                           <Table.Cell>
-                            {isHidden ? (
+                            {isHidden || isFlagged ? (
                               <Button
                                 size="1"
                                 variant="soft"
                                 color="gray"
-                                onClick={() => router.post(`/transactions/${tx.id}/restore`)}
+                                onClick={() => postTransactionAction(
+                                  isHidden
+                                    ? `/transactions/${tx.id}/restore`
+                                    : `/transactions/${tx.id}/unflag`
+                                )}
                               >
-                                Restore
+                                {isHidden ? "Restore" : "Unflag"}
                               </Button>
                             ) : (
-                              <Button
-                                size="1"
-                                variant="soft"
-                                color="red"
-                                onClick={() => router.post(`/transactions/${tx.id}/hide`, {}, { preserveScroll: true })}
-                              >
-                                Hide
-                              </Button>
+                              <TransactionActions transactionId={tx.id} isFlagged={isFlagged} />
                             )}
                           </Table.Cell>
                         </Table.Row>

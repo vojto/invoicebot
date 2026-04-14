@@ -7,7 +7,7 @@ class TransactionsController < ApplicationController
   # - transactions.invoice_id is unique, so relinking must clear any existing owner first.
   # - Browsers do not always send application/pdf, so we also accept .pdf filenames.
   before_action :require_authentication
-  before_action :set_transaction, only: [ :show, :hide, :restore, :invoice_matches, :search_invoices, :link_invoice, :upload_invoice ]
+  before_action :set_transaction, only: [ :show, :hide, :restore, :flag, :unflag, :update_custom_note, :invoice_matches, :search_invoices, :link_invoice, :upload_invoice ]
 
   def index
     transactions = Transaction
@@ -40,6 +40,21 @@ class TransactionsController < ApplicationController
 
   def restore
     @transaction.update!(hidden_at: nil)
+    redirect_to transactions_path
+  end
+
+  def flag
+    @transaction.update!(is_flagged: true)
+    redirect_to transactions_path
+  end
+
+  def unflag
+    @transaction.update!(is_flagged: false)
+    redirect_to transactions_path
+  end
+
+  def update_custom_note
+    @transaction.update!(custom_note: params[:custom_note])
     redirect_to transactions_path
   end
 
@@ -117,8 +132,10 @@ class TransactionsController < ApplicationController
       amount_label: format_amount(tx.amount_cents, tx.currency),
       original_amount_label: tx.original_amount_cents && tx.original_currency ? format_amount(tx.original_amount_cents, tx.original_currency) : "—",
       vendor_name: tx.vendor_name,
+      custom_note: tx.custom_note,
       bank_name: tx.bank_connection.institution_name,
-      hidden_at: tx.hidden_at&.iso8601
+      hidden_at: tx.hidden_at&.iso8601,
+      is_flagged: tx.is_flagged
     }
   end
 
@@ -280,6 +297,7 @@ class TransactionsController < ApplicationController
       amount_label: format_amount(tx.amount_cents, tx.currency),
       original_amount_label: tx.original_amount_cents && tx.original_currency ? format_amount(tx.original_amount_cents, tx.original_currency) : nil,
       vendor_name: tx.vendor_name,
+      custom_note: tx.custom_note,
       description: tx.description,
       creditor_name: tx.creditor_name,
       creditor_iban: tx.creditor_iban,
