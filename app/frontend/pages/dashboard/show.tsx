@@ -127,12 +127,13 @@ export default function DashboardShow(props: Props) {
         ) : (
           <Flex direction="column" gap="6">
             {[...groupedInvoices.entries()].map(([monthKey, monthInvoices]) => {
-              const hasDownloadableInvoices = monthKey !== "unknown" && monthInvoices.some((inv) => !inv.deleted_at)
+              const validCount = monthInvoices.filter((inv) => !inv.deleted_at).length
+              const hasDownloadableInvoices = monthKey !== "unknown" && validCount > 0
               return (
               <Box key={monthKey}>
                 <Flex justify="between" align="center" mb="4">
                   <Heading size="5" as="h2">
-                    {formatMonthHeading(monthKey)}
+                    {formatMonthHeading(monthKey)} <Text size="4" color="gray" weight="regular">({validCount})</Text>
                   </Heading>
                   {hasDownloadableInvoices && (
                     <Button
