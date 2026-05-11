@@ -30,6 +30,27 @@ RSpec.describe "GET /invoices/:id", type: :request do
 
   before { sign_in(user) }
 
+  describe "POST /invoices/upload" do
+    it "redirects to the created invoice page" do
+      invoice = create(:invoice, user: user, vendor_name: "Hetzner")
+      processing_service = instance_double(InvoiceProcessingService)
+
+      allow(InvoiceProcessingService).to receive(:new).and_return(processing_service)
+      expect(processing_service).to receive(:extract_invoice_from_pdf).with(
+        user,
+        instance_of(Tempfile),
+        filename: "invoice.pdf"
+      ).and_return(invoice)
+
+      post "/invoices/upload", params: {
+        file: uploaded_file(filename: "invoice.pdf", content_type: "application/octet-stream")
+      }
+
+      expect(response).to redirect_to("/invoices/#{invoice.id}")
+      expect(flash[:notice]).to eq("Invoice created: Hetzner")
+    end
+  end
+
   it "renders the invoice detail page with linked email and transaction data" do
     get "/invoices/#{invoice.id}", headers: inertia_headers
 
@@ -55,5 +76,18 @@ RSpec.describe "GET /invoices/:id", type: :request do
       "X-Requested-With" => "XMLHttpRequest",
       "Accept" => "text/html, application/xhtml+xml"
     }
+  end
+
+  def uploaded_file(filename:, content_type:)
+    tempfile = Tempfile.new([ File.basename(filename, ".*"), File.extname(filename) ])
+    tempfile.binmode
+    tempfile.write("%PDF-1.4 fake invoice")
+    tempfile.rewind
+
+    Rack::Test::UploadedFile.new(
+      tempfile.path,
+      content_type,
+      original_filename: filename
+    )
   end
 end

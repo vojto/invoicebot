@@ -63,7 +63,7 @@ class InvoicesController < ApplicationController
     )
 
     if invoice
-      redirect_to dashboard_path, notice: "Invoice created: #{invoice.vendor_name}"
+      redirect_to invoice_path(invoice), notice: "Invoice created: #{invoice.vendor_name}"
     else
       redirect_to dashboard_path, alert: "Could not extract invoice from PDF"
     end
