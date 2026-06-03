@@ -111,14 +111,10 @@ class InvoiceProcessingService
     # Read PDF content for both extraction and attachment
     pdf_content = pdf_io.respond_to?(:read) ? pdf_io.read : pdf_io
 
-    # Write PDF to temp file for processing
-    temp_file = Tempfile.new([ "uploaded_invoice", ".pdf" ])
-    temp_file.binmode
-    temp_file.write(pdf_content)
-    temp_file.close
-
     begin
-      extraction = InvoiceExtractionAgent.new(pdf_path: temp_file.path, filename: filename).call
+      extraction = with_pdf_tempfile("uploaded_invoice", pdf_content) do |pdf_path|
+        InvoiceExtractionAgent.new(pdf_path: pdf_path, filename: filename).call
+      end
 
       unless extraction[:is_invoice]
         Rails.logger.info "[InvoiceProcessingService] PDF is not a valid invoice: #{filename}"
@@ -133,32 +129,55 @@ class InvoiceProcessingService
       extraction = {}
     end
 
-    begin
-      invoice = user.invoices.create!(
-        vendor_name: extraction[:vendor_name] || fallback_vendor,
-        amount_cents: extraction[:amount_cents],
-        currency: extraction[:currency] || fallback_currency,
-        issue_date: extraction[:issue_date] || fallback_date,
-        delivery_date: extraction[:delivery_date],
-        note: extraction[:note]
-      )
+    invoice = user.invoices.create!(
+      vendor_name: extraction[:vendor_name] || fallback_vendor,
+      amount_cents: extraction[:amount_cents],
+      currency: extraction[:currency] || fallback_currency,
+      issue_date: extraction[:issue_date] || fallback_date,
+      delivery_date: extraction[:delivery_date],
+      note: extraction[:note]
+    )
 
-      # Attach the PDF directly to the invoice
-      invoice.pdf.attach(
-        io: StringIO.new(pdf_content),
-        filename: filename,
-        content_type: "application/pdf"
-      )
+    invoice.pdf.attach(
+      io: StringIO.new(pdf_content),
+      filename: filename,
+      content_type: "application/pdf"
+    )
 
-      Rails.logger.info "[InvoiceProcessingService] Created invoice #{invoice.id} with PDF: #{extraction[:vendor_name]} - #{extraction[:amount_cents]} #{extraction[:currency]}"
+    Rails.logger.info "[InvoiceProcessingService] Created invoice #{invoice.id} with PDF: #{extraction[:vendor_name]} - #{extraction[:amount_cents]} #{extraction[:currency]}"
 
-      invoice
-    ensure
-      temp_file.unlink
-    end
+    invoice
+  end
+
+  def reprocess_invoice(invoice)
+    Rails.logger.info "[InvoiceProcessingService] Reprocessing invoice #{invoice.id}"
+
+    extraction = extract_attached_invoice_pdf(invoice)
+    return nil unless extraction[:is_invoice]
+
+    invoice.update_from_extraction!(extraction)
   end
 
   private
+
+  def with_pdf_tempfile(prefix, pdf_content)
+    Tempfile.create([ prefix, ".pdf" ]) do |temp_file|
+      temp_file.binmode
+      temp_file.write(pdf_content)
+      temp_file.close
+
+      yield temp_file.path
+    end
+  end
+
+  def extract_attached_invoice_pdf(invoice)
+    with_pdf_tempfile("reprocessed_invoice", invoice.pdf.download) do |pdf_path|
+      InvoiceExtractionAgent.new(
+        pdf_path: pdf_path,
+        filename: invoice.pdf.filename.to_s
+      ).call
+    end
+  end
 
   def extract_and_save_invoice_from_email(email, pdf_attachments, pdf_filename, verbose: false)
     require "colorize" if verbose

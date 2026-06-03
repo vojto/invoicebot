@@ -1,5 +1,5 @@
-import { Head, Link } from "@inertiajs/react"
-import { ArrowLeftIcon, ExternalLinkIcon, FileTextIcon } from "@radix-ui/react-icons"
+import { Head, Link, router } from "@inertiajs/react"
+import { ArrowLeftIcon, ExternalLinkIcon, FileTextIcon, ReloadIcon } from "@radix-ui/react-icons"
 import { Badge, Box, Button, Flex, Heading, Table, Text } from "@radix-ui/themes"
 import { z } from "zod"
 import AccountingDateEditor from "../../components/AccountingDateEditor"
@@ -30,6 +30,7 @@ const InvoiceSchema = z.object({
   delivery_date: z.string().nullable(),
   note: z.string().nullable(),
   deleted_at: z.string().nullable(),
+  is_reprocessing: z.boolean(),
   pdf_url: z.string().nullable(),
   email: EmailSchema.nullable(),
   bank_transaction: TransactionSchema.nullable(),
@@ -67,6 +68,10 @@ function formatDate(iso: string | null) {
 
 export default function InvoicesShow(props: Props) {
   const { invoice } = PropsSchema.parse(props)
+
+  const reprocessInvoice = () => {
+    router.post(`/invoices/${invoice.id}/reprocess`)
+  }
 
   return (
     <>
@@ -114,11 +119,23 @@ export default function InvoicesShow(props: Props) {
                 <DetailRow
                   label="PDF"
                   value={
-                    <Button size="1" variant="soft" asChild>
-                      <a href={invoice.pdf_url} target="_blank" rel="noopener noreferrer">
-                        <FileTextIcon /> Open PDF
-                      </a>
-                    </Button>
+                    <Flex gap="2" wrap="wrap">
+                      <Button size="1" variant="soft" asChild>
+                        <a href={invoice.pdf_url} target="_blank" rel="noopener noreferrer">
+                          <FileTextIcon /> Open PDF
+                        </a>
+                      </Button>
+                      {!invoice.deleted_at && (
+                        <Button
+                          size="1"
+                          variant="soft"
+                          disabled={invoice.is_reprocessing}
+                          onClick={reprocessInvoice}
+                        >
+                          <ReloadIcon /> {invoice.is_reprocessing ? "Reprocessing..." : "Reprocess"}
+                        </Button>
+                      )}
+                    </Flex>
                   }
                 />
               )}

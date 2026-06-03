@@ -18,9 +18,7 @@ class Invoice < ApplicationRecord
   has_one_attached :pdf
   has_many :page_images, class_name: "InvoicePageImage", dependent: :destroy
 
-
   after_commit :enqueue_page_extraction
-
 
   def soft_deleted?
     deleted_at.present?
@@ -35,6 +33,33 @@ class Invoice < ApplicationRecord
 
   def restore!
     update!(deleted_at: nil)
+  end
+
+  def reprocess!
+    return false unless pdf.attached?
+
+    started = false
+
+    with_lock do
+      unless is_reprocessing?
+        update!(is_reprocessing: true)
+        InvoiceReprocessingJob.perform_later(id)
+        started = true
+      end
+    end
+
+    started
+  end
+
+  def update_from_extraction!(extraction)
+    update!(
+      vendor_name: extraction[:vendor_name],
+      amount_cents: extraction[:amount_cents],
+      currency: extraction[:currency],
+      issue_date: extraction[:issue_date],
+      delivery_date: extraction[:delivery_date],
+      note: extraction[:note]
+    )
   end
 
   private
