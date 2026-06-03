@@ -45,8 +45,11 @@ class InvoicesController < ApplicationController
   def reprocess
     return redirect_to invoice_path(@invoice), alert: "Invoice has no PDF to reprocess" unless @invoice.pdf.attached?
 
-    @invoice.reprocess!
-    redirect_to invoice_path(@invoice), notice: "Invoice reprocessing started"
+    if @invoice.reprocess!
+      redirect_to invoice_path(@invoice), notice: "Invoice reprocessing started"
+    else
+      redirect_to invoice_path(@invoice), alert: "Invoice is already reprocessing"
+    end
   end
 
   def update_accounting_date

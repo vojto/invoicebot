@@ -102,6 +102,7 @@ RSpec.describe "GET /invoices/:id", type: :request do
       post "/invoices/#{invoice.id}/reprocess"
 
       expect(response).to redirect_to("/invoices/#{invoice.id}")
+      expect(flash[:alert]).to eq("Invoice is already reprocessing")
       expect(InvoiceReprocessingJob).not_to have_been_enqueued
     end
   end

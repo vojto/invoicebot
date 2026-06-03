@@ -214,8 +214,8 @@ class InvoiceExtractionAgent
   def usage_for(attempts)
     {
       elapsed_ms: attempts.sum(&:elapsed_ms),
-      input_tokens: attempts.sum(&:input_tokens),
-      output_tokens: attempts.sum(&:output_tokens)
+      input_tokens: attempts.sum { |attempt| attempt.input_tokens.to_i },
+      output_tokens: attempts.sum { |attempt| attempt.output_tokens.to_i }
     }
   end
 

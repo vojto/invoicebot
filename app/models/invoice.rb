@@ -18,7 +18,9 @@ class Invoice < ApplicationRecord
   has_one_attached :pdf
   has_many :page_images, class_name: "InvoicePageImage", dependent: :destroy
 
-  after_commit :enqueue_page_extraction
+  before_save :track_pdf_attachment_change
+  after_commit :enqueue_page_extraction, if: :pdf_attachment_changed?
+  after_rollback :clear_pdf_attachment_change
 
   def soft_deleted?
     deleted_at.present?
@@ -38,17 +40,15 @@ class Invoice < ApplicationRecord
   def reprocess!
     return false unless pdf.attached?
 
-    started = false
-
     with_lock do
-      unless is_reprocessing?
+      if is_reprocessing?
+        false
+      else
         update!(is_reprocessing: true)
         InvoiceReprocessingJob.perform_later(id)
-        started = true
+        true
       end
     end
-
-    started
   end
 
   def update_from_extraction!(extraction)
@@ -64,7 +64,21 @@ class Invoice < ApplicationRecord
 
   private
 
+  def track_pdf_attachment_change
+    @pdf_attachment_changed = attachment_changes.key?("pdf")
+  end
+
+  def pdf_attachment_changed?
+    @pdf_attachment_changed
+  end
+
+  def clear_pdf_attachment_change
+    @pdf_attachment_changed = false
+  end
+
   def enqueue_page_extraction
     InvoicePageExtractionJob.perform_later(id) if pdf.attached?
+  ensure
+    clear_pdf_attachment_change
   end
 end

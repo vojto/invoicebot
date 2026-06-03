@@ -18,10 +18,12 @@ RSpec.describe Invoice, type: :model do
         filename: "invoice.pdf",
         content_type: "application/pdf"
       )
+      ActiveJob::Base.queue_adapter.enqueued_jobs.clear
 
       expect(invoice.reprocess!).to eq(true)
       expect(invoice.reload.is_reprocessing).to eq(true)
       expect(InvoiceReprocessingJob).to have_been_enqueued.with(invoice.id)
+      expect(InvoicePageExtractionJob).not_to have_been_enqueued
     end
 
     it "does nothing without a PDF" do
