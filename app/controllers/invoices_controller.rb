@@ -1,6 +1,6 @@
 class InvoicesController < ApplicationController
   before_action :require_authentication
-  before_action :set_invoice, only: [ :show, :pdf, :pages, :remove, :restore, :update_accounting_date ]
+  before_action :set_invoice, only: [ :show, :pdf, :pages, :remove, :restore, :reprocess, :update_accounting_date ]
 
   def show
     render inertia: "invoices/show", props: {
@@ -40,6 +40,16 @@ class InvoicesController < ApplicationController
   def restore
     @invoice.restore!
     redirect_to dashboard_path
+  end
+
+  def reprocess
+    return redirect_to invoice_path(@invoice), alert: "Invoice has no PDF to reprocess" unless @invoice.pdf.attached?
+
+    if @invoice.reprocess!
+      redirect_to invoice_path(@invoice), notice: "Invoice reprocessing started"
+    else
+      redirect_to invoice_path(@invoice), alert: "Invoice is already reprocessing"
+    end
   end
 
   def update_accounting_date
@@ -112,6 +122,7 @@ class InvoicesController < ApplicationController
       delivery_date: invoice.delivery_date&.iso8601,
       note: invoice.note,
       deleted_at: invoice.deleted_at&.iso8601,
+      is_reprocessing: invoice.is_reprocessing,
       pdf_url: invoice.pdf.attached? ? pdf_invoice_path(invoice) : nil,
       email: email ? {
         id: email.id,

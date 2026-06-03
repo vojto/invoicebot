@@ -14,7 +14,11 @@ class InvoiceExtractionAgent
   end
 
   MODEL = "gpt-5.2"
-  PDF_PAGES_TO_EXTRACT = 2
+  FIRST_PAGE_COUNT = 1
+  FIRST_PAGE_SCOPE = "first_page"
+  FULL_PDF_SCOPE = "full_pdf"
+  BASE_USER_PROMPT = "Extract invoice data from this document."
+  ExtractionAttempt = Struct.new(:data, :elapsed_ms, :input_tokens, :output_tokens, :scope, keyword_init: true)
 
   SYSTEM_PROMPT = <<~PROMPT
     You are an invoice data extraction assistant. Your task is to analyze documents and extract structured data from invoices.
@@ -64,59 +68,10 @@ class InvoiceExtractionAgent
   end
 
   def call
-    if @attachment
-      raise ArgumentError, "Attachment must have a file attached" unless @attachment.file.attached?
-      log_identifier = "attachment #{@attachment.id} (#{@attachment.filename})"
-    else
-      log_identifier = "file #{@filename || @pdf_path}"
-    end
-
+    validate_attachment!
     Rails.logger.info "[InvoiceExtractionAgent] Starting extraction for #{log_identifier}"
-
-    pdf_path = extract_first_pages_pdf
-    Rails.logger.info "[InvoiceExtractionAgent] Extracted first #{PDF_PAGES_TO_EXTRACT} pages PDF: #{pdf_path}"
-
-    chat = RubyLLM.chat(model: MODEL)
-    chat.with_instructions(SYSTEM_PROMPT)
-
-    start_time = Time.current
-    result = chat.with_schema(ResponseSchema).ask("Extract invoice data from this document.", with: pdf_path)
-    elapsed_ms = ((Time.current - start_time) * 1000).round
-
-    Rails.logger.info "[InvoiceExtractionAgent] AI response received in #{elapsed_ms}ms"
-
-    content = result.content
-    raise "Expected Hash response, got #{content.class}" unless content.is_a?(Hash)
-
-    data = content.with_indifferent_access
-
-    # Parse dates if present
-    data[:issue_date] = Date.parse(data[:issue_date]) if data[:issue_date].present?
-    data[:delivery_date] = Date.parse(data[:delivery_date]) if data[:delivery_date].present?
-
-    input_tokens = result.input_tokens
-    output_tokens = result.output_tokens
-
-    if data[:is_invoice]
-      Rails.logger.info "[InvoiceExtractionAgent] Extracted: vendor=#{data[:vendor_name]}, amount=#{data[:amount_cents]} #{data[:currency]}"
-    else
-      Rails.logger.info "[InvoiceExtractionAgent] Document is not a valid invoice"
-    end
-    Rails.logger.info "[InvoiceExtractionAgent] Tokens: #{input_tokens} in / #{output_tokens} out"
-
-    {
-      is_invoice: data[:is_invoice],
-      vendor_name: data[:vendor_name],
-      amount_cents: data[:amount_cents],
-      currency: data[:currency],
-      issue_date: data[:issue_date],
-      delivery_date: data[:delivery_date],
-      note: data[:note],
-      llm_model: MODEL,
-      llm_duration_ms: elapsed_ms,
-      input_tokens: input_tokens,
-      output_tokens: output_tokens
-    }
+    source_path = source_pdf_path
+    result_for(extraction_attempts(source_path))
   rescue StandardError => e
     Rails.logger.error "[InvoiceExtractionAgent] Error: #{e.class} - #{e.message}"
     Rails.logger.error "[InvoiceExtractionAgent] Backtrace: #{e.backtrace&.first(5)&.join("\n")}"
@@ -127,9 +82,18 @@ class InvoiceExtractionAgent
 
   private
 
-  def extract_first_pages_pdf
-    source_path = if @attachment
-      # Download PDF from attachment to temp file
+  def validate_attachment!
+    raise ArgumentError, "Attachment must have a file attached" if @attachment && !@attachment.file.attached?
+  end
+
+  def log_identifier
+    return "attachment #{@attachment.id} (#{@attachment.filename})" if @attachment
+
+    "file #{@filename || @pdf_path}"
+  end
+
+  def source_pdf_path
+    if @attachment
       @source_pdf_temp_file = Tempfile.new([ "invoice_source", ".pdf" ])
       @source_pdf_temp_file.binmode
       @source_pdf_temp_file.write(@attachment.file.download)
@@ -139,17 +103,125 @@ class InvoiceExtractionAgent
       # Use provided PDF path directly
       @pdf_path
     end
+  end
 
-    # Extract first pages using Qpdf wrapper
+  def extraction_attempts(source_path)
+    first_attempt = extract_from_pdf(first_page_pdf(source_path), scope: FIRST_PAGE_SCOPE)
+    return [ first_attempt ] unless needs_full_pdf_retry?(first_attempt.data)
+
+    Rails.logger.info "[InvoiceExtractionAgent] First page did not contain enough invoice data; retrying with full PDF"
+    [ first_attempt, extract_from_pdf(source_path, scope: FULL_PDF_SCOPE) ]
+  end
+
+  def first_page_pdf(source_path)
+    extract_first_pages_pdf(source_path).tap do |path|
+      Rails.logger.info "[InvoiceExtractionAgent] Extracted first page PDF: #{path}"
+    end
+  end
+
+  def extract_first_pages_pdf(source_path)
     @extracted_pdf_temp_file = Tempfile.new([ "invoice_pages", ".pdf" ])
     @extracted_pdf_temp_file.close
 
     Qpdf.new(source_path).extract_first_pages(
-      PDF_PAGES_TO_EXTRACT,
+      FIRST_PAGE_COUNT,
       output_path: @extracted_pdf_temp_file.path
     )
 
     @extracted_pdf_temp_file.path
+  end
+
+  def extract_from_pdf(pdf_path, scope:)
+    chat = RubyLLM.chat(model: MODEL)
+    chat.with_instructions(SYSTEM_PROMPT)
+
+    start_time = Time.current
+    result = chat.with_schema(ResponseSchema).ask(user_prompt_for(scope), with: pdf_path)
+    elapsed_ms = ((Time.current - start_time) * 1000).round
+
+    Rails.logger.info "[InvoiceExtractionAgent] AI response received for #{scope} in #{elapsed_ms}ms"
+
+    content = result.content
+    raise "Expected Hash response, got #{content.class}" unless content.is_a?(Hash)
+
+    ExtractionAttempt.new(
+      data: content.with_indifferent_access,
+      elapsed_ms: elapsed_ms,
+      input_tokens: result.input_tokens,
+      output_tokens: result.output_tokens,
+      scope: scope
+    )
+  end
+
+  def needs_full_pdf_retry?(data)
+    return true unless data[:is_invoice]
+
+    data[:vendor_name].blank? ||
+      data[:amount_cents].nil? ||
+      data[:currency].blank? ||
+      (data[:issue_date].blank? && data[:delivery_date].blank?)
+  end
+
+  def result_for(attempts)
+    attempt = attempts.last
+    data = normalize_data(attempt.data)
+    usage = usage_for(attempts)
+
+    log_result(data, attempt, usage)
+    response_for(data, attempt, usage)
+  end
+
+  def user_prompt_for(scope)
+    return BASE_USER_PROMPT unless scope == FIRST_PAGE_SCOPE
+
+    <<~PROMPT
+      #{BASE_USER_PROMPT}
+
+      You are only seeing the first page. For amount_cents, extract the document-level invoice total only if it is explicitly visible on this page.
+      Do not use line-item amounts, campaign/report subtotals, tax rows, per-product charges, prior payments, balances, or any partial-page amount as the invoice total.
+      If the document-level invoice total is not explicitly visible on this page, set amount_cents to null.
+    PROMPT
+  end
+
+  def log_result(data, attempt, usage)
+    if data[:is_invoice]
+      Rails.logger.info "[InvoiceExtractionAgent] Extracted from #{attempt.scope}: vendor=#{data[:vendor_name]}, amount=#{data[:amount_cents]} #{data[:currency]}"
+    else
+      Rails.logger.info "[InvoiceExtractionAgent] Document is not a valid invoice"
+    end
+    Rails.logger.info "[InvoiceExtractionAgent] Tokens: #{usage[:input_tokens]} in / #{usage[:output_tokens]} out"
+  end
+
+  def response_for(data, attempt, usage)
+    {
+      is_invoice: data[:is_invoice],
+      vendor_name: data[:vendor_name],
+      amount_cents: data[:amount_cents],
+      currency: data[:currency],
+      issue_date: data[:issue_date],
+      delivery_date: data[:delivery_date],
+      note: data[:note],
+      llm_model: MODEL,
+      llm_duration_ms: usage[:elapsed_ms],
+      input_tokens: usage[:input_tokens],
+      output_tokens: usage[:output_tokens],
+      extraction_scope: attempt.scope
+    }
+  end
+
+  def normalize_data(data)
+    data = data.dup
+    data[:issue_date] = Date.parse(data[:issue_date]) if data[:issue_date].present?
+    data[:delivery_date] = Date.parse(data[:delivery_date]) if data[:delivery_date].present?
+    data
+  end
+
+  def usage_for(attempts)
+    {
+      elapsed_ms: attempts.sum(&:elapsed_ms),
+      input_tokens: attempts.sum { |attempt| attempt.input_tokens.to_i },
+      output_tokens: attempts.sum { |attempt| attempt.output_tokens.to_i }
+    }
   end
 
   def cleanup_temp_files

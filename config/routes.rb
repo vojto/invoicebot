@@ -51,6 +51,7 @@ Rails.application.routes.draw do
       get :pages
       post :remove
       post :restore
+      post :reprocess
       post :update_accounting_date
     end
   end

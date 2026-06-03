@@ -64,9 +64,47 @@ RSpec.describe "GET /invoices/:id", type: :request do
     expect(props["amount_label"]).to eq("53.65 EUR")
     expect(props["issue_date"]).to eq("2026-01-05")
     expect(props["delivery_date"]).to eq("2026-01-31")
+    expect(props["is_reprocessing"]).to eq(false)
     expect(props.dig("email", "subject")).to eq("Invoice email")
     expect(props.dig("bank_transaction", "id")).to eq(transaction.id)
     expect(props.dig("bank_transaction", "amount_label")).to eq("53.65 EUR")
+  end
+
+  describe "POST /invoices/:id/reprocess" do
+    around do |example|
+      original_adapter = ActiveJob::Base.queue_adapter
+      ActiveJob::Base.queue_adapter = :test
+      ActiveJob::Base.queue_adapter.enqueued_jobs.clear
+      example.run
+    ensure
+      ActiveJob::Base.queue_adapter = original_adapter
+    end
+
+    before do
+      invoice.pdf.attach(
+        io: StringIO.new("%PDF-1.4 fake invoice"),
+        filename: "invoice.pdf",
+        content_type: "application/pdf"
+      )
+    end
+
+    it "marks the invoice as reprocessing and enqueues the job" do
+      post "/invoices/#{invoice.id}/reprocess"
+
+      expect(response).to redirect_to("/invoices/#{invoice.id}")
+      expect(invoice.reload.is_reprocessing).to eq(true)
+      expect(InvoiceReprocessingJob).to have_been_enqueued.with(invoice.id)
+    end
+
+    it "does not enqueue another job while already reprocessing" do
+      invoice.update!(is_reprocessing: true)
+
+      post "/invoices/#{invoice.id}/reprocess"
+
+      expect(response).to redirect_to("/invoices/#{invoice.id}")
+      expect(flash[:alert]).to eq("Invoice is already reprocessing")
+      expect(InvoiceReprocessingJob).not_to have_been_enqueued
+    end
   end
 
   def inertia_headers
