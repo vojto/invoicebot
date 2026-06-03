@@ -28,7 +28,7 @@ RSpec.describe InvoiceExtractionAgent do
         vendor_name: "Acme",
         amount_cents: 1234,
         currency: "EUR",
-        issue_date: nil,
+        issue_date: "2026-01-15",
         delivery_date: nil,
         note: nil
       )
@@ -40,6 +40,19 @@ RSpec.describe InvoiceExtractionAgent do
     expect(schema_chat).to have_received(:ask).once
     expect(result[:amount_cents]).to eq(1234)
     expect(result[:extraction_scope]).to eq("first_page")
+  end
+
+  it "retries with the full PDF when the first page has no accounting date" do
+    allow(schema_chat).to receive(:ask).and_return(
+      llm_result(is_invoice: true, vendor_name: "Acme", amount_cents: 1234, currency: "EUR"),
+      llm_result(is_invoice: true, vendor_name: "Acme", amount_cents: 1234, currency: "EUR", issue_date: "2026-01-15")
+    )
+
+    result = agent.call
+
+    expect(schema_chat).to have_received(:ask).twice
+    expect(result[:issue_date]).to eq(Date.new(2026, 1, 15))
+    expect(result[:extraction_scope]).to eq("full_pdf")
   end
 
   it "retries with the full PDF when the first page has no total" do

@@ -154,7 +154,12 @@ class InvoiceExtractionAgent
   end
 
   def needs_full_pdf_retry?(data)
-    !data[:is_invoice] || data[:amount_cents].nil?
+    return true unless data[:is_invoice]
+
+    data[:vendor_name].blank? ||
+      data[:amount_cents].nil? ||
+      data[:currency].blank? ||
+      (data[:issue_date].blank? && data[:delivery_date].blank?)
   end
 
   def result_for(attempts)
