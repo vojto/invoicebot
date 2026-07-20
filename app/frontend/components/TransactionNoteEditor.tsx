@@ -41,7 +41,7 @@ export default function TransactionNoteEditor({ transactionId, customNote, vendo
   return (
     <Popover.Root open={open} onOpenChange={setOpen}>
       <Flex align="center" gap="1">
-        <Text size="2" className={`min-h-5 whitespace-pre-wrap ${textClassName ?? ""}`.trim()}>
+        <Text size="1" className={`min-h-5 whitespace-pre-wrap ${textClassName ?? ""}`.trim()}>
           {displayValue(customNote, vendorName) || "\u00A0"}
         </Text>
         <Popover.Trigger asChild>

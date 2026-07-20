@@ -5,6 +5,7 @@ import DateDifferenceBadge from "./DateDifferenceBadge"
 import AccountingDateEditor from "./AccountingDateEditor"
 import InvoicePdfPopover from "./InvoicePdfPopover"
 import TransactionCategorySelect, { CategorySchema, type Category } from "./TransactionCategorySelect"
+import formatCurrency from "../lib/formatCurrency"
 
 const EmailSchema = z.object({
   id: z.number(),
@@ -32,20 +33,6 @@ export const InvoiceSchema = z.object({
 })
 
 export type Invoice = z.infer<typeof InvoiceSchema>
-
-function formatCurrency(amountCents: number, currency: string | null): string {
-  const amount = amountCents / 100
-  const currencyCode = currency || "USD"
-
-  try {
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: currencyCode,
-    }).format(amount)
-  } catch {
-    return `${amount.toFixed(2)} ${currencyCode}`
-  }
-}
 
 function formatDate(dateString: string | null | undefined): string {
   if (!dateString) return "—"

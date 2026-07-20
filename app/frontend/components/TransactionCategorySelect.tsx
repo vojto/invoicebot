@@ -47,10 +47,12 @@ export default function TransactionCategorySelect(props: Props) {
   }
 
   return (
-    <Select.Root value={value} onValueChange={updateCategory} disabled={isSaving || !transactionId}>
+    <Select.Root size="1" value={value} onValueChange={updateCategory} disabled={isSaving || !transactionId}>
       <Select.Trigger
         aria-label="Transaction category"
         variant="soft"
+        color="gray"
+        className="font-medium"
         style={{ minWidth: "150px", maxWidth: "190px" }}
       />
       <Select.Content position="popper">

@@ -1,6 +1,6 @@
 import { Head, Link, router } from "@inertiajs/react"
 import { Heading, Box, Text, Button, Flex, Table } from "@radix-ui/themes"
-import { CheckIcon, ChevronDownIcon, FileTextIcon, MagicWandIcon, PlusIcon } from "@radix-ui/react-icons"
+import { ChevronDownIcon, FileTextIcon, MagicWandIcon, PlusIcon } from "@radix-ui/react-icons"
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu"
 import { z } from "zod"
 import BankSyncStatusList, { BankSyncStatusSchema } from "../../components/BankSyncStatusList"
@@ -9,6 +9,7 @@ import TransactionNoteEditor from "../../components/TransactionNoteEditor"
 import TransactionInvoiceUploadButton from "../../components/TransactionInvoiceUploadButton"
 import TransactionCategorySelect, { CategorySchema } from "../../components/TransactionCategorySelect"
 import PdfDropZone from "../../components/PdfDropZone"
+import formatCurrency from "../../lib/formatCurrency"
 
 const TransactionSchema = z.object({
   id: z.number(),
@@ -24,8 +25,9 @@ const TransactionSchema = z.object({
   direction: z.enum(["credit", "debit"]),
   booking_date_label: z.string(),
   amount_cents: z.number(),
-  amount_label: z.string(),
-  original_amount_label: z.string(),
+  currency: z.string().nullable(),
+  original_amount_cents: z.number().nullable(),
+  original_currency: z.string().nullable(),
   vendor_name: z.string().nullable(),
   custom_note: z.string().nullable(),
   bank_name: z.string().nullable(),
@@ -40,6 +42,7 @@ const TransactionGroupSchema = z.object({
 })
 
 type TransactionGroup = z.infer<typeof TransactionGroupSchema>
+type Transaction = z.infer<typeof TransactionSchema>
 
 const PropsSchema = z.object({
   transaction_groups: z.array(TransactionGroupSchema),
@@ -63,6 +66,13 @@ type ActionButtonProps = {
 
 function postTransactionAction(url: string) {
   router.post(url, {}, { preserveScroll: true })
+}
+
+function formatTransactionAmount(transaction: Transaction): string {
+  const amount = formatCurrency(transaction.amount_cents, transaction.currency)
+  if (transaction.original_amount_cents === null || transaction.original_currency === null) return amount
+
+  return `${amount} (${formatCurrency(transaction.original_amount_cents, transaction.original_currency)})`
 }
 
 function TransactionActions({ transactionId, isFlagged, isLinked }: ActionButtonProps) {
@@ -171,14 +181,12 @@ export default function TransactionsIndex(props: Props) {
                     </Button>
                   )}
                 </Flex>
-                <Table.Root variant="surface" size="2">
+                <Table.Root variant="surface" size="1">
                   <Table.Header>
                     <Table.Row>
-                      <Table.ColumnHeaderCell width="36px"></Table.ColumnHeaderCell>
-                      <Table.ColumnHeaderCell width="110px">Bank</Table.ColumnHeaderCell>
-                      <Table.ColumnHeaderCell width="110px">Date</Table.ColumnHeaderCell>
-                      <Table.ColumnHeaderCell width="140px">Amount</Table.ColumnHeaderCell>
-                      <Table.ColumnHeaderCell width="140px">Original</Table.ColumnHeaderCell>
+                      <Table.ColumnHeaderCell width="100px">Bank</Table.ColumnHeaderCell>
+                      <Table.ColumnHeaderCell width="90px">Date</Table.ColumnHeaderCell>
+                      <Table.ColumnHeaderCell width="190px">Amount</Table.ColumnHeaderCell>
                       <Table.ColumnHeaderCell>Note</Table.ColumnHeaderCell>
                       <Table.ColumnHeaderCell>Document</Table.ColumnHeaderCell>
                       <Table.ColumnHeaderCell width="190px">Category</Table.ColumnHeaderCell>
@@ -190,6 +198,7 @@ export default function TransactionsIndex(props: Props) {
                       const isHidden = !!tx.hidden_at
                       const isFlagged = tx.is_flagged
                       const isLinked = !!tx.invoice_id
+                      const isAutomaticMatch = tx.invoice_match_source === "automatic"
                       const hiddenClass = isHidden ? "line-through opacity-40" : ""
                       const bankLabel = tx.bank_name?.split(" ")[0] || ""
                       const directionColor = tx.direction === "credit" ? "green" : "red"
@@ -203,9 +212,6 @@ export default function TransactionsIndex(props: Props) {
 
                       return (
                         <Table.Row key={tx.id} className={rowClass}>
-                          <Table.Cell>
-                            {isLinked && <CheckIcon className="text-blue-600" />}
-                          </Table.Cell>
                           <Table.Cell><span className={hiddenClass}>{bankLabel}</span></Table.Cell>
                           <Table.Cell>
                             <Link
@@ -217,13 +223,8 @@ export default function TransactionsIndex(props: Props) {
                           </Table.Cell>
                           <Table.Cell>
                             <Text className={hiddenClass} color={isHidden ? "gray" : directionColor}>
-                              {tx.amount_label}
+                              {formatTransactionAmount(tx)}
                             </Text>
-                          </Table.Cell>
-                          <Table.Cell>
-                            <span className={hiddenClass}>
-                              {tx.original_amount_label}
-                            </span>
                           </Table.Cell>
                           <Table.Cell>
                             <TransactionNoteEditor
@@ -237,13 +238,19 @@ export default function TransactionsIndex(props: Props) {
                             {!isFlagged && (
                               tx.invoice ? (
                                 <Flex align="center" gap="1">
-                                  <Button size="1" variant="soft" color="blue" className="gap-1 max-w-[300px]" asChild>
+                                  <Button
+                                    size="1"
+                                    variant="soft"
+                                    color={isAutomaticMatch ? "violet" : "blue"}
+                                    className="gap-1 max-w-[300px]"
+                                    asChild
+                                  >
                                     <Link href={`/invoices/${tx.invoice.id}`}>
                                       <FileTextIcon className="shrink-0" />
                                       <span className="truncate">{tx.invoice.label}</span>
                                     </Link>
                                   </Button>
-                                  {tx.invoice_match_source === "automatic" && (
+                                  {isAutomaticMatch && (
                                     <span
                                       title="Matched automatically"
                                       aria-label="Matched automatically"
@@ -255,10 +262,10 @@ export default function TransactionsIndex(props: Props) {
                                 </Flex>
                               ) : (
                                 !isHidden && (
-                                <Flex gap="2" wrap="wrap">
-                                  <InvoiceSelector transactionId={tx.id} />
-                                  <TransactionInvoiceUploadButton transactionId={tx.id} />
-                                </Flex>
+                                  <Flex gap="2" wrap="wrap">
+                                    <InvoiceSelector transactionId={tx.id} />
+                                    <TransactionInvoiceUploadButton transactionId={tx.id} />
+                                  </Flex>
                                 )
                               )
                             )}
