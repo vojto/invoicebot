@@ -110,13 +110,13 @@ function InvoiceDetails({ invoice, isProcessed, onDone }: { invoice: Invoice; is
 
         <Flex gap="2" ml="auto">
           {invoice.pdf_url && (
-            <Button size="1" variant="soft" asChild>
+            <Button variant="soft" asChild>
               <a href={invoice.pdf_url} target="_blank" rel="noreferrer">
                 <ExternalLinkIcon /> Open PDF
               </a>
             </Button>
           )}
-          <Button size="1" onClick={onDone} disabled={isProcessed} data-testid="accountant-done">
+          <Button onClick={onDone} disabled={isProcessed} data-testid="accountant-done">
             <CheckIcon /> {isProcessed ? "Processed" : "Done"}
           </Button>
         </Flex>
