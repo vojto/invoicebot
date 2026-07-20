@@ -118,43 +118,31 @@ function CountryFlag({ country }: { country: string | null }) {
   )
 }
 
-function ButtonGroup({ label, children }: { label: string; children: ReactNode }) {
-  return (
-    <div
-      role="group"
-      aria-label={label}
-      className="inline-flex items-center gap-1 rounded-lg bg-[var(--gray-a3)] p-1 shadow-[inset_0_0_0_1px_var(--gray-a5)]"
-    >
-      {children}
-    </div>
-  )
-}
-
 function MonthNavigation({ previousUrl, nextUrl }: { previousUrl: string; nextUrl: string }) {
   return (
     <nav aria-label="Invoice month">
-      <ButtonGroup label="Invoice month navigation">
-        <Button size="1" variant="ghost" color="gray" asChild>
+      <Flex gap="2">
+        <Button size="2" variant="soft" color="gray" asChild>
           <Link href={previousUrl}>
             <ChevronLeftIcon /> Previous
           </Link>
         </Button>
-        <Button size="1" variant="ghost" color="gray" asChild>
+        <Button size="2" variant="soft" color="gray" asChild>
           <Link href={nextUrl}>
             Next <ChevronRightIcon />
           </Link>
         </Button>
-      </ButtonGroup>
+      </Flex>
     </nav>
   )
 }
 
 function ViewToggle({ value, onChange }: { value: ViewMode; onChange: (value: ViewMode) => void }) {
   return (
-    <ButtonGroup label="Invoice display">
+    <Flex gap="2" role="group" aria-label="Invoice display">
       <Button
-        size="1"
-        variant={value === "split" ? "soft" : "ghost"}
+        size="2"
+        variant="soft"
         color={value === "split" ? undefined : "gray"}
         type="button"
         aria-pressed={value === "split"}
@@ -163,8 +151,8 @@ function ViewToggle({ value, onChange }: { value: ViewMode; onChange: (value: Vi
         <ColumnsIcon /> Split
       </Button>
       <Button
-        size="1"
-        variant={value === "table" ? "soft" : "ghost"}
+        size="2"
+        variant="soft"
         color={value === "table" ? undefined : "gray"}
         type="button"
         aria-pressed={value === "table"}
@@ -172,7 +160,7 @@ function ViewToggle({ value, onChange }: { value: ViewMode; onChange: (value: Vi
       >
         <TableIcon /> Table
       </Button>
-    </ButtonGroup>
+    </Flex>
   )
 }
 
@@ -182,18 +170,18 @@ function DownloadGroup({ zipUrl, spreadsheetUrl, monthLabel }: {
   monthLabel: string
 }) {
   return (
-    <ButtonGroup label={`Download ${monthLabel} invoices`}>
-      <Button size="1" variant="ghost" color="gray" asChild>
+    <Flex gap="2" role="group" aria-label={`Download ${monthLabel} invoices`}>
+      <Button size="2" variant="soft" color="gray" asChild>
         <a href={zipUrl} download>
           <DownloadIcon /> ZIP
         </a>
       </Button>
-      <Button size="1" variant="ghost" color="gray" asChild>
+      <Button size="2" variant="soft" color="gray" asChild>
         <a href={spreadsheetUrl} download>
           <TableIcon /> Excel
         </a>
       </Button>
-    </ButtonGroup>
+    </Flex>
   )
 }
 
