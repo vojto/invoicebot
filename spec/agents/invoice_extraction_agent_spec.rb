@@ -28,14 +28,13 @@ RSpec.describe InvoiceExtractionAgent do
   it "extracts from the first page only when the total is found" do
     allow(schema_chat).to receive(:ask).and_return(
       llm_result(
-        is_invoice: true,
-        document_type: "invoice",
-        vendor_name: "Acme",
-        amount_cents: 1234,
-        currency: "EUR",
-        issue_date: "2026-01-15",
-        delivery_date: nil,
-        note: nil
+        extracted_data(
+          vendor_name: "Acme",
+          amount_cents: 1234,
+          currency: "EUR",
+          issue_date: "2026-01-15",
+          delivery_date: nil
+        )
       )
     )
 
@@ -50,14 +49,12 @@ RSpec.describe InvoiceExtractionAgent do
   it "parses a serialized structured response" do
     allow(schema_chat).to receive(:ask).and_return(
       llm_result(
-        {
-          is_invoice: true,
-          document_type: "invoice",
+        extracted_data(
           vendor_name: "Acme",
           amount_cents: 1234,
           currency: "EUR",
           issue_date: "2026-01-15"
-        }.to_json
+        ).to_json
       )
     )
 
@@ -70,22 +67,45 @@ RSpec.describe InvoiceExtractionAgent do
   it "extracts credit notes as a distinct document type" do
     allow(schema_chat).to receive(:ask).and_return(
       llm_result(
-        is_invoice: true,
-        document_type: "credit_note",
-        vendor_name: "Acme",
-        amount_cents: 1234,
-        currency: "EUR",
-        issue_date: "2026-01-15"
+        extracted_data(
+          type: "credit_note",
+          vendor_name: "Acme",
+          amount_cents: 1234,
+          currency: "EUR",
+          issue_date: "2026-01-15"
+        )
       )
     )
 
     expect(agent.call[:document_type]).to eq("credit_note")
   end
 
+  it "returns explicit document semantics" do
+    allow(schema_chat).to receive(:ask).and_return(
+      llm_result(
+        extracted_data(
+          type: "credit_note",
+          explicit_label: "Credit Note",
+          document_number: "CN-2",
+          referenced_invoice_number: "INV-1"
+        )
+      )
+    )
+
+    result = agent.call
+
+    expect(result).to include(
+      extraction_status: "extracted",
+      amount_kind: "credit_total",
+      document_label: "Credit Note",
+      note: "Document number: CN-2; Referenced invoice: INV-1"
+    )
+  end
+
   it "retries with the full PDF when the first page has no accounting date" do
     allow(schema_chat).to receive(:ask).and_return(
-      llm_result(is_invoice: true, vendor_name: "Acme", amount_cents: 1234, currency: "EUR"),
-      llm_result(is_invoice: true, vendor_name: "Acme", amount_cents: 1234, currency: "EUR", issue_date: "2026-01-15")
+      llm_result(status_data("insufficient_data")),
+      llm_result(extracted_data(issue_date: "2026-01-15"))
     )
 
     result = agent.call
@@ -97,8 +117,8 @@ RSpec.describe InvoiceExtractionAgent do
 
   it "retries with the full PDF when the first page has no total" do
     allow(schema_chat).to receive(:ask).and_return(
-      llm_result(is_invoice: true, amount_cents: nil),
-      llm_result(is_invoice: true, vendor_name: "Acme", amount_cents: 5678, currency: "EUR")
+      llm_result(status_data("insufficient_data")),
+      llm_result(extracted_data(amount_cents: 5678))
     )
 
     result = agent.call
@@ -112,8 +132,8 @@ RSpec.describe InvoiceExtractionAgent do
 
   it "retries with the full PDF when the first page is not recognized as an invoice" do
     allow(schema_chat).to receive(:ask).and_return(
-      llm_result(is_invoice: false, amount_cents: nil),
-      llm_result(is_invoice: true, vendor_name: "Acme", amount_cents: 9012, currency: "EUR")
+      llm_result(status_data("unsupported_document")),
+      llm_result(extracted_data(amount_cents: 9012))
     )
 
     result = agent.call
@@ -124,23 +144,55 @@ RSpec.describe InvoiceExtractionAgent do
     expect(result[:extraction_scope]).to eq("full_pdf")
   end
 
-  def llm_result(content = {})
-    defaults = {
-      is_invoice: true,
-      document_type: nil,
-      vendor_name: nil,
-      amount_cents: nil,
-      currency: nil,
-      issue_date: nil,
-      delivery_date: nil,
-      note: nil
+  it "returns a non-invoice result when the full document is unsupported" do
+    allow(schema_chat).to receive(:ask).and_return(
+      llm_result(status_data("unsupported_document"))
+    )
+
+    result = agent.call
+
+    expect(schema_chat).to have_received(:ask).twice
+    expect(result).to include(is_invoice: false, extraction_status: "unsupported_document")
+  end
+
+  def extracted_data(
+    type: "invoice",
+    explicit_label: "Invoice",
+    vendor_name: "Acme",
+    document_number: nil,
+    referenced_invoice_number: nil,
+    amount_cents: 1234,
+    currency: "EUR",
+    issue_date: "2026-01-15",
+    delivery_date: nil
+  )
+    {
+      status: "extracted",
+      document: {
+        type: type,
+        explicit_label: explicit_label,
+        vendor_name: vendor_name,
+        document_number: document_number,
+        referenced_invoice_number: referenced_invoice_number,
+        total: {
+          amount_cents: amount_cents,
+          currency: currency,
+          kind: type == "credit_note" ? "credit_total" : "invoice_total"
+        },
+        issue_date: issue_date,
+        delivery_date: delivery_date
+      }
     }
+  end
 
-    response_content = content.is_a?(String) ? content : defaults.merge(content)
+  def status_data(status)
+    { status: status, document: nil }
+  end
 
+  def llm_result(content)
     instance_double(
       RubyLLM::Message,
-      content: response_content,
+      content: content,
       input_tokens: 100,
       output_tokens: 20
     )

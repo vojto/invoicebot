@@ -4,21 +4,19 @@ class DetectInvoiceAgent < ApplicationAgent
   class ResponseSchema < ApplicationSchema
     additional_properties false
 
-    boolean :invoice_found, description: "Whether an invoice was detected in the email"
-    string :pdf_filename, nullable: true, description: "The filename of the PDF attachment that is the invoice (null if no invoice found)"
+    boolean :invoice_found, description: "Whether an invoice or credit note was detected in the email"
+    string :pdf_filename, nullable: true, description: "The filename of the PDF attachment that is the invoice or credit note"
   end
 
   SYSTEM_PROMPT = <<~PROMPT
-    You are an invoice detection assistant. Your task is to analyze email metadata and determine if the email contains an invoice.
+    Determine whether this email contains an invoice or credit note, and select its PDF attachment.
 
     Consider the following indicators:
-    - Subject line mentions invoice, faktura, bill, payment, receipt, order confirmation
+    - Subject or filename mentions invoice, faktura, bill, receipt, credit note, credit memo, dobropis, gutschrift, avoir, or refund
     - Sender appears to be a business or service provider
-    - PDF attachments with names suggesting invoices (e.g., invoice, faktura, receipt, bill)
     - Email preview mentions amounts, payments, or billing
 
-    If you determine an invoice is present and there are PDF attachments, identify which PDF is most likely the invoice.
-    If there are multiple PDFs that could be invoices, pick the one that seems most significant (e.g., the one with "invoice" in the name, or the primary document).
+    Return false when there is no plausible accounting-document PDF. If several PDFs qualify, select the primary invoice or credit note rather than supporting material.
   PROMPT
 
   def initialize(email, pdf_attachment_names: [])
@@ -39,7 +37,7 @@ class DetectInvoiceAgent < ApplicationAgent
 
   def prompt
     <<~PROMPT
-      Analyze this email and determine if it contains an invoice:
+      Analyze this email:
 
       Subject: #{@email.subject}
       From: #{@email.from_name} <#{@email.from_address}>
@@ -47,7 +45,7 @@ class DetectInvoiceAgent < ApplicationAgent
       PDF Attachments:
       #{@pdf_attachment_names.any? ? @pdf_attachment_names.map { |name| "- #{name}" }.join("\n      ") : 'None'}
 
-      Does this email contain an invoice? If yes, which PDF attachment is the invoice?
+      Does it contain an invoice or credit note? If yes, which PDF is it?
     PROMPT
   end
 end

@@ -4,14 +4,39 @@ class InvoiceExtractionAgent < ApplicationAgent
   class ResponseSchema < ApplicationSchema
     additional_properties false
 
-    boolean :is_invoice, description: "Whether this document is a valid invoice or credit note that can be extracted"
-    string :document_type, nullable: true, enum: %w[invoice credit_note], description: "Whether the document is an invoice or a credit note"
-    string :vendor_name, nullable: true, description: "The name of the vendor/business issuing the invoice"
-    integer :amount_cents, nullable: true, description: "Positive document total in cents (e.g., 1999 for $19.99)"
-    string :currency, nullable: true, description: "Three-letter currency code (e.g., USD, EUR, CZK)"
-    string :issue_date, nullable: true, description: "Invoice issue date in YYYY-MM-DD format"
-    string :delivery_date, nullable: true, description: "Delivery/service date in YYYY-MM-DD format"
-    string :note, nullable: true, description: "Any additional notes or invoice number"
+    string :status, enum: %w[extracted unsupported_document insufficient_data], description: "Extraction outcome"
+    any_of :document, description: "Extracted document, or null unless status is extracted" do
+      object do
+        string :type, enum: %w[invoice credit_note]
+        any_of :explicit_label do
+          string description: "Document's visible type label, such as Invoice or Credit Note"
+          null
+        end
+        string :vendor_name, description: "Business that issued the document"
+        any_of :document_number do
+          string
+          null
+        end
+        any_of :referenced_invoice_number do
+          string
+          null
+        end
+        object :total do
+          integer :amount_cents, description: "Positive document total in cents"
+          string :currency, description: "Three-letter ISO currency code"
+          string :kind, enum: %w[invoice_total credit_total]
+        end
+        any_of :issue_date do
+          string description: "Issue date in YYYY-MM-DD format"
+          null
+        end
+        any_of :delivery_date do
+          string description: "Delivery or service date in YYYY-MM-DD format"
+          null
+        end
+      end
+      null
+    end
   end
 
   FIRST_PAGE_COUNT = 1
@@ -21,36 +46,15 @@ class InvoiceExtractionAgent < ApplicationAgent
   ExtractionAttempt = Struct.new(:data, :elapsed_ms, :input_tokens, :output_tokens, :scope, keyword_init: true)
 
   SYSTEM_PROMPT = <<~PROMPT
-    You are an invoice data extraction assistant. Your task is to analyze documents and extract structured data from invoices and credit notes.
+    Classify and extract this accounting document using only the document itself.
 
-    First, determine if the document is actually an invoice or credit note. Set is_invoice to false if:
-    - The document is neither an invoice nor a credit note (e.g., a contract, letter, report, manual, etc.)
-    - The document is too malformed or unclear to extract meaningful data
-    - Essential information (vendor name, amount) cannot be determined
+    Supported types are invoice and credit_note. Use unsupported_document for anything else. Use insufficient_data when the document appears supported but its vendor, total, currency, or accounting date cannot be determined. Set document only when status is extracted.
 
-    If is_invoice is true, follow these steps:
+    A credit_note explicitly credits or reverses an invoice (for example Credit Note, Credit Memo, Dobropis, Gutschrift, or Avoir). Do not infer credit_note merely from a refund mention, a negative line item, a prior payment, or a zero balance.
 
-    1. First, determine which country the invoice is from based on the vendor address, language, currency, or other contextual clues.
+    For an invoice, total.kind is invoice_total and the amount is the original grand total charged, not the remaining balance. For a credit note, total.kind is credit_total and the amount is the credit issued by this document, not the referenced invoice's total. Always return a positive amount in cents.
 
-    2. Use the country of origin to interpret date formats correctly:
-       - European countries (and most of the world): assume day/month/year format (e.g., 05/01/2026 = January 5th, 2026)
-       - United States: assume month/day/year format (e.g., 05/01/2026 = May 1st, 2026)
-
-    3. Extract the following information:
-       - document_type: Set to credit_note only when the document itself is a credit note or credit memo that reverses or refunds an invoice. Otherwise set to invoice. Classify the PDF itself, not the surrounding email subject.
-       - vendor_name: The name of the business or company issuing the invoice
-       - amount_cents: The original document total, converted to cents (multiply by 100). Always return a positive amount; document_type carries whether it is an invoice or credit note. For example, $19.99 becomes 1999.
-         If the invoice shows a total and then subtracts prior payments resulting in a lower balance due (or zero), extract the original total — not the remaining balance.
-       - currency: The three-letter currency code (USD, EUR, CZK, GBP, etc.)
-       - issue_date: The date the invoice was issued (YYYY-MM-DD format). Most invoices have this, but set to null if not present.
-       - delivery_date: The date of delivery or service (YYYY-MM-DD format). This is optional and many invoices don't have it. Only extract if explicitly stated, otherwise set to null.
-         If a service/billing period range is explicitly shown in the invoice header or metadata (for example, "Zuctovacie obdobie: 1.1.2026 - 31.1.2026"), use the end date of that range as delivery_date.
-         However, if a date range only appears inside a line item description (e.g., "Feb 24–Mar 24, 2026" next to a product name), do NOT use it as delivery_date — that is just the line item's billing period, not the invoice delivery date.
-       - note: Any relevant notes, invoice number, or reference number
-
-    If is_invoice is false, set all other fields to null.
-
-    Be precise with amounts. Always convert to cents by multiplying the decimal amount by 100.
+    Interpret numeric dates using the vendor's country: day/month/year for most countries and month/day/year for the United States. Only return delivery_date when explicitly stated. A header-level service period may use its end date; a period mentioned only inside a line item may not.
   PROMPT
 
   # Initialize with either an attachment or a raw PDF path.
@@ -147,13 +151,7 @@ class InvoiceExtractionAgent < ApplicationAgent
   end
 
   def needs_full_pdf_retry?(data)
-    return true unless data[:is_invoice]
-
-    data[:vendor_name].blank? ||
-      data[:document_type].blank? ||
-      data[:amount_cents].nil? ||
-      data[:currency].blank? ||
-      (data[:issue_date].blank? && data[:delivery_date].blank?)
+    !complete_extraction?(data)
   end
 
   def result_for(attempts)
@@ -171,15 +169,13 @@ class InvoiceExtractionAgent < ApplicationAgent
     <<~PROMPT
       #{BASE_USER_PROMPT}
 
-      You are only seeing the first page. For amount_cents, extract the document-level invoice total only if it is explicitly visible on this page.
-      Do not use line-item amounts, campaign/report subtotals, tax rows, per-product charges, prior payments, balances, or any partial-page amount as the invoice total.
-      If the document-level invoice total is not explicitly visible on this page, set amount_cents to null.
+      You are only seeing the first page. Return insufficient_data unless the document type, vendor, total, currency, and at least one accounting date are explicit on this page. Never substitute a line item, subtotal, tax row, prior payment, balance, or partial-page amount for the document total.
     PROMPT
   end
 
   def log_result(data, attempt, usage)
     if data[:is_invoice]
-      Rails.logger.info "[InvoiceExtractionAgent] Extracted from #{attempt.scope}: vendor=#{data[:vendor_name]}, amount=#{data[:amount_cents]} #{data[:currency]}"
+      Rails.logger.info "[InvoiceExtractionAgent] Extracted #{data[:document_type]} from #{attempt.scope}: vendor=#{data[:vendor_name]}, amount=#{data[:amount_cents]} #{data[:currency]}"
     else
       Rails.logger.info "[InvoiceExtractionAgent] Document is not a valid invoice"
     end
@@ -189,7 +185,12 @@ class InvoiceExtractionAgent < ApplicationAgent
   def response_for(data, attempt, usage)
     {
       is_invoice: data[:is_invoice],
+      extraction_status: data[:extraction_status],
       document_type: data[:document_type],
+      document_label: data[:document_label],
+      document_number: data[:document_number],
+      referenced_invoice_number: data[:referenced_invoice_number],
+      amount_kind: data[:amount_kind],
       vendor_name: data[:vendor_name],
       amount_cents: data[:amount_cents],
       currency: data[:currency],
@@ -205,11 +206,71 @@ class InvoiceExtractionAgent < ApplicationAgent
   end
 
   def normalize_data(data)
-    data = data.dup
-    data[:document_type] ||= "invoice" if data[:is_invoice]
-    data[:issue_date] = Date.parse(data[:issue_date]) if data[:issue_date].present?
-    data[:delivery_date] = Date.parse(data[:delivery_date]) if data[:delivery_date].present?
-    data
+    return empty_extraction(data[:status]) unless data[:status] == "extracted"
+    raise InvalidResponseError, "Extracted response is incomplete" unless complete_extraction?(data)
+
+    document = data[:document]
+    total = document[:total]
+    {
+      is_invoice: true,
+      extraction_status: data[:status],
+      document_type: document[:type],
+      document_label: document[:explicit_label],
+      document_number: document[:document_number],
+      referenced_invoice_number: document[:referenced_invoice_number],
+      vendor_name: document[:vendor_name],
+      amount_cents: total[:amount_cents],
+      currency: total[:currency],
+      amount_kind: total[:kind],
+      issue_date: parse_date(document[:issue_date]),
+      delivery_date: parse_date(document[:delivery_date]),
+      note: extraction_note(document)
+    }
+  end
+
+  def complete_extraction?(data)
+    return false unless data[:status] == "extracted"
+
+    document = data[:document]
+    total = document&.dig(:total)
+    expected_amount_kind = document&.dig(:type) == "credit_note" ? "credit_total" : "invoice_total"
+
+    document.present? &&
+      document[:vendor_name].present? &&
+      total.present? &&
+      total[:amount_cents].to_i.positive? &&
+      total[:currency].present? &&
+      total[:kind] == expected_amount_kind &&
+      (document[:issue_date].present? || document[:delivery_date].present?)
+  end
+
+  def empty_extraction(status)
+    {
+      is_invoice: false,
+      extraction_status: status,
+      document_type: nil,
+      document_label: nil,
+      document_number: nil,
+      referenced_invoice_number: nil,
+      vendor_name: nil,
+      amount_cents: nil,
+      currency: nil,
+      amount_kind: nil,
+      issue_date: nil,
+      delivery_date: nil,
+      note: nil
+    }
+  end
+
+  def parse_date(value)
+    Date.parse(value) if value.present?
+  end
+
+  def extraction_note(document)
+    [
+      document[:document_number].presence && "Document number: #{document[:document_number]}",
+      document[:referenced_invoice_number].presence && "Referenced invoice: #{document[:referenced_invoice_number]}"
+    ].compact.join("; ").presence
   end
 
   def usage_for(attempts)
