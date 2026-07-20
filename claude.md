@@ -70,6 +70,48 @@ Deployed via **Kamal** to `65.108.228.167` (Hetzner). Domain: `invoices.rinik.ne
 
 Three roles: `web` (Puma/Thruster), `job` (Solid Queue via `bin/jobs`), `cron` (whenever gem).
 
+### Automatic Deployment
+
+Every push to `main` triggers `.github/workflows/deploy.yml`. The workflow:
+
+1. Installs the Ruby and Node versions from `.mise.toml`.
+2. Runs the TypeScript check and the full RSpec suite against PostgreSQL.
+3. Verifies that all deployment secrets are present.
+4. Builds and pushes the image to GHCR, then deploys all three roles with Kamal.
+5. Requires `https://invoices.rinik.net/up` to return a successful response.
+
+Deployments use the `production` concurrency group with `cancel-in-progress: false`. Only one deployment runs at a time; pushes made while another deployment is running remain pending and deploy in order.
+
+After pushing to `main`, do not report the task as deployed until its GitHub Actions run finishes successfully. Find the run for the pushed commit and wait for it:
+
+```bash
+deploy_sha=$(git rev-parse HEAD)
+gh run list --workflow Deploy --commit "$deploy_sha" --limit 1 \
+  --json databaseId,status,conclusion,url
+gh run watch RUN_ID --exit-status --interval 10
+```
+
+It can take a few seconds for a run to appear and several minutes for a pending or in-progress run to finish. Waiting is expected; continue monitoring rather than starting a competing manual deploy. If newer commits land on `main` while waiting, also inspect the newest `main` run before claiming that current production is up to date.
+
+If a deployment fails, inspect the failed step with `gh run view RUN_ID --log-failed`. Fix the root cause and push again, or rerun the failed workflow when the fix was an external configuration change such as a repository secret. Independently verify a successful deployment with:
+
+```bash
+curl --fail --show-error --silent https://invoices.rinik.net/up > /dev/null
+```
+
+Kamal uses a deployment lock. Never release a lock merely because a workflow is waiting. First check active and queued GitHub Actions runs and confirm whether another deploy is genuinely running. Check lock state with:
+
+```bash
+set -a; source .env; set +a
+mise exec -- bin/kamal lock status
+```
+
+Release a lock only when it is demonstrably stale—for example, there is no matching active deployment, no Kamal process remains, and production containers show an abandoned partial rollout. Record that evidence before running `mise exec -- bin/kamal lock release`, then rerun or continue monitoring the affected workflow.
+
+### Manual Deployment
+
+Prefer the automatic workflow. Use a manual Kamal deploy only when explicitly needed and when no automatic deployment is active or queued.
+
 Useful Kamal commands:
 - `bin/kamal console` — Rails console on production
 - `bin/kamal shell` — Bash shell on production
