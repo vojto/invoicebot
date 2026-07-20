@@ -72,7 +72,7 @@ Three roles: `web` (Puma/Thruster), `job` (Solid Queue via `bin/jobs`), `cron` (
 
 ### Automatic Deployment
 
-Every push to `main` triggers `.github/workflows/deploy.yml`. The workflow:
+Every deployment-relevant push to `main` triggers `.github/workflows/deploy.yml`. Markdown-only, `docs/`, and root `screenshot.png` changes are ignored. The workflow:
 
 1. Installs the Ruby and Node versions from `.mise.toml`.
 2. Runs the TypeScript check and the full RSpec suite against PostgreSQL.
@@ -81,6 +81,18 @@ Every push to `main` triggers `.github/workflows/deploy.yml`. The workflow:
 5. Requires `https://invoices.rinik.net/up` to return a successful response.
 
 Deployments use the `production` concurrency group with `cancel-in-progress: false`. The running deployment is never cancelled by a newer push. GitHub retains at most one pending deployment, however, so a newer push can cancel and replace an older pending run; queued commits are not guaranteed to deploy individually.
+
+#### Deployment Speed Optimizations
+
+Added after reviewing automatic deploys #10 and #11 on 2026-07-20:
+
+- The workflow caches the active mise Ruby's default `Gem.dir`, keyed by `.mise.toml` and `Gemfile.lock`. This avoids reinstalling every gem on each runner. If the cache causes Bundler problems, delete the GitHub Actions cache or remove the `Cache Ruby gems` step; do not configure a project-local Bundler path.
+- PostgreSQL's service health check runs every 2 seconds instead of every 10 seconds. Retries were raised to preserve the previous total startup allowance. Revert the interval to 10 seconds if startup becomes flaky.
+- Documentation-only pushes do not start a deploy. Markdown, docs, specs, and the root screenshot are also excluded from the Docker context where appropriate. Remove an ignore entry if one of those files becomes a production runtime dependency.
+- The `cron` role uses a 2-second `stop_timeout`. The old cron container previously ignored the stop signal until Kamal force-killed it after 30 seconds, so this preserves the eventual forced-stop behavior with less waiting. Remove the override if cron shutdown behavior changes or running cron commands need a longer grace period.
+- The Docker build writes dependency and application Bootsnap caches separately, then merges them into `/rails/tmp/cache/bootsnap` in the final image. This keeps the large dependency cache in a stable layer instead of retransferring it after every code change. If production boot reports missing or invalid Bootsnap cache entries, revert the separate `BOOTSNAP_CACHE_DIR` steps to the original `/rails/tmp/cache` precompile commands.
+
+The registry-backed BuildKit cache remains in `mode=max`; npm installation, TypeScript, and RSpec were already fast enough that more caching was not justified.
 
 After pushing to `main`, do not report the task as deployed until its GitHub Actions run—or a newer run containing that commit—finishes successfully. Find the run for the pushed commit and wait for it:
 

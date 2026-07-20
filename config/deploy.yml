@@ -18,6 +18,8 @@ servers:
     hosts:
       - 65.108.228.167
     cmd: bash -c "bundle exec whenever --update-crontab && (env && crontab -l) | crontab - && cron -f"
+    # Debian cron does not exit within Kamal's default 30-second grace period.
+    stop_timeout: 2
     options:
       user: root
 

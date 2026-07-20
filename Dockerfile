@@ -47,8 +47,10 @@ COPY vendor/* ./vendor/
 COPY Gemfile Gemfile.lock ./
 
 RUN bundle install && \
-    rm -rf ~/.bundle/ "${BUNDLE_PATH}"/ruby/*/cache "${BUNDLE_PATH}"/ruby/*/bundler/gems/*/.git && \
-    bundle exec bootsnap -j 0 precompile --gemfile
+    rm -rf ~/.bundle/ "${BUNDLE_PATH}"/ruby/*/cache "${BUNDLE_PATH}"/ruby/*/bundler/gems/*/.git
+
+# Keep the large, dependency-only Bootsnap cache in its own stable image layer.
+RUN BOOTSNAP_CACHE_DIR=/bootsnap-gem-cache bundle exec bootsnap -j 0 precompile --gemfile
 
 # Install node modules
 COPY package.json package-lock.json ./
@@ -59,10 +61,11 @@ RUN npm ci && \
 COPY . .
 
 # Precompile bootsnap code for faster boot times
-RUN bundle exec bootsnap -j 0 precompile app/ lib/
+RUN BOOTSNAP_CACHE_DIR=/bootsnap-app-cache bundle exec bootsnap -j 0 precompile app/ lib/
 
 # Precompiling assets for production without requiring secret RAILS_MASTER_KEY
-RUN SECRET_KEY_BASE_DUMMY=1 ./bin/rails assets:precompile
+RUN BOOTSNAP_CACHE_DIR=/tmp/bootsnap-assets-cache SECRET_KEY_BASE_DUMMY=1 ./bin/rails assets:precompile && \
+    rm -rf /tmp/bootsnap-assets-cache
 
 RUN rm -rf node_modules
 
@@ -79,7 +82,9 @@ USER 1000:1000
 
 # Copy built artifacts: gems, application
 COPY --chown=rails:rails --from=build "${BUNDLE_PATH}" "${BUNDLE_PATH}"
+COPY --chown=rails:rails --from=build /bootsnap-gem-cache/ /rails/tmp/cache/bootsnap/
 COPY --chown=rails:rails --from=build /rails /rails
+COPY --chown=rails:rails --from=build /bootsnap-app-cache/ /rails/tmp/cache/bootsnap/
 
 # Entrypoint prepares the database.
 ENTRYPOINT ["/rails/bin/docker-entrypoint"]
