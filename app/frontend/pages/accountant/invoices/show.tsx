@@ -1,5 +1,15 @@
 import { Head, Link } from "@inertiajs/react"
-import { CheckIcon, DownloadIcon, ExternalLinkIcon, FileTextIcon, ResetIcon } from "@radix-ui/react-icons"
+import {
+  CheckIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon,
+  ColumnsIcon,
+  DownloadIcon,
+  ExternalLinkIcon,
+  FileTextIcon,
+  ResetIcon,
+  TableIcon,
+} from "@radix-ui/react-icons"
 import { Box, Button, Flex, Heading, Table, Text } from "@radix-ui/themes"
 import { ReactNode, useState } from "react"
 import { z } from "zod"
@@ -21,6 +31,11 @@ const InvoiceSchema = z.object({
   transaction: z.object({
     date: z.string().nullable(),
     account_name: z.string().nullable(),
+    amount_cents: z.number().nullable(),
+    currency: z.string().nullable(),
+    original_amount_cents: z.number().nullable(),
+    original_currency: z.string().nullable(),
+    direction: z.enum(["credit", "debit"]),
   }).nullable(),
   pdf_url: z.string().nullable(),
   pages_url: z.string().nullable(),
@@ -40,6 +55,7 @@ const PropsSchema = z.object({
 
 type Props = z.infer<typeof PropsSchema>
 type Invoice = z.infer<typeof InvoiceSchema>
+type ViewMode = "split" | "table"
 
 const flagUrls = import.meta.glob(
   "../../../../../node_modules/country-flag-icons/3x2/*.svg",
@@ -63,6 +79,20 @@ function amountLabel(invoice: Invoice) {
     : formatCurrency(invoice.amount_cents, invoice.currency)
 }
 
+function transactionAmountLabel(invoice: Invoice) {
+  if (invoice.transaction?.amount_cents == null) return "—"
+
+  const amount = formatCurrency(invoice.transaction.amount_cents, invoice.transaction.currency)
+  return invoice.transaction.currency ? `${amount} ${invoice.transaction.currency}` : amount
+}
+
+function originalTransactionAmountLabel(invoice: Invoice) {
+  if (invoice.transaction?.original_amount_cents == null) return "—"
+
+  const amount = formatCurrency(invoice.transaction.original_amount_cents, invoice.transaction.original_currency)
+  return invoice.transaction.original_currency ? `${amount} ${invoice.transaction.original_currency}` : amount
+}
+
 function CountryFlag({ country }: { country: string | null }) {
   const countryCode = country?.trim().toUpperCase()
   const flagUrl = countryCode
@@ -77,6 +107,55 @@ function CountryFlag({ country }: { country: string | null }) {
       title={countryCode}
       className="inline-block h-4 w-6 rounded-[2px] shadow-[0_0_0_1px_var(--gray-a5)]"
     />
+  )
+}
+
+function MonthNavigation({ previousUrl, nextUrl }: { previousUrl: string; nextUrl: string }) {
+  return (
+    <nav
+      aria-label="Invoice month"
+      className="inline-flex overflow-hidden rounded-md border border-[var(--gray-a6)] bg-[var(--color-background)] shadow-sm"
+    >
+      <Link
+        href={previousUrl}
+        className="inline-flex h-8 items-center gap-1 border-r border-[var(--gray-a6)] px-2.5 text-sm font-medium text-[var(--gray-11)] hover:bg-[var(--gray-a3)] focus-visible:z-10 focus-visible:outline-2 focus-visible:outline-[var(--accent-8)]"
+      >
+        <ChevronLeftIcon /> Previous
+      </Link>
+      <Link
+        href={nextUrl}
+        className="inline-flex h-8 items-center gap-1 px-2.5 text-sm font-medium text-[var(--gray-11)] hover:bg-[var(--gray-a3)] focus-visible:z-10 focus-visible:outline-2 focus-visible:outline-[var(--accent-8)]"
+      >
+        Next <ChevronRightIcon />
+      </Link>
+    </nav>
+  )
+}
+
+function ViewToggle({ value, onChange }: { value: ViewMode; onChange: (value: ViewMode) => void }) {
+  return (
+    <div
+      role="group"
+      aria-label="Invoice display"
+      className="inline-flex overflow-hidden rounded-md border border-[var(--gray-a6)] bg-[var(--color-background)] shadow-sm"
+    >
+      <button
+        type="button"
+        aria-pressed={value === "split"}
+        onClick={() => onChange("split")}
+        className={`inline-flex h-8 items-center gap-1.5 border-r border-[var(--gray-a6)] px-2.5 text-sm font-medium ${value === "split" ? "bg-[var(--accent-a4)] text-[var(--accent-11)]" : "text-[var(--gray-11)] hover:bg-[var(--gray-a3)]"}`}
+      >
+        <ColumnsIcon /> Split
+      </button>
+      <button
+        type="button"
+        aria-pressed={value === "table"}
+        onClick={() => onChange("table")}
+        className={`inline-flex h-8 items-center gap-1.5 px-2.5 text-sm font-medium ${value === "table" ? "bg-[var(--accent-a4)] text-[var(--accent-11)]" : "text-[var(--gray-11)] hover:bg-[var(--gray-a3)]"}`}
+      >
+        <TableIcon /> Table
+      </button>
+    </div>
   )
 }
 
@@ -209,6 +288,124 @@ function CompletedPane() {
   )
 }
 
+function ProgressFooter({ processedCount, invoiceCount, onReset }: { processedCount: number; invoiceCount: number; onReset: () => void }) {
+  return (
+    <Flex
+      asChild
+      align="center"
+      justify="between"
+      gap="3"
+      px="3"
+      py="2"
+      style={{ borderTop: "1px solid var(--gray-a5)", backgroundColor: "var(--gray-a2)" }}
+    >
+      <footer data-testid="accountant-progress">
+        <Text size="2" color="gray">
+          <Text weight="bold" color="gray">{processedCount}</Text> of {invoiceCount} processed
+        </Text>
+        <Button
+          size="1"
+          variant="ghost"
+          color="gray"
+          disabled={processedCount === 0}
+          onClick={onReset}
+          data-testid="accountant-reset"
+        >
+          <ResetIcon /> Reset
+        </Button>
+      </footer>
+    </Flex>
+  )
+}
+
+function FullInvoiceTable({
+  invoices,
+  processedInvoiceIds,
+  onToggleProcessed,
+  onReset,
+}: {
+  invoices: Invoice[]
+  processedInvoiceIds: Set<number>
+  onToggleProcessed: (invoice: Invoice) => void
+  onReset: () => void
+}) {
+  return (
+    <section className="flex w-full min-w-0 flex-col overflow-hidden rounded-xl border border-[var(--gray-a6)] bg-[var(--color-background)] shadow-sm" aria-label="Invoice table">
+      <div className="w-full overflow-auto">
+        <Table.Root size="2" style={{ minWidth: 1900, width: "100%" }}>
+          <Table.Header style={{ position: "sticky", top: 0, zIndex: 1, backgroundColor: "var(--color-background)" }}>
+            <Table.Row>
+              <Table.ColumnHeaderCell>Status</Table.ColumnHeaderCell>
+              <Table.ColumnHeaderCell>Vendor</Table.ColumnHeaderCell>
+              <Table.ColumnHeaderCell justify="center">Country</Table.ColumnHeaderCell>
+              <Table.ColumnHeaderCell>VAT ID</Table.ColumnHeaderCell>
+              <Table.ColumnHeaderCell>Category</Table.ColumnHeaderCell>
+              <Table.ColumnHeaderCell>Accounting date</Table.ColumnHeaderCell>
+              <Table.ColumnHeaderCell>Issue date</Table.ColumnHeaderCell>
+              <Table.ColumnHeaderCell>Delivery date</Table.ColumnHeaderCell>
+              <Table.ColumnHeaderCell justify="end">Invoice amount</Table.ColumnHeaderCell>
+              <Table.ColumnHeaderCell>Transaction date</Table.ColumnHeaderCell>
+              <Table.ColumnHeaderCell>Bank account</Table.ColumnHeaderCell>
+              <Table.ColumnHeaderCell justify="end">Bank amount</Table.ColumnHeaderCell>
+              <Table.ColumnHeaderCell justify="end">Original amount</Table.ColumnHeaderCell>
+              <Table.ColumnHeaderCell>Direction</Table.ColumnHeaderCell>
+              <Table.ColumnHeaderCell>PDF</Table.ColumnHeaderCell>
+            </Table.Row>
+          </Table.Header>
+          <Table.Body>
+            {invoices.map((invoice) => {
+              const isProcessed = processedInvoiceIds.has(invoice.id)
+
+              return (
+                <Table.Row key={invoice.id} style={{ color: isProcessed ? "var(--gray-9)" : undefined }}>
+                  <Table.Cell className="whitespace-nowrap">
+                    <Button
+                      size="1"
+                      variant={isProcessed ? "soft" : "ghost"}
+                      color={isProcessed ? "gray" : undefined}
+                      onClick={() => onToggleProcessed(invoice)}
+                      data-testid={`accountant-table-toggle-${invoice.id}`}
+                    >
+                      {isProcessed ? <ResetIcon /> : <CheckIcon />}
+                      {isProcessed ? "Undo" : "Done"}
+                    </Button>
+                  </Table.Cell>
+                  <Table.Cell className="min-w-48">
+                    <Text weight="medium">{invoice.vendor_name || "Unknown"}</Text>
+                  </Table.Cell>
+                  <Table.Cell justify="center"><CountryFlag country={invoice.vendor_country} /></Table.Cell>
+                  <Table.Cell className="whitespace-nowrap">{invoice.vendor_eu_vat_id || "—"}</Table.Cell>
+                  <Table.Cell className="whitespace-nowrap">{invoice.category_name || "Uncategorized"}</Table.Cell>
+                  <Table.Cell className="whitespace-nowrap">{formatDate(invoice.accounting_date)}</Table.Cell>
+                  <Table.Cell className="whitespace-nowrap">{formatDate(invoice.issue_date)}</Table.Cell>
+                  <Table.Cell className="whitespace-nowrap">{formatDate(invoice.delivery_date)}</Table.Cell>
+                  <Table.Cell justify="end" className="whitespace-nowrap"><Text weight="medium">{amountLabel(invoice)}</Text></Table.Cell>
+                  <Table.Cell className="whitespace-nowrap">{formatDate(invoice.transaction?.date || null)}</Table.Cell>
+                  <Table.Cell className="whitespace-nowrap">{invoice.transaction?.account_name || "—"}</Table.Cell>
+                  <Table.Cell justify="end" className="whitespace-nowrap"><Text weight="medium">{transactionAmountLabel(invoice)}</Text></Table.Cell>
+                  <Table.Cell justify="end" className="whitespace-nowrap">{originalTransactionAmountLabel(invoice)}</Table.Cell>
+                  <Table.Cell className="capitalize">{invoice.transaction?.direction || "—"}</Table.Cell>
+                  <Table.Cell>
+                    {invoice.pdf_url ? (
+                      <Button size="1" variant="ghost" asChild>
+                        <a href={invoice.pdf_url} target="_blank" rel="noreferrer">
+                          <ExternalLinkIcon /> Open
+                        </a>
+                      </Button>
+                    ) : "—"}
+                  </Table.Cell>
+                </Table.Row>
+              )
+            })}
+          </Table.Body>
+        </Table.Root>
+      </div>
+
+      <ProgressFooter processedCount={processedInvoiceIds.size} invoiceCount={invoices.length} onReset={onReset} />
+    </section>
+  )
+}
+
 function AccountantInvoicesShow(props: Props) {
   const {
     invoice_month,
@@ -236,26 +433,32 @@ function AccountantInvoicesShow(props: Props) {
     ? selection.invoiceId
     : firstUnprocessedInvoice?.id ?? null
   const selectedInvoice = invoices.find((invoice) => invoice.id === selectedInvoiceId)
+  const [viewMode, setViewMode] = useState<ViewMode>("split")
 
-  const handleDone = () => {
-    if (!selectedInvoice) return
-
-    if (processedInvoiceIdSet.has(selectedInvoice.id)) {
-      const nextProcessedInvoiceIds = processedInvoiceIds.filter((id) => id !== selectedInvoice.id)
+  const toggleProcessed = (invoice: Invoice, advanceSelection: boolean) => {
+    if (processedInvoiceIdSet.has(invoice.id)) {
+      const nextProcessedInvoiceIds = processedInvoiceIds.filter((id) => id !== invoice.id)
       saveProcessedInvoiceIds(storageKey, nextProcessedInvoiceIds)
       setProgress({ storageKey, invoiceIds: nextProcessedInvoiceIds })
       return
     }
 
-    const nextProcessedInvoiceIds = [...processedInvoiceIds, selectedInvoice.id]
+    const nextProcessedInvoiceIds = [...processedInvoiceIds, invoice.id]
     const nextProcessedInvoiceIdSet = new Set(nextProcessedInvoiceIds)
-    const selectedIndex = invoices.findIndex((invoice) => invoice.id === selectedInvoice.id)
-    const remainingInvoices = [...invoices.slice(selectedIndex + 1), ...invoices.slice(0, selectedIndex)]
-    const nextInvoice = remainingInvoices.find((invoice) => !nextProcessedInvoiceIdSet.has(invoice.id))
 
     saveProcessedInvoiceIds(storageKey, nextProcessedInvoiceIds)
     setProgress({ storageKey, invoiceIds: nextProcessedInvoiceIds })
-    setSelection({ month: invoice_month.key, invoiceId: nextInvoice?.id ?? null })
+
+    if (advanceSelection) {
+      const selectedIndex = invoices.findIndex((candidate) => candidate.id === invoice.id)
+      const remainingInvoices = [...invoices.slice(selectedIndex + 1), ...invoices.slice(0, selectedIndex)]
+      const nextInvoice = remainingInvoices.find((candidate) => !nextProcessedInvoiceIdSet.has(candidate.id))
+      setSelection({ month: invoice_month.key, invoiceId: nextInvoice?.id ?? null })
+    }
+  }
+
+  const handleDone = () => {
+    if (selectedInvoice) toggleProcessed(selectedInvoice, true)
   }
 
   const handleReset = () => {
@@ -278,13 +481,9 @@ function AccountantInvoicesShow(props: Props) {
           Invoices — {invoice_month.label}{" "}
           <Text as="span" size="3" color="gray" weight="regular">({invoices.length})</Text>
         </Heading>
-        <Flex gap="2">
-          <Button size="1" variant="soft" color="gray" asChild>
-            <Link href={previous_month_url}>Previous month</Link>
-          </Button>
-          <Button size="1" variant="soft" color="gray" asChild>
-            <Link href={next_month_url}>Next month</Link>
-          </Button>
+        <Flex gap="2" wrap="wrap" justify="end">
+          <ViewToggle value={viewMode} onChange={setViewMode} />
+          <MonthNavigation previousUrl={previous_month_url} nextUrl={next_month_url} />
           {invoices.length > 0 && (
             <Button size="1" variant="soft" asChild>
               <a href={download_url} download aria-label={`Download all ${invoice_month.label} invoices as a ZIP file`}>
@@ -300,6 +499,13 @@ function AccountantInvoicesShow(props: Props) {
           <FileTextIcon width="32" height="32" color="var(--gray-8)" />
           <Text color="gray">No invoices found for {invoice_month.label}.</Text>
         </Flex>
+      ) : viewMode === "table" ? (
+        <FullInvoiceTable
+          invoices={invoices}
+          processedInvoiceIds={processedInvoiceIdSet}
+          onToggleProcessed={(invoice) => toggleProcessed(invoice, false)}
+          onReset={handleReset}
+        />
       ) : (
         <div className="grid min-h-[680px] overflow-hidden rounded-xl border border-[var(--gray-a6)] bg-[var(--color-background)] shadow-sm lg:h-[calc(100vh-178px)] lg:grid-cols-[minmax(420px,0.8fr)_minmax(0,1.2fr)]">
           <section className="flex min-h-0 min-w-0 flex-col border-b border-[var(--gray-a6)] lg:border-b-0 lg:border-r" aria-label="Invoices">
@@ -363,31 +569,11 @@ function AccountantInvoicesShow(props: Props) {
               </Table.Root>
             </div>
 
-            <Flex
-              asChild
-              align="center"
-              justify="between"
-              gap="3"
-              px="3"
-              py="2"
-              style={{ borderTop: "1px solid var(--gray-a5)", backgroundColor: "var(--gray-a2)" }}
-            >
-              <footer data-testid="accountant-progress">
-                <Text size="2" color="gray">
-                  <Text weight="bold" color="gray">{processedInvoiceIds.length}</Text> of {invoices.length} processed
-                </Text>
-                <Button
-                  size="1"
-                  variant="ghost"
-                  color="gray"
-                  disabled={processedInvoiceIds.length === 0}
-                  onClick={handleReset}
-                  data-testid="accountant-reset"
-                >
-                  <ResetIcon /> Reset
-                </Button>
-              </footer>
-            </Flex>
+            <ProgressFooter
+              processedCount={processedInvoiceIds.length}
+              invoiceCount={invoices.length}
+              onReset={handleReset}
+            />
           </section>
 
           {selectedInvoice

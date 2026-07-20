@@ -145,7 +145,12 @@ class PublicAccountantInvoicesController < ApplicationController
       vendor_eu_vat_id: invoice.vendor_eu_vat_id,
       transaction: transaction ? {
         date: (transaction.booking_date || transaction.value_date)&.iso8601,
-        account_name: transaction.bank_connection.institution_name.presence
+        account_name: transaction.bank_connection.institution_name.presence,
+        amount_cents: transaction.amount_cents,
+        currency: transaction.currency,
+        original_amount_cents: transaction.original_amount_cents,
+        original_currency: transaction.original_currency,
+        direction: transaction.direction
       } : nil,
       pdf_url: invoice.pdf.attached? ? accountant_invoice_pdf_path(
         id: invoice.id,
