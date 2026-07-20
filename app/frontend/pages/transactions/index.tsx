@@ -204,9 +204,11 @@ export default function TransactionsIndex(props: Props) {
                           <Table.Cell>
                             {!isFlagged && (
                               tx.invoice ? (
-                                <Button size="1" variant="soft" color="blue" className="gap-1 max-w-[300px]">
-                                  <FileTextIcon className="shrink-0" />
-                                  <span className="truncate">{tx.invoice.label}</span>
+                                <Button size="1" variant="soft" color="blue" className="gap-1 max-w-[300px]" asChild>
+                                  <Link href={`/invoices/${tx.invoice.id}`}>
+                                    <FileTextIcon className="shrink-0" />
+                                    <span className="truncate">{tx.invoice.label}</span>
+                                  </Link>
                                 </Button>
                               ) : (
                                 !isHidden && (
