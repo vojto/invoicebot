@@ -1,6 +1,6 @@
-import { useState, useEffect } from "react"
-import { Box, Flex, Button, Text } from "@radix-ui/themes"
-import { ChevronLeftIcon, ChevronRightIcon, Link2Icon, ReloadIcon } from "@radix-ui/react-icons"
+import { Link2Icon, ReloadIcon } from "@radix-ui/react-icons"
+import { Box, Button, Flex, Spinner, Text } from "@radix-ui/themes"
+import { useCallback, useEffect, useState } from "react"
 
 interface PageData {
   page_number: number
@@ -9,74 +9,89 @@ interface PageData {
 
 interface PdfPreviewProps {
   invoiceId: number
+  pagesUrl?: string
+  className?: string
   onUnlink?: () => void
 }
 
-export default function PdfPreview({ invoiceId, onUnlink }: PdfPreviewProps) {
+export default function PdfPreview({ invoiceId, pagesUrl, className, onUnlink }: PdfPreviewProps) {
   const [pages, setPages] = useState<PageData[]>([])
-  const [pageIndex, setPageIndex] = useState(0)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(false)
 
-  const fetchPages = () => {
+  const fetchPages = useCallback(() => {
     setLoading(true)
     setError(false)
-    fetch(`/invoices/${invoiceId}/pages`)
-      .then(res => res.json())
-      .then(data => {
-        setPages(data.pages)
+
+    fetch(pagesUrl || `/invoices/${invoiceId}/pages`)
+      .then((response) => {
+        if (!response.ok) throw new Error("Unable to load PDF preview")
+        return response.json()
+      })
+      .then((data) => {
+        setPages(data.pages || [])
         setLoading(false)
       })
       .catch(() => {
+        setPages([])
         setError(true)
         setLoading(false)
       })
-  }
+  }, [invoiceId, pagesUrl])
 
-  useEffect(fetchPages, [invoiceId])
-
-  const hasPages = !loading && !error && pages.length > 0
-  const currentPage = hasPages ? pages[pageIndex] : null
+  useEffect(fetchPages, [fetchPages])
 
   return (
     <Box
+      className={className}
       style={{
         border: "1px solid var(--gray-5)",
         borderRadius: "var(--radius-3)",
         overflow: "hidden",
+        display: "flex",
+        flexDirection: "column",
       }}
     >
-      {currentPage ? (
-        <img
-          src={currentPage.image_url}
-          alt={`Page ${currentPage.page_number}`}
-          style={{ width: "100%", display: "block" }}
-        />
-      ) : (
-        <Flex
-          align="center"
-          justify="center"
-          direction="column"
-          gap="3"
-          style={{
-            aspectRatio: "1 / 1.4142",
-            backgroundColor: "var(--gray-a2)",
-          }}
-        >
-          {loading ? (
-            <Text size="3" color="gray">Loading preview...</Text>
-          ) : (
-            <>
-              <Text size="3" color="gray" weight="medium">
-                Preview is being generated
-              </Text>
-              <Button size="2" variant="soft" color="gray" onClick={fetchPages}>
-                <ReloadIcon /> Refresh
-              </Button>
-            </>
-          )}
-        </Flex>
-      )}
+      <div className="min-h-0 flex-1 overflow-y-auto bg-[var(--gray-a3)] p-3">
+        {loading ? (
+          <Flex minHeight="320px" align="center" justify="center" direction="column" gap="3">
+            <Spinner size="3" />
+            <Text size="3" color="gray">Loading preview…</Text>
+          </Flex>
+        ) : pages.length > 0 ? (
+          <Flex direction="column" gap="3" align="center">
+            {pages.map((page, index) => (
+              <figure key={page.page_number} className="m-0 w-full max-w-[920px]">
+                <img
+                  src={page.image_url}
+                  alt={`Page ${page.page_number}`}
+                  loading={index === 0 ? "eager" : "lazy"}
+                  className="block h-auto w-full bg-white shadow-sm"
+                />
+                <figcaption className="mt-1 text-center text-xs text-[var(--gray-10)]">
+                  Page {page.page_number}
+                </figcaption>
+              </figure>
+            ))}
+          </Flex>
+        ) : (
+          <Flex
+            align="center"
+            justify="center"
+            direction="column"
+            gap="3"
+            minHeight="320px"
+            style={{ backgroundColor: "var(--gray-a2)" }}
+          >
+            <Text size="3" color="gray" weight="medium">
+              {error ? "Preview could not be loaded" : "Preview is being generated"}
+            </Text>
+            <Button size="2" variant="soft" color="gray" onClick={fetchPages}>
+              <ReloadIcon /> Refresh
+            </Button>
+          </Flex>
+        )}
+      </div>
 
       <Flex
         align="center"
@@ -89,34 +104,16 @@ export default function PdfPreview({ invoiceId, onUnlink }: PdfPreviewProps) {
         }}
       >
         <Flex align="center" gap="2">
-          <Button
-            size="1"
-            variant="ghost"
-            disabled={!hasPages || pageIndex <= 0}
-            onClick={() => setPageIndex(i => i - 1)}
-          >
-            <ChevronLeftIcon />
-          </Button>
           <Text size="2" color="gray">
-            {hasPages ? `${pageIndex + 1} / ${pages.length}` : "— / —"}
+            {pages.length === 1 ? "1 page" : `${pages.length} pages`}
           </Text>
-          <Button
-            size="1"
-            variant="ghost"
-            disabled={!hasPages || pageIndex >= pages.length - 1}
-            onClick={() => setPageIndex(i => i + 1)}
-          >
-            <ChevronRightIcon />
+          <Button size="1" variant="ghost" color="gray" onClick={fetchPages} aria-label="Refresh preview">
+            <ReloadIcon />
           </Button>
         </Flex>
 
         {onUnlink && (
-          <Button
-            size="1"
-            variant="ghost"
-            color="red"
-            onClick={onUnlink}
-          >
+          <Button size="1" variant="ghost" color="red" onClick={onUnlink}>
             <Link2Icon /> Unlink invoice
           </Button>
         )}

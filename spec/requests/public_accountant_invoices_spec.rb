@@ -61,6 +61,9 @@ RSpec.describe "Public accountant invoices", type: :request do
     expect(props.dig("invoices", 0, "pdf_url")).to eq(
       accountant_invoice_pdf_path(id: invoice.id, access_token: access.public_token)
     )
+    expect(props.dig("invoices", 0, "pages_url")).to eq(
+      accountant_invoice_pages_path(id: invoice.id, access_token: access.public_token)
+    )
     expect(props.dig("invoices", 0)).to include(
       "issue_date" => "2026-07-10",
       "delivery_date" => "2026-07-11",
@@ -101,6 +104,34 @@ RSpec.describe "Public accountant invoices", type: :request do
     expect(response.media_type).to eq("application/pdf")
 
     get accountant_invoice_pdf_path(id: other_invoice.id, access_token: access.public_token)
+    expect(response).to have_http_status(:not_found)
+  end
+
+  it "serves token-protected page previews only from the shared user's active invoices" do
+    invoice = create(:invoice, user: user)
+    page_image = invoice.page_images.create!(page_number: 1)
+    page_image.image.attach(io: StringIO.new("JPEG data"), filename: "page-1.jpg", content_type: "image/jpeg")
+    other_page = create(:invoice).page_images.create!(page_number: 1)
+    other_page.image.attach(io: StringIO.new("Private JPEG"), filename: "private.jpg", content_type: "image/jpeg")
+
+    get accountant_invoice_pages_path(id: invoice.id, access_token: access.public_token)
+
+    expect(response).to have_http_status(:ok)
+    expect(response.parsed_body["pages"]).to eq([ {
+      "page_number" => 1,
+      "image_url" => accountant_invoice_page_path(
+        id: invoice.id,
+        page_number: 1,
+        access_token: access.public_token
+      )
+    } ])
+
+    get accountant_invoice_page_path(id: invoice.id, page_number: 1, access_token: access.public_token)
+    expect(response).to have_http_status(:ok)
+    expect(response.media_type).to eq("image/jpeg")
+    expect(response.body).to eq("JPEG data")
+
+    get accountant_invoice_pages_path(id: other_page.invoice_id, access_token: access.public_token)
     expect(response).to have_http_status(:not_found)
   end
 

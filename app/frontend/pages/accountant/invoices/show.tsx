@@ -3,6 +3,7 @@ import { CheckIcon, DownloadIcon, ExternalLinkIcon, FileTextIcon, ResetIcon } fr
 import { Box, Button, Flex, Heading, Table, Text } from "@radix-ui/themes"
 import { ReactNode, useState } from "react"
 import { z } from "zod"
+import PdfPreview from "../../../components/PdfPreview"
 import PublicLayout from "../../../layouts/public"
 import formatCurrency from "../../../lib/formatCurrency"
 
@@ -22,6 +23,7 @@ const InvoiceSchema = z.object({
     account_name: z.string().nullable(),
   }).nullable(),
   pdf_url: z.string().nullable(),
+  pages_url: z.string().nullable(),
 })
 
 const PropsSchema = z.object({
@@ -38,6 +40,11 @@ const PropsSchema = z.object({
 
 type Props = z.infer<typeof PropsSchema>
 type Invoice = z.infer<typeof InvoiceSchema>
+
+const flagUrls = import.meta.glob(
+  "../../../../../node_modules/country-flag-icons/3x2/*.svg",
+  { eager: true, import: "default", query: "?url&no-inline" },
+) as Record<string, string>
 
 function formatDate(value: string | null) {
   if (!value) return "—"
@@ -56,11 +63,21 @@ function amountLabel(invoice: Invoice) {
     : formatCurrency(invoice.amount_cents, invoice.currency)
 }
 
-function countryFlag(country: string | null) {
+function CountryFlag({ country }: { country: string | null }) {
   const countryCode = country?.trim().toUpperCase()
-  if (!countryCode?.match(/^[A-Z]{2}$/)) return null
+  const flagUrl = countryCode
+    ? flagUrls[`../../../../../node_modules/country-flag-icons/3x2/${countryCode}.svg`]
+    : null
+  if (!countryCode || !flagUrl) return "—"
 
-  return String.fromCodePoint(...[...countryCode].map((letter) => letter.charCodeAt(0) + 127397))
+  return (
+    <img
+      src={flagUrl}
+      alt={countryCode}
+      title={countryCode}
+      className="inline-block h-4 w-6 rounded-[2px] shadow-[0_0_0_1px_var(--gray-a5)]"
+    />
+  )
 }
 
 function loadProcessedInvoiceIds(storageKey: string, invoices: Invoice[]) {
@@ -115,7 +132,7 @@ function TransactionDetail({ invoice }: { invoice: Invoice }) {
   )
 }
 
-function InvoiceDetails({ invoice, isProcessed, onDone }: { invoice: Invoice; isProcessed: boolean; onDone: () => void }) {
+function InvoiceDetails({ invoice, isProcessed, onToggleProcessed }: { invoice: Invoice; isProcessed: boolean; onToggleProcessed: () => void }) {
   return (
     <Box p="3" style={{ borderBottom: "1px solid var(--gray-a5)", backgroundColor: "var(--color-background)" }}>
       <Flex justify="between" align="center" gap="4" wrap="wrap">
@@ -134,8 +151,14 @@ function InvoiceDetails({ invoice, isProcessed, onDone }: { invoice: Invoice; is
               </a>
             </Button>
           )}
-          <Button onClick={onDone} disabled={isProcessed} data-testid="accountant-done">
-            <CheckIcon /> {isProcessed ? "Processed" : "Done"}
+          <Button
+            onClick={onToggleProcessed}
+            variant={isProcessed ? "soft" : "solid"}
+            color={isProcessed ? "gray" : undefined}
+            data-testid={isProcessed ? "accountant-undo" : "accountant-done"}
+          >
+            {isProcessed ? <ResetIcon /> : <CheckIcon />}
+            {isProcessed ? "Undo" : "Done"}
           </Button>
         </Flex>
       </Flex>
@@ -143,18 +166,17 @@ function InvoiceDetails({ invoice, isProcessed, onDone }: { invoice: Invoice; is
   )
 }
 
-function PdfPane({ invoice, isProcessed, onDone }: { invoice: Invoice; isProcessed: boolean; onDone: () => void }) {
+function PdfPane({ invoice, isProcessed, onToggleProcessed }: { invoice: Invoice; isProcessed: boolean; onToggleProcessed: () => void }) {
   return (
     <section className="flex min-h-[680px] min-w-0 flex-col bg-[var(--gray-a2)] lg:min-h-0" aria-label="Invoice preview">
-      <InvoiceDetails invoice={invoice} isProcessed={isProcessed} onDone={onDone} />
+      <InvoiceDetails invoice={invoice} isProcessed={isProcessed} onToggleProcessed={onToggleProcessed} />
 
       <div className="min-h-[520px] flex-1 p-3">
-        {invoice.pdf_url ? (
-          <iframe
-            key={invoice.pdf_url}
-            src={invoice.pdf_url}
-            title={`${invoice.vendor_name || "Invoice"} PDF`}
-            className="h-full min-h-[620px] w-full rounded-lg border border-[var(--gray-a6)] bg-white lg:min-h-0"
+        {invoice.pages_url ? (
+          <PdfPreview
+            invoiceId={invoice.id}
+            pagesUrl={invoice.pages_url}
+            className="h-full min-h-[620px] w-full lg:min-h-0"
           />
         ) : (
           <Flex height="100%" minHeight="520px" align="center" justify="center" direction="column" gap="3">
@@ -216,7 +238,14 @@ function AccountantInvoicesShow(props: Props) {
   const selectedInvoice = invoices.find((invoice) => invoice.id === selectedInvoiceId)
 
   const handleDone = () => {
-    if (!selectedInvoice || processedInvoiceIdSet.has(selectedInvoice.id)) return
+    if (!selectedInvoice) return
+
+    if (processedInvoiceIdSet.has(selectedInvoice.id)) {
+      const nextProcessedInvoiceIds = processedInvoiceIds.filter((id) => id !== selectedInvoice.id)
+      saveProcessedInvoiceIds(storageKey, nextProcessedInvoiceIds)
+      setProgress({ storageKey, invoiceIds: nextProcessedInvoiceIds })
+      return
+    }
 
     const nextProcessedInvoiceIds = [...processedInvoiceIds, selectedInvoice.id]
     const nextProcessedInvoiceIdSet = new Set(nextProcessedInvoiceIds)
@@ -288,7 +317,6 @@ function AccountantInvoicesShow(props: Props) {
                   {invoices.map((invoice) => {
                     const isSelected = invoice.id === selectedInvoice?.id
                     const isProcessed = processedInvoiceIdSet.has(invoice.id)
-                    const flag = countryFlag(invoice.vendor_country)
 
                     return (
                       <Table.Row
@@ -322,17 +350,7 @@ function AccountantInvoicesShow(props: Props) {
                           </Flex>
                         </Table.Cell>
                         <Table.Cell justify="center">
-                          {flag ? (
-                            <Text
-                              as="span"
-                              size="4"
-                              role="img"
-                              aria-label={invoice.vendor_country || undefined}
-                              title={invoice.vendor_country || undefined}
-                            >
-                              {flag}
-                            </Text>
-                          ) : "—"}
+                          <CountryFlag country={invoice.vendor_country} />
                         </Table.Cell>
                         <Table.Cell>{formatDate(invoice.accounting_date)}</Table.Cell>
                         <Table.Cell justify="end">
@@ -377,7 +395,7 @@ function AccountantInvoicesShow(props: Props) {
               <PdfPane
                 invoice={selectedInvoice}
                 isProcessed={processedInvoiceIdSet.has(selectedInvoice.id)}
-                onDone={handleDone}
+                onToggleProcessed={handleDone}
               />
             )
             : <CompletedPane />}

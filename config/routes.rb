@@ -43,6 +43,8 @@ Rails.application.routes.draw do
   # Public, read-only accountant portal
   get "/accountant", to: "public_accountant_invoices#open", as: :accountant_root
   get "/accountant/invoices/:month/download", to: "public_accountant_invoices#download", as: :accountant_month_download
+  get "/accountant/invoices/:id/pages", to: "public_accountant_invoices#pages", as: :accountant_invoice_pages
+  get "/accountant/invoices/:id/pages/:page_number", to: "public_accountant_invoices#page", as: :accountant_invoice_page
   get "/accountant/invoices/:month", to: "public_accountant_invoices#show", as: :accountant_month
   get "/accountant/invoices/:id/pdf", to: "public_accountant_invoices#pdf", as: :accountant_invoice_pdf
 

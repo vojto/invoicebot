@@ -60,6 +60,34 @@ class PublicAccountantInvoicesController < ApplicationController
       disposition: "inline"
   end
 
+  def pages
+    invoice = shared_invoices.find(params[:id])
+
+    render json: {
+      pages: invoice.page_images.order(:page_number).map { |page_image|
+        {
+          page_number: page_image.page_number,
+          image_url: accountant_invoice_page_path(
+            id: invoice.id,
+            page_number: page_image.page_number,
+            access_token: @accountant_access.public_token
+          )
+        }
+      }
+    }
+  end
+
+  def page
+    invoice = shared_invoices.find(params[:id])
+    page_image = invoice.page_images.find_by!(page_number: params[:page_number])
+    return head :not_found unless page_image.image.attached?
+
+    send_data page_image.image.download,
+      filename: page_image.image.filename.to_s,
+      type: page_image.image.content_type,
+      disposition: "inline"
+  end
+
   private
 
   def set_private_response_headers
@@ -120,6 +148,10 @@ class PublicAccountantInvoicesController < ApplicationController
         account_name: transaction.bank_connection.institution_name.presence
       } : nil,
       pdf_url: invoice.pdf.attached? ? accountant_invoice_pdf_path(
+        id: invoice.id,
+        access_token: @accountant_access.public_token
+      ) : nil,
+      pages_url: invoice.pdf.attached? ? accountant_invoice_pages_path(
         id: invoice.id,
         access_token: @accountant_access.public_token
       ) : nil
