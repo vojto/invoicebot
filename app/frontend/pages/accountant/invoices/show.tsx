@@ -11,7 +11,7 @@ import {
   TableIcon,
 } from "@radix-ui/react-icons"
 import { Box, Button, Flex, Heading, Table, Text } from "@radix-ui/themes"
-import { ReactNode, useState } from "react"
+import { ReactNode, useEffect, useRef, useState } from "react"
 import { z } from "zod"
 import PdfPreview from "../../../components/PdfPreview"
 import PublicLayout from "../../../layouts/public"
@@ -354,11 +354,13 @@ function TableCellContent({
   row,
   isProcessed = false,
   compact = false,
+  onVendorClick,
 }: {
   column: TableColumn
   row: TableRow
   isProcessed?: boolean
   compact?: boolean
+  onVendorClick?: () => void
 }) {
   const value = row.values[column.key]
 
@@ -380,15 +382,14 @@ function TableCellContent({
       </Flex>
     ) : <Text weight="medium">{vendor}</Text>
 
-    return !compact && row.pdf_url ? (
-      <a
-        href={row.pdf_url}
-        target="_blank"
-        rel="noreferrer"
-        className="text-inherit underline decoration-dotted underline-offset-2 hover:decoration-solid"
+    return !compact && onVendorClick ? (
+      <button
+        type="button"
+        onClick={onVendorClick}
+        className="cursor-pointer text-inherit underline decoration-dotted underline-offset-2 hover:decoration-solid"
       >
         {content}
-      </a>
+      </button>
     ) : (
       content
     )
@@ -430,8 +431,10 @@ function TableCellContent({
 
 function FullInvoiceTable({
   table,
+  onSelectInvoice,
 }: {
   table: Props["table"]
+  onSelectInvoice: (invoiceId: number) => void
 }) {
   const tableWidth = table.columns.reduce((width, column) => width + column.width * 8, 0)
 
@@ -457,7 +460,13 @@ function FullInvoiceTable({
               <Table.Row key={row.invoice_id}>
                 {table.columns.map((column) => (
                   <Table.Cell key={column.key} justify={column.align} className="whitespace-nowrap">
-                    <TableCellContent column={column} row={row} />
+                    <TableCellContent
+                      column={column}
+                      row={row}
+                      onVendorClick={column.key === "vendor_name"
+                        ? () => onSelectInvoice(row.invoice_id)
+                        : undefined}
+                    />
                   </Table.Cell>
                 ))}
               </Table.Row>
@@ -499,8 +508,26 @@ function AccountantInvoicesShow(props: Props) {
     : firstUnprocessedInvoice?.id ?? null
   const selectedInvoice = invoices.find((invoice) => invoice.id === selectedInvoiceId)
   const [viewMode, setViewMode] = useState<ViewMode>("split")
+  const scrollTargetInvoiceId = useRef<number | null>(null)
   const splitViewColumns = table.columns.filter((column) => column.split_view)
   const tableRowsByInvoiceId = new Map(table.rows.map((row) => [row.invoice_id, row]))
+
+  useEffect(() => {
+    const invoiceId = scrollTargetInvoiceId.current
+    if (viewMode !== "split" || invoiceId === null) return
+
+    scrollTargetInvoiceId.current = null
+    window.requestAnimationFrame(() => {
+      document.querySelector<HTMLElement>(`[data-testid="accountant-invoice-${invoiceId}"]`)
+        ?.scrollIntoView({ block: "nearest" })
+    })
+  }, [selectedInvoiceId, viewMode])
+
+  const selectFromFullTable = (invoiceId: number) => {
+    scrollTargetInvoiceId.current = invoiceId
+    setSelection({ month: invoice_month.key, invoiceId })
+    setViewMode("split")
+  }
 
   const toggleProcessed = (invoice: Invoice, advanceSelection: boolean) => {
     if (processedInvoiceIdSet.has(invoice.id)) {
@@ -567,7 +594,7 @@ function AccountantInvoicesShow(props: Props) {
           <Text color="gray">No invoices found for {invoice_month.label}.</Text>
         </Flex>
       ) : viewMode === "table" ? (
-        <FullInvoiceTable table={table} />
+        <FullInvoiceTable table={table} onSelectInvoice={selectFromFullTable} />
       ) : (
         <div className="grid min-h-[680px] overflow-hidden rounded-xl border border-[var(--gray-a6)] bg-[var(--color-background)] shadow-sm lg:h-[calc(100vh-178px)] lg:grid-cols-2">
           <section className="flex min-h-0 min-w-0 flex-col border-b border-[var(--gray-a6)] lg:border-b-0 lg:border-r" aria-label="Invoices">
