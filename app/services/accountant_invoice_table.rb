@@ -1,13 +1,18 @@
 require "set"
 
 class AccountantInvoiceTable
-  Column = Data.define(:key, :label, :kind, :width) do
+  Column = Data.define(:key, :label, :kind, :width, :split_view) do
+    def self.build(key:, label:, kind:, width:, split_view: false)
+      new(key: key, label: label, kind: kind, width: width, split_view: split_view)
+    end
+
     def as_json(*)
       {
         key: key,
         label: label,
         kind: kind,
         width: width,
+        split_view: split_view,
         align: case kind
                when :amount then :end
                when :flag then :center
@@ -18,24 +23,24 @@ class AccountantInvoiceTable
   end
 
   COLUMNS = [
-    Column.new(key: :status, label: "Status", kind: :status, width: 12),
-    Column.new(key: :vendor_name, label: "Vendor", kind: :text, width: 28),
-    Column.new(key: :vendor_country, label: "Country", kind: :flag, width: 10),
-    Column.new(key: :vendor_eu_vat_id, label: "VAT ID", kind: :text, width: 18),
-    Column.new(key: :category_name, label: "Category", kind: :text, width: 18),
-    Column.new(key: :accounting_date, label: "Accounting date", kind: :date, width: 16),
-    Column.new(key: :issue_date, label: "Issue date", kind: :date, width: 14),
-    Column.new(key: :delivery_date, label: "Delivery date", kind: :date, width: 14),
-    Column.new(key: :invoice_amount, label: "Invoice amount", kind: :amount, width: 16),
-    Column.new(key: :invoice_currency, label: "Invoice currency", kind: :text, width: 16),
-    Column.new(key: :transaction_date, label: "Transaction date", kind: :date, width: 16),
-    Column.new(key: :bank_account, label: "Bank account", kind: :text, width: 22),
-    Column.new(key: :bank_amount, label: "Bank amount", kind: :amount, width: 16),
-    Column.new(key: :bank_currency, label: "Bank currency", kind: :text, width: 14),
-    Column.new(key: :original_amount, label: "Original amount", kind: :amount, width: 16),
-    Column.new(key: :original_currency, label: "Original currency", kind: :text, width: 16),
-    Column.new(key: :direction, label: "Direction", kind: :direction, width: 12),
-    Column.new(key: :pdf_url, label: "PDF", kind: :pdf, width: 12)
+    Column.build(key: :status, label: "Status", kind: :status, width: 12),
+    Column.build(key: :vendor_name, label: "Vendor", kind: :text, width: 28, split_view: true),
+    Column.build(key: :vendor_country, label: "Country", kind: :flag, width: 10, split_view: true),
+    Column.build(key: :vendor_eu_vat_id, label: "VAT ID", kind: :text, width: 18, split_view: true),
+    Column.build(key: :category_name, label: "Category", kind: :text, width: 18),
+    Column.build(key: :accounting_date, label: "Accounting date", kind: :date, width: 16, split_view: true),
+    Column.build(key: :issue_date, label: "Issue date", kind: :date, width: 14),
+    Column.build(key: :delivery_date, label: "Delivery date", kind: :date, width: 14),
+    Column.build(key: :invoice_amount, label: "Invoice amount", kind: :amount, width: 16, split_view: true),
+    Column.build(key: :invoice_currency, label: "Invoice currency", kind: :text, width: 16),
+    Column.build(key: :transaction_date, label: "Transaction date", kind: :date, width: 16),
+    Column.build(key: :bank_account, label: "Bank account", kind: :text, width: 22),
+    Column.build(key: :bank_amount, label: "Bank amount", kind: :amount, width: 16),
+    Column.build(key: :bank_currency, label: "Bank currency", kind: :text, width: 14),
+    Column.build(key: :original_amount, label: "Original amount", kind: :amount, width: 16),
+    Column.build(key: :original_currency, label: "Original currency", kind: :text, width: 16),
+    Column.build(key: :direction, label: "Direction", kind: :direction, width: 12),
+    Column.build(key: :pdf_url, label: "PDF", kind: :pdf, width: 12)
   ].freeze
 
   attr_reader :invoices

@@ -15,7 +15,6 @@ import { ReactNode, useState } from "react"
 import { z } from "zod"
 import PdfPreview from "../../../components/PdfPreview"
 import PublicLayout from "../../../layouts/public"
-import formatCurrency from "../../../lib/formatCurrency"
 
 const InvoiceSchema = z.object({
   id: z.number(),
@@ -46,6 +45,7 @@ const TableColumnSchema = z.object({
   label: z.string(),
   kind: z.enum(["status", "text", "flag", "date", "amount", "direction", "pdf"]),
   width: z.number(),
+  split_view: z.boolean(),
   align: z.enum(["start", "center", "end"]),
 })
 
@@ -91,12 +91,6 @@ function formatDate(value: string | null) {
     day: "numeric",
     timeZone: "UTC",
   }).format(new Date(value))
-}
-
-function amountLabel(invoice: Invoice) {
-  return invoice.amount_cents == null
-    ? "—"
-    : formatCurrency(invoice.amount_cents, invoice.currency)
 }
 
 function formatTableAmount(value: number) {
@@ -365,6 +359,83 @@ function ProgressFooter({ processedCount, invoiceCount, onReset }: { processedCo
   )
 }
 
+function TableCellContent({
+  column,
+  row,
+  isProcessed,
+  compact = false,
+  onToggleProcessed,
+}: {
+  column: TableColumn
+  row: TableRow
+  isProcessed: boolean
+  compact?: boolean
+  onToggleProcessed?: () => void
+}) {
+  const value = row.values[column.key]
+
+  if (compact && column.key === "vendor_name") {
+    return (
+      <Flex align="center" gap="2">
+        {isProcessed
+          ? <CheckIcon style={{ color: "var(--accent-9)" }} />
+          : <FileTextIcon color={row.values.pdf_url ? "var(--accent-9)" : "var(--gray-7)"} />}
+        <Box style={{ minWidth: 0 }}>
+          <Text as="div" weight="medium" truncate>{typeof value === "string" && value ? value : "Unknown"}</Text>
+          <Text as="div" size="1" color="gray">
+            {typeof row.values.category_name === "string" && row.values.category_name
+              ? row.values.category_name
+              : "Uncategorized"}
+          </Text>
+        </Box>
+      </Flex>
+    )
+  }
+
+  switch (column.kind) {
+  case "status":
+    return (
+      <Button
+        size="1"
+        variant={isProcessed ? "soft" : "ghost"}
+        color={isProcessed ? "gray" : undefined}
+        onClick={onToggleProcessed}
+        data-testid={`accountant-table-toggle-${row.invoice_id}`}
+      >
+        {isProcessed ? <ResetIcon /> : <CheckIcon />}
+        {isProcessed ? "Undo" : "Done"}
+      </Button>
+    )
+  case "flag":
+    return <CountryFlag country={typeof value === "string" ? value : null} />
+  case "date":
+    return formatDate(typeof value === "string" ? value : null)
+  case "amount": {
+    if (typeof value !== "number") return "—"
+
+    const currencyKey = column.key.replace(/_amount$/, "_currency")
+    const currency = row.values[currencyKey]
+    return (
+      <Text weight="medium">
+        {formatTableAmount(value)}{compact && typeof currency === "string" ? ` ${currency}` : ""}
+      </Text>
+    )
+  }
+  case "direction":
+    return <span className="capitalize">{typeof value === "string" ? value : "—"}</span>
+  case "pdf":
+    return typeof value === "string" ? (
+      <Button size="1" variant="ghost" asChild>
+        <a href={value} target="_blank" rel="noreferrer">
+          <ExternalLinkIcon /> Open
+        </a>
+      </Button>
+    ) : "—"
+  default:
+    return value == null || value === "" ? "—" : String(value)
+  }
+}
+
 function FullInvoiceTable({
   table,
   processedInvoiceIds,
@@ -377,45 +448,6 @@ function FullInvoiceTable({
   onReset: () => void
 }) {
   const tableWidth = table.columns.reduce((width, column) => width + column.width * 8, 0)
-
-  const renderCell = (column: TableColumn, row: TableRow) => {
-    const value = row.values[column.key]
-    const isProcessed = processedInvoiceIds.has(row.invoice_id)
-
-    switch (column.kind) {
-    case "status":
-      return (
-        <Button
-          size="1"
-          variant={isProcessed ? "soft" : "ghost"}
-          color={isProcessed ? "gray" : undefined}
-          onClick={() => onToggleProcessed(row.invoice_id)}
-          data-testid={`accountant-table-toggle-${row.invoice_id}`}
-        >
-          {isProcessed ? <ResetIcon /> : <CheckIcon />}
-          {isProcessed ? "Undo" : "Done"}
-        </Button>
-      )
-    case "flag":
-      return <CountryFlag country={typeof value === "string" ? value : null} />
-    case "date":
-      return formatDate(typeof value === "string" ? value : null)
-    case "amount":
-      return typeof value === "number" ? <Text weight="medium">{formatTableAmount(value)}</Text> : "—"
-    case "direction":
-      return <span className="capitalize">{typeof value === "string" ? value : "—"}</span>
-    case "pdf":
-      return typeof value === "string" ? (
-        <Button size="1" variant="ghost" asChild>
-          <a href={value} target="_blank" rel="noreferrer">
-            <ExternalLinkIcon /> Open
-          </a>
-        </Button>
-      ) : "—"
-    default:
-      return value == null || value === "" ? "—" : String(value)
-    }
-  }
 
   return (
     <section className="flex w-full min-w-0 flex-col overflow-hidden rounded-xl border border-[var(--gray-a6)] bg-[var(--color-background)] shadow-sm" aria-label="Invoice table">
@@ -442,7 +474,12 @@ function FullInvoiceTable({
                 <Table.Row key={row.invoice_id} style={{ color: isProcessed ? "var(--gray-9)" : undefined }}>
                   {table.columns.map((column) => (
                     <Table.Cell key={column.key} justify={column.align} className="whitespace-nowrap">
-                      {renderCell(column, row)}
+                      <TableCellContent
+                        column={column}
+                        row={row}
+                        isProcessed={isProcessed}
+                        onToggleProcessed={() => onToggleProcessed(row.invoice_id)}
+                      />
                     </Table.Cell>
                   ))}
                 </Table.Row>
@@ -487,6 +524,8 @@ function AccountantInvoicesShow(props: Props) {
     : firstUnprocessedInvoice?.id ?? null
   const selectedInvoice = invoices.find((invoice) => invoice.id === selectedInvoiceId)
   const [viewMode, setViewMode] = useState<ViewMode>("split")
+  const splitViewColumns = table.columns.filter((column) => column.split_view)
+  const tableRowsByInvoiceId = new Map(table.rows.map((row) => [row.invoice_id, row]))
 
   const toggleProcessed = (invoice: Invoice, advanceSelection: boolean) => {
     if (processedInvoiceIdSet.has(invoice.id)) {
@@ -564,16 +603,21 @@ function AccountantInvoicesShow(props: Props) {
           onReset={handleReset}
         />
       ) : (
-        <div className="grid min-h-[680px] overflow-hidden rounded-xl border border-[var(--gray-a6)] bg-[var(--color-background)] shadow-sm lg:h-[calc(100vh-178px)] lg:grid-cols-[minmax(420px,0.8fr)_minmax(0,1.2fr)]">
+        <div className="grid min-h-[680px] overflow-hidden rounded-xl border border-[var(--gray-a6)] bg-[var(--color-background)] shadow-sm lg:h-[calc(100vh-178px)] lg:grid-cols-2">
           <section className="flex min-h-0 min-w-0 flex-col border-b border-[var(--gray-a6)] lg:border-b-0 lg:border-r" aria-label="Invoices">
             <div className="min-h-0 flex-1 overflow-auto">
               <Table.Root size="2" style={{ width: "100%" }}>
                 <Table.Header style={{ position: "sticky", top: 0, zIndex: 1, backgroundColor: "var(--color-background)" }}>
                   <Table.Row>
-                    <Table.ColumnHeaderCell>Vendor</Table.ColumnHeaderCell>
-                    <Table.ColumnHeaderCell width="70px" justify="center">Country</Table.ColumnHeaderCell>
-                    <Table.ColumnHeaderCell width="120px">Date</Table.ColumnHeaderCell>
-                    <Table.ColumnHeaderCell width="120px" justify="end">Amount</Table.ColumnHeaderCell>
+                    {splitViewColumns.map((column) => (
+                      <Table.ColumnHeaderCell
+                        key={column.key}
+                        justify={column.align}
+                        style={{ minWidth: column.width * 8 }}
+                      >
+                        {column.label}
+                      </Table.ColumnHeaderCell>
+                    ))}
                   </Table.Row>
                 </Table.Header>
                 <Table.Body>
@@ -601,24 +645,16 @@ function AccountantInvoicesShow(props: Props) {
                           color: isProcessed ? "var(--gray-9)" : undefined,
                         }}
                       >
-                        <Table.Cell>
-                          <Flex align="center" gap="2">
-                            {isProcessed
-                              ? <CheckIcon style={{ color: "var(--accent-9)" }} />
-                              : <FileTextIcon color={invoice.pdf_url ? "var(--accent-9)" : "var(--gray-7)"} />}
-                            <Box style={{ minWidth: 0 }}>
-                              <Text as="div" weight="medium" truncate>{invoice.vendor_name || "Unknown"}</Text>
-                              <Text as="div" size="1" color="gray">{invoice.category_name || "Uncategorized"}</Text>
-                            </Box>
-                          </Flex>
-                        </Table.Cell>
-                        <Table.Cell justify="center">
-                          <CountryFlag country={invoice.vendor_country} />
-                        </Table.Cell>
-                        <Table.Cell>{formatDate(invoice.accounting_date)}</Table.Cell>
-                        <Table.Cell justify="end">
-                          <Text weight="medium">{amountLabel(invoice)}</Text>
-                        </Table.Cell>
+                        {splitViewColumns.map((column) => (
+                          <Table.Cell key={column.key} justify={column.align} className="whitespace-nowrap">
+                            <TableCellContent
+                              column={column}
+                              row={tableRowsByInvoiceId.get(invoice.id)!}
+                              isProcessed={isProcessed}
+                              compact
+                            />
+                          </Table.Cell>
+                        ))}
                       </Table.Row>
                     )
                   })}

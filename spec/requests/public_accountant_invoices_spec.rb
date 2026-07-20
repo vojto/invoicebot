@@ -92,6 +92,9 @@ RSpec.describe "Public accountant invoices", type: :request do
     expect(props.dig("table", "columns").pluck("label")).to eq(
       AccountantInvoiceTable::COLUMNS.map(&:label)
     )
+    expect(
+      props.dig("table", "columns").select { |column| column["split_view"] }.pluck("label")
+    ).to eq([ "Vendor", "Country", "VAT ID", "Accounting date", "Invoice amount" ])
     expect(props.dig("table", "rows", 0, "values")).to include(
       "status" => "Pending",
       "vendor_name" => invoice.vendor_name,
