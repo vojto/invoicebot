@@ -101,7 +101,7 @@ function Detail({ label, value }: { label: string; value: ReactNode }) {
   )
 }
 
-function InvoiceDetails({ invoice, onDone }: { invoice: Invoice; onDone: () => void }) {
+function InvoiceDetails({ invoice, isProcessed, onDone }: { invoice: Invoice; isProcessed: boolean; onDone: () => void }) {
   return (
     <Box p="3" style={{ borderBottom: "1px solid var(--gray-a5)", backgroundColor: "var(--color-background)" }}>
       <Flex justify="between" align="center" gap="4" wrap="wrap">
@@ -119,8 +119,8 @@ function InvoiceDetails({ invoice, onDone }: { invoice: Invoice; onDone: () => v
               </a>
             </Button>
           )}
-          <Button size="1" onClick={onDone} data-testid="accountant-done">
-            <CheckIcon /> Done
+          <Button size="1" onClick={onDone} disabled={isProcessed} data-testid="accountant-done">
+            <CheckIcon /> {isProcessed ? "Processed" : "Done"}
           </Button>
         </Flex>
       </Flex>
@@ -128,10 +128,10 @@ function InvoiceDetails({ invoice, onDone }: { invoice: Invoice; onDone: () => v
   )
 }
 
-function PdfPane({ invoice, onDone }: { invoice: Invoice; onDone: () => void }) {
+function PdfPane({ invoice, isProcessed, onDone }: { invoice: Invoice; isProcessed: boolean; onDone: () => void }) {
   return (
     <section className="flex min-h-[680px] min-w-0 flex-col bg-[var(--gray-a2)] lg:min-h-0" aria-label="Invoice preview">
-      <InvoiceDetails invoice={invoice} onDone={onDone} />
+      <InvoiceDetails invoice={invoice} isProcessed={isProcessed} onDone={onDone} />
 
       <div className="min-h-[520px] flex-1 p-3">
         {invoice.pdf_url ? (
@@ -189,22 +189,24 @@ function AccountantInvoicesShow(props: Props) {
     ? progress.invoiceIds
     : loadProcessedInvoiceIds(storageKey, invoices)
   const processedInvoiceIdSet = new Set(processedInvoiceIds)
-  const visibleInvoices = invoices.filter((invoice) => !processedInvoiceIdSet.has(invoice.id))
+  const firstUnprocessedInvoice = invoices.find((invoice) => !processedInvoiceIdSet.has(invoice.id))
   const [selection, setSelection] = useState({
     month: invoice_month.key,
-    invoiceId: visibleInvoices[0]?.id ?? null,
+    invoiceId: firstUnprocessedInvoice?.id ?? null,
   })
   const selectedInvoiceId = selection.month === invoice_month.key
     ? selection.invoiceId
-    : visibleInvoices[0]?.id ?? null
-  const selectedInvoice = visibleInvoices.find((invoice) => invoice.id === selectedInvoiceId) || visibleInvoices[0]
+    : firstUnprocessedInvoice?.id ?? null
+  const selectedInvoice = invoices.find((invoice) => invoice.id === selectedInvoiceId)
 
   const handleDone = () => {
-    if (!selectedInvoice) return
+    if (!selectedInvoice || processedInvoiceIdSet.has(selectedInvoice.id)) return
 
-    const selectedIndex = visibleInvoices.findIndex((invoice) => invoice.id === selectedInvoice.id)
-    const nextInvoice = visibleInvoices[selectedIndex + 1] || visibleInvoices[selectedIndex - 1]
     const nextProcessedInvoiceIds = [...processedInvoiceIds, selectedInvoice.id]
+    const nextProcessedInvoiceIdSet = new Set(nextProcessedInvoiceIds)
+    const selectedIndex = invoices.findIndex((invoice) => invoice.id === selectedInvoice.id)
+    const remainingInvoices = [...invoices.slice(selectedIndex + 1), ...invoices.slice(0, selectedIndex)]
+    const nextInvoice = remainingInvoices.find((invoice) => !nextProcessedInvoiceIdSet.has(invoice.id))
 
     saveProcessedInvoiceIds(storageKey, nextProcessedInvoiceIds)
     setProgress({ storageKey, invoiceIds: nextProcessedInvoiceIds })
@@ -260,8 +262,9 @@ function AccountantInvoicesShow(props: Props) {
                   </Table.Row>
                 </Table.Header>
                 <Table.Body>
-                  {visibleInvoices.map((invoice) => {
+                  {invoices.map((invoice) => {
                     const isSelected = invoice.id === selectedInvoice?.id
+                    const isProcessed = processedInvoiceIdSet.has(invoice.id)
                     const flag = countryFlag(invoice.vendor_country)
 
                     return (
@@ -281,11 +284,14 @@ function AccountantInvoicesShow(props: Props) {
                           cursor: "pointer",
                           backgroundColor: isSelected ? "var(--accent-a3)" : undefined,
                           boxShadow: isSelected ? "inset 3px 0 0 var(--accent-9)" : undefined,
+                          color: isProcessed ? "var(--gray-9)" : undefined,
                         }}
                       >
                         <Table.Cell>
                           <Flex align="center" gap="2">
-                            <FileTextIcon color={invoice.pdf_url ? "var(--accent-9)" : "var(--gray-7)"} />
+                            {isProcessed
+                              ? <CheckIcon style={{ color: "var(--accent-9)" }} />
+                              : <FileTextIcon color={invoice.pdf_url ? "var(--accent-9)" : "var(--gray-7)"} />}
                             <Box style={{ minWidth: 0 }}>
                               <Text as="div" weight="medium" truncate>{invoice.vendor_name || "Unknown"}</Text>
                               <Text as="div" size="1" color="gray">{documentTypeLabel(invoice)}</Text>
@@ -314,12 +320,6 @@ function AccountantInvoicesShow(props: Props) {
                   })}
                 </Table.Body>
               </Table.Root>
-
-              {visibleInvoices.length === 0 && (
-                <Flex align="center" justify="center" py="9">
-                  <Text size="2" color="gray">No invoices left to review.</Text>
-                </Flex>
-              )}
             </div>
 
             <Flex
@@ -350,7 +350,13 @@ function AccountantInvoicesShow(props: Props) {
           </section>
 
           {selectedInvoice
-            ? <PdfPane invoice={selectedInvoice} onDone={handleDone} />
+            ? (
+              <PdfPane
+                invoice={selectedInvoice}
+                isProcessed={processedInvoiceIdSet.has(selectedInvoice.id)}
+                onDone={handleDone}
+              />
+            )
             : <CompletedPane />}
         </div>
       )}
