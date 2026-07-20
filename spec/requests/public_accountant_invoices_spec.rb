@@ -7,6 +7,8 @@ RSpec.describe "Public accountant invoices", type: :request do
   it "lists only active invoices belonging to the shared user without signing in" do
     category = create(:category, user: user, name: "Software")
     invoice = create(:invoice, user: user, category: category, issue_date: Date.new(2026, 7, 10))
+    connection = create(:bank_connection, user: user, institution_name: "Business account")
+    create(:transaction, bank_connection: connection, invoice: invoice, booking_date: Date.new(2026, 7, 15))
     create(:invoice, user: user, issue_date: Date.new(2026, 7, 11), deleted_at: Time.current)
     create(:invoice, issue_date: Date.new(2026, 7, 12))
     create(:invoice, user: user, issue_date: Date.new(2026, 6, 30))
@@ -20,6 +22,10 @@ RSpec.describe "Public accountant invoices", type: :request do
     expect(response.parsed_body["component"]).to eq("accountant/invoices/show")
     expect(response.parsed_body.dig("props", "invoices").pluck("id")).to eq([ invoice.id ])
     expect(response.parsed_body.dig("props", "invoices", 0, "category_name")).to eq("Software")
+    expect(response.parsed_body.dig("props", "invoices", 0, "transaction")).to eq({
+      "date" => "2026-07-15",
+      "account_name" => "Business account"
+    })
     expect(response.parsed_body.dig("props", "progress_storage_key")).to match(/\A[0-9a-f]{16}\z/)
     expect(response.headers["Cache-Control"]).to include("no-store")
     expect(response.headers["Referrer-Policy"]).to eq("no-referrer")

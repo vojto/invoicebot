@@ -19,7 +19,7 @@ class PublicAccountantInvoicesController < ApplicationController
     @accountant_access.touch(:last_accessed_at)
     invoices = monthly_invoices
       .order(accounting_date: :asc, created_at: :asc)
-      .includes(:category, pdf_attachment: :blob)
+      .includes(:category, bank_transaction: :bank_connection, pdf_attachment: :blob)
 
     render inertia: "accountant/invoices/show", props: {
       invoice_month: serialize_month(@invoice_month),
@@ -102,6 +102,8 @@ class PublicAccountantInvoicesController < ApplicationController
   end
 
   def serialize_invoice(invoice)
+    transaction = invoice.bank_transaction
+
     {
       id: invoice.id,
       vendor_name: invoice.vendor_name,
@@ -113,6 +115,10 @@ class PublicAccountantInvoicesController < ApplicationController
       category_name: invoice.category&.name,
       vendor_country: invoice.vendor_country,
       vendor_eu_vat_id: invoice.vendor_eu_vat_id,
+      transaction: transaction ? {
+        date: (transaction.booking_date || transaction.value_date)&.iso8601,
+        account_name: transaction.bank_connection.institution_name.presence
+      } : nil,
       pdf_url: invoice.pdf.attached? ? accountant_invoice_pdf_path(
         id: invoice.id,
         access_token: @accountant_access.public_token

@@ -17,6 +17,10 @@ const InvoiceSchema = z.object({
   category_name: z.string().nullable(),
   vendor_country: z.string().nullable(),
   vendor_eu_vat_id: z.string().nullable(),
+  transaction: z.object({
+    date: z.string().nullable(),
+    account_name: z.string().nullable(),
+  }).nullable(),
   pdf_url: z.string().nullable(),
 })
 
@@ -98,14 +102,28 @@ function Detail({ label, value }: { label: string; value: ReactNode }) {
   )
 }
 
+function TransactionDetail({ invoice }: { invoice: Invoice }) {
+  if (!invoice.transaction) return "—"
+
+  return (
+    <>
+      {formatDate(invoice.transaction.date)}
+      <Text as="div" size="1" color="gray" weight="regular">
+        {invoice.transaction.account_name || "—"}
+      </Text>
+    </>
+  )
+}
+
 function InvoiceDetails({ invoice, isProcessed, onDone }: { invoice: Invoice; isProcessed: boolean; onDone: () => void }) {
   return (
     <Box p="3" style={{ borderBottom: "1px solid var(--gray-a5)", backgroundColor: "var(--color-background)" }}>
       <Flex justify="between" align="center" gap="4" wrap="wrap">
-        <div className="grid flex-1 grid-cols-2 gap-4 sm:grid-cols-3">
+        <div className="grid flex-1 grid-cols-2 gap-4 sm:grid-cols-4">
           <Detail label="Issue date" value={formatDate(invoice.issue_date)} />
           <Detail label="Delivery date" value={formatDate(invoice.delivery_date)} />
           <Detail label="Supplier VAT ID" value={invoice.vendor_eu_vat_id} />
+          <Detail label="Transaction" value={<TransactionDetail invoice={invoice} />} />
         </div>
 
         <Flex gap="2" ml="auto">
