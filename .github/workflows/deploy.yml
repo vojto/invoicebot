@@ -59,17 +59,21 @@ jobs:
           version: 2026.6.1
           cache: true
 
-      - name: Find Ruby gems path
+      - name: Find Ruby cache paths
         id: ruby-gems
-        run: echo "path=$(mise exec -- ruby -e 'print Gem.dir')" >> "$GITHUB_OUTPUT"
+        run: |
+          echo "gems=$(mise exec -- ruby -e 'print Gem.dir')" >> "$GITHUB_OUTPUT"
+          echo "bin=$(mise exec -- ruby -e 'print Gem.bindir')" >> "$GITHUB_OUTPUT"
 
       - name: Cache Ruby gems
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
-          path: ${{ steps.ruby-gems.outputs.path }}
-          key: ${{ runner.os }}-${{ runner.arch }}-ruby-gems-${{ hashFiles('.mise.toml', 'Gemfile.lock') }}
+          path: |
+            ${{ steps.ruby-gems.outputs.gems }}
+            ${{ steps.ruby-gems.outputs.bin }}
+          key: ${{ runner.os }}-${{ runner.arch }}-ruby-gems-v2-${{ hashFiles('.mise.toml', 'Gemfile.lock') }}
           restore-keys: |
-            ${{ runner.os }}-${{ runner.arch }}-ruby-gems-${{ hashFiles('.mise.toml') }}-
+            ${{ runner.os }}-${{ runner.arch }}-ruby-gems-v2-${{ hashFiles('.mise.toml') }}-
 
       - name: Cache npm packages
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
