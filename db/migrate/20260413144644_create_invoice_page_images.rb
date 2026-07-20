@@ -6,7 +6,7 @@ class CreateInvoicePageImages < ActiveRecord::Migration[8.1]
 
       t.timestamps
 
-      t.index [:invoice_id, :page_number], unique: true
+      t.index [ :invoice_id, :page_number ], unique: true
     end
   end
 end

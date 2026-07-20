@@ -16,7 +16,11 @@ RSpec.describe InvoiceExtractionAgent do
       output_path
     end
 
-    allow(RubyLLM).to receive(:chat).with(model: described_class::MODEL).and_return(chat)
+    allow(RubyLLM).to receive(:chat).with(
+      model: described_class::MODEL,
+      provider: described_class::PROVIDER
+    ).and_return(chat)
+    allow(chat).to receive(:with_thinking).with(effort: described_class::REASONING_EFFORT).and_return(chat)
     allow(chat).to receive(:with_instructions).with(described_class::SYSTEM_PROMPT)
     allow(chat).to receive(:with_schema).with(described_class::ResponseSchema).and_return(schema_chat)
   end
@@ -40,6 +44,25 @@ RSpec.describe InvoiceExtractionAgent do
     expect(schema_chat).to have_received(:ask).once
     expect(result[:amount_cents]).to eq(1234)
     expect(result[:extraction_scope]).to eq("first_page")
+  end
+
+  it "parses a serialized structured response" do
+    allow(schema_chat).to receive(:ask).and_return(
+      llm_result(
+        {
+          is_invoice: true,
+          vendor_name: "Acme",
+          amount_cents: 1234,
+          currency: "EUR",
+          issue_date: "2026-01-15"
+        }.to_json
+      )
+    )
+
+    result = agent.call
+
+    expect(result[:vendor_name]).to eq("Acme")
+    expect(result[:amount_cents]).to eq(1234)
   end
 
   it "retries with the full PDF when the first page has no accounting date" do
@@ -95,9 +118,11 @@ RSpec.describe InvoiceExtractionAgent do
       note: nil
     }
 
+    response_content = content.is_a?(String) ? content : defaults.merge(content)
+
     instance_double(
       RubyLLM::Message,
-      content: defaults.merge(content),
+      content: response_content,
       input_tokens: 100,
       output_tokens: 20
     )

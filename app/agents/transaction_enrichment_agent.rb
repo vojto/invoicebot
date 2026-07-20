@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-class TransactionEnrichmentAgent
+class TransactionEnrichmentAgent < ApplicationAgent
   class ResponseSchema < ApplicationSchema
     additional_properties false
 
@@ -8,8 +8,6 @@ class TransactionEnrichmentAgent
     string :original_currency, nullable: true, description: "Original currency code if different from transaction currency (e.g., USD, EUR). Null if same as transaction currency."
     integer :original_amount_cents, nullable: true, description: "Original amount in cents if different from transaction amount. Null if same as transaction amount."
   end
-
-  MODEL = "gpt-5.2"
 
   SYSTEM_PROMPT = <<~PROMPT
     You are a transaction data enrichment assistant. Your task is to analyze bank transaction data and extract additional information.
@@ -38,29 +36,18 @@ class TransactionEnrichmentAgent
   def call
     Rails.logger.info "[TransactionEnrichmentAgent] Starting enrichment for transaction #{@transaction.id}"
 
-    chat = RubyLLM.chat(model: MODEL)
-    chat.with_instructions(SYSTEM_PROMPT)
-
     prompt = build_prompt
+    result = ask(prompt, schema: ResponseSchema)
 
-    start_time = Time.current
-    result = chat.with_schema(ResponseSchema).ask(prompt)
-    elapsed_ms = ((Time.current - start_time) * 1000).round
+    Rails.logger.info "[TransactionEnrichmentAgent] AI response received in #{result.elapsed_ms}ms"
 
-    Rails.logger.info "[TransactionEnrichmentAgent] AI response received in #{elapsed_ms}ms"
-
-    content = result.content
-    raise "Expected Hash response, got #{content.class}" unless content.is_a?(Hash)
-
-    data = content.with_indifferent_access
-
-    Rails.logger.info "[TransactionEnrichmentAgent] Extracted: vendor=#{data[:vendor_name]}, original=#{data[:original_amount_cents]} #{data[:original_currency]}"
+    Rails.logger.info "[TransactionEnrichmentAgent] Extracted: vendor=#{result.data[:vendor_name]}, original=#{result.data[:original_amount_cents]} #{result.data[:original_currency]}"
     Rails.logger.info "[TransactionEnrichmentAgent] Tokens: #{result.input_tokens} in / #{result.output_tokens} out"
 
     {
-      vendor_name: data[:vendor_name],
-      original_currency: data[:original_currency],
-      original_amount_cents: data[:original_amount_cents]
+      vendor_name: result.data[:vendor_name],
+      original_currency: result.data[:original_currency],
+      original_amount_cents: result.data[:original_amount_cents]
     }
   rescue StandardError => e
     Rails.logger.error "[TransactionEnrichmentAgent] Error: #{e.class} - #{e.message}"

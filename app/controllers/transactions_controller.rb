@@ -59,9 +59,16 @@ class TransactionsController < ApplicationController
   end
 
   def invoice_matches
-    exact = invoice_match_candidates(@transaction)
-    matches = sort_invoice_matches(@transaction, exact).take(5)
+    matches = sort_invoice_matches(@transaction, invoice_match_candidates(@transaction)).take(5)
+    match_type = "exact"
+
+    if matches.empty?
+      matches = sort_invoice_matches(@transaction, close_invoice_match_candidates(@transaction)).take(5)
+      match_type = matches.any? ? "close" : nil
+    end
+
     render json: {
+      match_type: match_type,
       matches: matches.map { |invoice| serialize_invoice_match(@transaction, invoice) }
     }
   end
@@ -216,6 +223,25 @@ class TransactionsController < ApplicationController
         scope.where(
           currency: transaction.original_currency,
           amount_cents: transaction.original_amount_cents
+        )
+      )
+    end
+
+    matches
+  end
+
+  def close_invoice_match_candidates(transaction)
+    scope = Invoice.where(user_id: current_user.id, deleted_at: nil)
+    matches = scope.where(
+      currency: transaction.currency,
+      amount_cents: (transaction.amount_cents - 500)..(transaction.amount_cents + 500)
+    )
+
+    if transaction.original_amount_cents.present? && transaction.original_currency.present?
+      matches = matches.or(
+        scope.where(
+          currency: transaction.original_currency,
+          amount_cents: (transaction.original_amount_cents - 500)..(transaction.original_amount_cents + 500)
         )
       )
     end

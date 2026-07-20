@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-class InvoiceExtractionAgent
+class InvoiceExtractionAgent < ApplicationAgent
   class ResponseSchema < ApplicationSchema
     additional_properties false
 
@@ -13,7 +13,6 @@ class InvoiceExtractionAgent
     string :note, nullable: true, description: "Any additional notes or invoice number"
   end
 
-  MODEL = "gpt-5.2"
   FIRST_PAGE_COUNT = 1
   FIRST_PAGE_SCOPE = "first_page"
   FULL_PDF_SCOPE = "full_pdf"
@@ -132,21 +131,13 @@ class InvoiceExtractionAgent
   end
 
   def extract_from_pdf(pdf_path, scope:)
-    chat = RubyLLM.chat(model: MODEL)
-    chat.with_instructions(SYSTEM_PROMPT)
+    result = ask(user_prompt_for(scope), schema: ResponseSchema, attachment: pdf_path)
 
-    start_time = Time.current
-    result = chat.with_schema(ResponseSchema).ask(user_prompt_for(scope), with: pdf_path)
-    elapsed_ms = ((Time.current - start_time) * 1000).round
-
-    Rails.logger.info "[InvoiceExtractionAgent] AI response received for #{scope} in #{elapsed_ms}ms"
-
-    content = result.content
-    raise "Expected Hash response, got #{content.class}" unless content.is_a?(Hash)
+    Rails.logger.info "[InvoiceExtractionAgent] AI response received for #{scope} in #{result.elapsed_ms}ms"
 
     ExtractionAttempt.new(
-      data: content.with_indifferent_access,
-      elapsed_ms: elapsed_ms,
+      data: result.data,
+      elapsed_ms: result.elapsed_ms,
       input_tokens: result.input_tokens,
       output_tokens: result.output_tokens,
       scope: scope

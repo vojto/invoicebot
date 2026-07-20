@@ -22,6 +22,10 @@ Keep all specs as simple as possible: focus on the core behavior, avoid over-moc
 
 Use FactoryBot factories for test data instead of YAML fixtures.
 
+## Git Workflow
+
+After completing and verifying a task, automatically commit all working-tree changes and push the current branch. Run the commit and push in the background when possible, without waiting for a separate request. Report any failure to commit or push.
+
 ## Environment Variables
 
 When adding new environment variables to `.env`, always update `.env.example` with the new variable using a placeholder value. This keeps the example file in sync so other developers know which variables are required.

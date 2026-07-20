@@ -6,7 +6,7 @@ An AI-powered invoice extraction system that syncs emails from Gmail, detects in
 
 ## Requirements
 
-- Ruby 3.4.5
+- Ruby 3.4.10
 - Node.js
 - qpdf (for PDF processing)
 

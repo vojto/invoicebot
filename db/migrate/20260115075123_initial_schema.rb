@@ -9,7 +9,7 @@ class InitialSchema < ActiveRecord::Migration[8.1]
       t.string "key", null: false
       t.text "metadata"
       t.string "service_name", null: false
-      t.index ["key"], name: "index_active_storage_blobs_on_key", unique: true
+      t.index [ "key" ], name: "index_active_storage_blobs_on_key", unique: true
     end
 
     create_table "active_storage_attachments", force: :cascade do |t|
@@ -18,14 +18,14 @@ class InitialSchema < ActiveRecord::Migration[8.1]
       t.string "name", null: false
       t.bigint "record_id", null: false
       t.string "record_type", null: false
-      t.index ["blob_id"], name: "index_active_storage_attachments_on_blob_id"
-      t.index ["record_type", "record_id", "name", "blob_id"], name: "index_active_storage_attachments_uniqueness", unique: true
+      t.index [ "blob_id" ], name: "index_active_storage_attachments_on_blob_id"
+      t.index [ "record_type", "record_id", "name", "blob_id" ], name: "index_active_storage_attachments_uniqueness", unique: true
     end
 
     create_table "active_storage_variant_records", force: :cascade do |t|
       t.bigint "blob_id", null: false
       t.string "variation_digest", null: false
-      t.index ["blob_id", "variation_digest"], name: "index_active_storage_variant_records_uniqueness", unique: true
+      t.index [ "blob_id", "variation_digest" ], name: "index_active_storage_variant_records_uniqueness", unique: true
     end
 
     create_table "users", force: :cascade do |t|
@@ -38,8 +38,8 @@ class InitialSchema < ActiveRecord::Migration[8.1]
       t.string "name"
       t.string "picture_url"
       t.datetime "updated_at", null: false
-      t.index ["email"], name: "index_users_on_email"
-      t.index ["google_uid"], name: "index_users_on_google_uid", unique: true
+      t.index [ "email" ], name: "index_users_on_email"
+      t.index [ "google_uid" ], name: "index_users_on_google_uid", unique: true
     end
 
     create_table "emails", force: :cascade do |t|
@@ -55,9 +55,9 @@ class InitialSchema < ActiveRecord::Migration[8.1]
       t.text "to_addresses"
       t.datetime "updated_at", null: false
       t.bigint "user_id", null: false
-      t.index ["date"], name: "index_emails_on_date"
-      t.index ["user_id", "gmail_id"], name: "index_emails_on_user_id_and_gmail_id", unique: true
-      t.index ["user_id"], name: "index_emails_on_user_id"
+      t.index [ "date" ], name: "index_emails_on_date"
+      t.index [ "user_id", "gmail_id" ], name: "index_emails_on_user_id_and_gmail_id", unique: true
+      t.index [ "user_id" ], name: "index_emails_on_user_id"
     end
 
     create_table "attachments", force: :cascade do |t|
@@ -69,7 +69,7 @@ class InitialSchema < ActiveRecord::Migration[8.1]
       t.string "mime_type"
       t.integer "size"
       t.datetime "updated_at", null: false
-      t.index ["email_id"], name: "index_attachments_on_email_id"
+      t.index [ "email_id" ], name: "index_attachments_on_email_id"
     end
 
     create_table "invoices", force: :cascade do |t|
@@ -82,7 +82,7 @@ class InitialSchema < ActiveRecord::Migration[8.1]
       t.text "note"
       t.datetime "updated_at", null: false
       t.string "vendor_name"
-      t.index ["email_id"], name: "index_invoices_on_email_id"
+      t.index [ "email_id" ], name: "index_invoices_on_email_id"
     end
 
     add_foreign_key "active_storage_attachments", "active_storage_blobs", column: "blob_id"

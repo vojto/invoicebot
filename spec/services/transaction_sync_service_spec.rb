@@ -3,7 +3,7 @@ require "rails_helper"
 RSpec.describe TransactionSyncService do
   let(:connection) { create(:bank_connection, sync_running: false, sync_error: "old error", sync_completed_at: nil) }
 
-  let(:fake_requisition_data) { { "accounts" => ["acc-1"] } }
+  let(:fake_requisition_data) { { "accounts" => [ "acc-1" ] } }
 
   def stub_nordigen_client(requisition_data:, account_stub:)
     fake_requisition = instance_double("Requisition")
@@ -35,7 +35,7 @@ RSpec.describe TransactionSyncService do
       let(:fake_account) do
         instance_double("Account").tap do |a|
           allow(a).to receive(:get_transactions).and_return(
-            { "transactions" => { "booked" => [transaction_payload] } }
+            { "transactions" => { "booked" => [ transaction_payload ] } }
           )
         end
       end

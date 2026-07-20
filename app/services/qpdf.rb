@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require "open3"
+
 class Qpdf
   class Error < StandardError; end
 
@@ -8,9 +10,11 @@ class Qpdf
   end
 
   def page_count
-    output = `qpdf --show-npages #{@path}`.strip
+    output, _error, status = Open3.capture3("qpdf", "--show-npages", @path.to_s)
+    output = output.strip
     # Exit code 0 = success, 2 = success with warnings, 3 = errors
-    raise Error, "Failed to get page count" if $?.exitstatus == 3 || output.empty?
+    raise Error, "Failed to get page count" unless [ 0, 2 ].include?(status.exitstatus) && output.present?
+
     output.to_i
   end
 
@@ -22,7 +26,7 @@ class Qpdf
   end
 
   def extract_first_pages(count, output_path:)
-    end_page = [count, page_count].min
+    end_page = [ count, page_count ].min
     extract_pages("1-#{end_page}", output_path: output_path)
   end
 

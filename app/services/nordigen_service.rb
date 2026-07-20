@@ -19,7 +19,7 @@ class NordigenService
 
   def ensure_valid_token!
     if token_valid?
-      return
+      nil
     elsif refresh_token_available?
       refresh_access_token!
     else

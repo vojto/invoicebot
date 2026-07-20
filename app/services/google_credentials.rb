@@ -1,5 +1,5 @@
 class GoogleCredentials
-  SCOPE_GMAIL = ["https://www.googleapis.com/auth/gmail.readonly"].freeze
+  SCOPE_GMAIL = [ "https://www.googleapis.com/auth/gmail.readonly" ].freeze
 
   def self.build(user, scopes:)
     Google::Auth::UserRefreshCredentials.new(

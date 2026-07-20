@@ -1,14 +1,12 @@
 # frozen_string_literal: true
 
-class DetectInvoiceAgent
+class DetectInvoiceAgent < ApplicationAgent
   class ResponseSchema < ApplicationSchema
     additional_properties false
 
     boolean :invoice_found, description: "Whether an invoice was detected in the email"
     string :pdf_filename, nullable: true, description: "The filename of the PDF attachment that is the invoice (null if no invoice found)"
   end
-
-  MODEL = "gpt-5.2"
 
   SYSTEM_PROMPT = <<~PROMPT
     You are an invoice detection assistant. Your task is to analyze email metadata and determine if the email contains an invoice.
@@ -29,15 +27,7 @@ class DetectInvoiceAgent
   end
 
   def call
-    chat = RubyLLM.chat(model: MODEL)
-    chat.with_instructions(SYSTEM_PROMPT)
-
-    result = chat.with_schema(ResponseSchema).ask(prompt)
-
-    content = result.content
-    raise "Expected Hash response, got #{content.class}" unless content.is_a?(Hash)
-
-    data = content.with_indifferent_access
+    data = ask(prompt, schema: ResponseSchema).data
 
     {
       invoice_found: data[:invoice_found],

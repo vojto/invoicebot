@@ -1,5 +1,5 @@
 class BanksController < ApplicationController
-  before_action :require_authentication, except: [:callback]
+  before_action :require_authentication, except: [ :callback ]
 
   def index
     client = NordigenService.new(current_user).client
