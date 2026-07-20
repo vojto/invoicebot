@@ -222,14 +222,40 @@ RSpec.describe "Public accountant invoices", type: :request do
 
     Zip::File.open_buffer(response.body) do |zip|
       worksheet = zip.find_entry("xl/worksheets/sheet1.xml").get_input_stream.read.force_encoding(Encoding::UTF_8)
-      expect(worksheet).to include("Invoice amount", "Transaction date", "Country / VAT ID", "July Vendor")
+      worksheet_xml = Nokogiri::XML(worksheet)
+      namespaces = { "xmlns" => "http://schemas.openxmlformats.org/spreadsheetml/2006/main" }
+      headers = worksheet_xml.xpath("//xmlns:sheetData/xmlns:row[@r='1']/xmlns:c/xmlns:is/xmlns:t", namespaces).map(&:text)
+      expect(headers).to eq([
+        "Vendor",
+        "Accounting date",
+        "Transaction date",
+        "Country / VAT ID",
+        "Category",
+        "Invoice amount",
+        "Invoice currency",
+        "Bank account",
+        "Bank amount",
+        "Bank currency",
+        "Original amount",
+        "Original currency"
+      ])
+      expect(worksheet).to include("July Vendor")
       expect(worksheet).to include("SK · SK2020000000")
       expect(worksheet).not_to include(
-        "Status", "Issue date", "Delivery date", "Direction", ">PDF<",
-        "Invoice currency", "Bank currency", "Original currency"
+        "Status", "Issue date", "Delivery date", "Direction", ">PDF<"
       )
+      data_cells = worksheet_xml.xpath("//xmlns:sheetData/xmlns:row[@r='2']/xmlns:c", namespaces).index_by do |cell|
+        cell["r"]
+      end
+      expect([ data_cells["F2"]["t"], data_cells["F2"].text ]).to eq([ "n", "123.45" ])
+      expect([ data_cells["G2"]["t"], data_cells["G2"].text ]).to eq([ "inlineStr", "EUR" ])
+      expect([ data_cells["I2"]["t"], data_cells["I2"].text ]).to eq([ "n", "100.0" ])
+      expect([ data_cells["J2"]["t"], data_cells["J2"].text ]).to eq([ "inlineStr", "USD" ])
+      expect([ data_cells["K2"]["t"], data_cells["K2"].text ]).to eq([ "n", "80.0" ])
+      expect([ data_cells["L2"]["t"], data_cells["L2"].text ]).to eq([ "inlineStr", "GBP" ])
       styles = zip.find_entry("xl/styles.xml").get_input_stream.read.force_encoding(Encoding::UTF_8)
-      expect(styles).to include("mm/dd", "€", "$", "£")
+      expect(styles).to include("yyyy-mm-dd", "#,##0.00;(#,##0.00);-")
+      expect(styles).not_to include("€", "$", "£")
       expect(zip.find_entry("xl/worksheets/_rels/sheet1.xml.rels").get_input_stream.read).to include(
         accountant_invoice_pdf_url(id: invoice.id, access_token: access.public_token)
       )
