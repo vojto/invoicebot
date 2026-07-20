@@ -9,17 +9,17 @@ RSpec.describe "Invoices index", type: :request do
   before { sign_in(user) }
 
   it "shows monthly invoices and categorized spending ordered by amount" do
-    food_invoice = create(:invoice, user: user, issue_date: Date.new(2026, 7, 5), amount_cents: 1_000)
-    software_invoice = create(:invoice, user: user, issue_date: Date.new(2026, 7, 10), amount_cents: 3_000)
+    food_invoice = create(:invoice, user: user, category: food, issue_date: Date.new(2026, 7, 5), amount_cents: 1_000)
+    software_invoice = create(:invoice, user: user, category: software, issue_date: Date.new(2026, 7, 10), amount_cents: 3_000)
     uncategorized_invoice = create(:invoice, user: user, issue_date: Date.new(2026, 7, 12), amount_cents: 5_000)
-    unlinked_invoice = create(:invoice, user: user, issue_date: Date.new(2026, 7, 13), amount_cents: 6_000)
-    credit_note = create(:invoice, user: user, issue_date: Date.new(2026, 7, 15), amount_cents: 7_000, document_type: :credit_note)
-    deleted_invoice = create(:invoice, user: user, issue_date: Date.new(2026, 7, 18), amount_cents: 8_000, deleted_at: Time.current)
-    create(:transaction, bank_connection: connection, invoice: food_invoice, category: food)
-    create(:transaction, bank_connection: connection, invoice: software_invoice, category: software)
+    unlinked_invoice = create(:invoice, user: user, category: food, issue_date: Date.new(2026, 7, 13), amount_cents: 6_000)
+    credit_note = create(:invoice, user: user, category: food, issue_date: Date.new(2026, 7, 15), amount_cents: 7_000, document_type: :credit_note)
+    deleted_invoice = create(:invoice, user: user, category: software, issue_date: Date.new(2026, 7, 18), amount_cents: 8_000, deleted_at: Time.current)
+    create(:transaction, bank_connection: connection, invoice: food_invoice)
+    create(:transaction, bank_connection: connection, invoice: software_invoice)
     create(:transaction, bank_connection: connection, invoice: uncategorized_invoice)
-    create(:transaction, bank_connection: connection, invoice: credit_note, category: food, direction: :credit)
-    create(:transaction, bank_connection: connection, invoice: deleted_invoice, category: software)
+    create(:transaction, bank_connection: connection, invoice: credit_note, direction: :credit)
+    create(:transaction, bank_connection: connection, invoice: deleted_invoice)
     create(:invoice, user: user, issue_date: Date.new(2026, 6, 30), amount_cents: 9_000)
 
     get "/invoices/month/2026-07", headers: inertia_headers
@@ -39,10 +39,10 @@ RSpec.describe "Invoices index", type: :request do
     expect(page.dig("props", "invoices").find { |invoice| invoice["id"] == unlinked_invoice.id }["bank_transaction"]).to be_nil
 
     breakdown = page.dig("props", "spending_breakdowns", 0)
-    expect(breakdown["total_amount_cents"]).to eq(4_000)
+    expect(breakdown["total_amount_cents"]).to eq(10_000)
     expect(breakdown["categories"].pluck("name", "amount_cents")).to eq([
-      [ "Software", 3_000 ],
-      [ "Food", 1_000 ]
+      [ "Food", 7_000 ],
+      [ "Software", 3_000 ]
     ])
   end
 
@@ -50,6 +50,17 @@ RSpec.describe "Invoices index", type: :request do
     get "/invoices/month/not-a-month", headers: inertia_headers
 
     expect(response).to have_http_status(:not_found)
+  end
+
+  it "links the first active accountant access to the selected month" do
+    first_access = create(:accountant_access, user: user, name: "First")
+    create(:accountant_access, user: user, name: "Second")
+
+    get "/invoices/month/2026-07", headers: inertia_headers
+
+    expect(response.parsed_body.dig("props", "accountant_url")).to eq(
+      accountant_month_path(access_token: first_access.public_token, month: "2026-07")
+    )
   end
 
   def inertia_headers

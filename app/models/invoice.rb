@@ -14,6 +14,7 @@
 class Invoice < ApplicationRecord
   belongs_to :user
   belongs_to :email, optional: true
+  belongs_to :category, optional: true
   has_one :bank_transaction, class_name: "Transaction", dependent: :nullify
   has_one_attached :pdf
   has_many :page_images, class_name: "InvoicePageImage", dependent: :destroy
@@ -27,6 +28,7 @@ class Invoice < ApplicationRecord
   before_save :track_pdf_attachment_change
   after_commit :enqueue_page_extraction, if: :pdf_attachment_changed?
   after_rollback :clear_pdf_attachment_change
+  validate :category_belongs_to_user
 
   def soft_deleted?
     deleted_at.present?
@@ -74,6 +76,13 @@ class Invoice < ApplicationRecord
   end
 
   private
+
+  def category_belongs_to_user
+    return unless category && user
+    return if category.user_id == user_id
+
+    errors.add(:category, "must belong to the invoice owner")
+  end
 
   def track_pdf_attachment_change
     @pdf_attachment_changed = attachment_changes.key?("pdf")

@@ -4,7 +4,7 @@ class CategoriesController < ApplicationController
 
   def index
     render inertia: "categories/index", props: {
-      categories: categories_with_transaction_counts.map { |category| serialize_category(category) }
+      categories: categories_with_invoice_counts.map { |category| serialize_category(category) }
     }
   end
 
@@ -41,10 +41,10 @@ class CategoriesController < ApplicationController
     params.require(:category).permit(:name)
   end
 
-  def categories_with_transaction_counts
+  def categories_with_invoice_counts
     current_user.categories
-      .left_joins(:transactions)
-      .select("categories.*, COUNT(transactions.id) AS transactions_count")
+      .left_joins(:invoices)
+      .select("categories.*, COUNT(invoices.id) AS invoices_count")
       .group("categories.id")
       .order(Arel.sql("LOWER(categories.name)"))
   end
@@ -53,7 +53,7 @@ class CategoriesController < ApplicationController
     {
       id: category.id,
       name: category.name,
-      transactions_count: category[:transactions_count].to_i
+      invoices_count: category[:invoices_count].to_i
     }
   end
 end

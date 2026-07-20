@@ -7,7 +7,7 @@ import BankSyncStatusList, { BankSyncStatusSchema } from "../../components/BankS
 import InvoiceSelector from "../../components/InvoiceSelector"
 import TransactionNoteEditor from "../../components/TransactionNoteEditor"
 import TransactionInvoiceUploadButton from "../../components/TransactionInvoiceUploadButton"
-import TransactionCategorySelect, { CategorySchema } from "../../components/TransactionCategorySelect"
+import InvoiceCategorySelect, { CategorySchema } from "../../components/InvoiceCategorySelect"
 import PdfDropZone from "../../components/PdfDropZone"
 import formatCurrency from "../../lib/formatCurrency"
 
@@ -19,9 +19,9 @@ const TransactionSchema = z.object({
     .object({
       id: z.number(),
       label: z.string(),
+      category: CategorySchema.nullable(),
     })
     .nullable(),
-  category: CategorySchema.nullable(),
   direction: z.enum(["credit", "debit"]),
   booking_date_label: z.string(),
   amount_cents: z.number(),
@@ -211,7 +211,7 @@ export default function TransactionsIndex(props: Props) {
                           : "bg-yellow-50/50"
 
                       return (
-                        <Table.Row key={tx.id} className={rowClass}>
+                        <Table.Row key={tx.id} className={`${rowClass} [&>td]:!py-2`}>
                           <Table.Cell><span className={hiddenClass}>{bankLabel}</span></Table.Cell>
                           <Table.Cell>
                             <Link
@@ -271,11 +271,15 @@ export default function TransactionsIndex(props: Props) {
                             )}
                           </Table.Cell>
                           <Table.Cell>
-                            <TransactionCategorySelect
-                              transactionId={tx.id}
-                              category={tx.category}
-                              categories={categories}
-                            />
+                            {tx.invoice ? (
+                              <InvoiceCategorySelect
+                                invoiceId={tx.invoice.id}
+                                category={tx.invoice.category}
+                                categories={categories}
+                              />
+                            ) : (
+                              <Text color="gray">—</Text>
+                            )}
                           </Table.Cell>
                           <Table.Cell>
                             {isHidden || isFlagged ? (

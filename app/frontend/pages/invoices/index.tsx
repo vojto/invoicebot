@@ -6,7 +6,7 @@ import CategorySpendingBreakdown, { SpendingBreakdownSchema } from "../../compon
 import InvoiceTable from "../../components/InvoiceTable"
 import { InvoiceSchema } from "../../components/InvoiceRow"
 import PdfDropZone from "../../components/PdfDropZone"
-import { CategorySchema } from "../../components/TransactionCategorySelect"
+import { CategorySchema } from "../../components/InvoiceCategorySelect"
 
 const PropsSchema = z.object({
   invoice_month: z.object({
@@ -16,12 +16,13 @@ const PropsSchema = z.object({
   invoices: z.array(InvoiceSchema),
   categories: z.array(CategorySchema),
   spending_breakdowns: z.array(SpendingBreakdownSchema),
+  accountant_url: z.string().nullable(),
 })
 
 type Props = z.infer<typeof PropsSchema>
 
 export default function InvoicesIndex(props: Props) {
-  const { invoice_month, invoices, categories, spending_breakdowns } = PropsSchema.parse(props)
+  const { invoice_month, invoices, categories, spending_breakdowns, accountant_url } = PropsSchema.parse(props)
   const activeInvoices = invoices.filter((invoice) => !invoice.deleted_at)
 
   return (
@@ -34,6 +35,15 @@ export default function InvoicesIndex(props: Props) {
             <Text size="2" color="gray">{activeInvoices.length} active invoices</Text>
           </Box>
           <Flex gap="2">
+            <Button variant="soft" color="gray" asChild>
+              {accountant_url ? (
+                <a href={accountant_url} target="_blank" rel="noreferrer">
+                  Open accountant view
+                </a>
+              ) : (
+                <Link href="/accountant_accesses">Set up accountant access</Link>
+              )}
+            </Button>
             <Button variant="soft" color="gray" asChild>
               <Link href="/dashboard">Back to Invoices</Link>
             </Button>

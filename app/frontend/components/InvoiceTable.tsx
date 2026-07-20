@@ -1,7 +1,7 @@
 import { Box, Table } from "@radix-ui/themes"
 import { z } from "zod"
 import InvoiceRow, { InvoiceSchema } from "./InvoiceRow"
-import { CategorySchema } from "./TransactionCategorySelect"
+import { CategorySchema } from "./InvoiceCategorySelect"
 
 const PropsSchema = z.object({
   invoices: z.array(InvoiceSchema),
@@ -16,7 +16,7 @@ export default function InvoiceTable(props: Props) {
 
   return (
     <Box className="overflow-x-auto">
-      <Table.Root variant="surface" size="2">
+      <Table.Root variant="surface" size="1">
         <Table.Header>
           <Table.Row>
             <Table.ColumnHeaderCell width="400px">Vendor</Table.ColumnHeaderCell>

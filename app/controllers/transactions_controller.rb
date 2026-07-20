@@ -7,13 +7,13 @@ class TransactionsController < ApplicationController
   # - transactions.invoice_id is unique, so relinking must clear any existing owner first.
   # - Browsers do not always send application/pdf, so we also accept .pdf filenames.
   before_action :require_authentication
-  before_action :set_transaction, only: [ :show, :hide, :restore, :flag, :unflag, :update_custom_note, :update_category, :invoice_matches, :search_invoices, :link_invoice, :upload_invoice, :unlink_invoice ]
+  before_action :set_transaction, only: [ :show, :hide, :restore, :flag, :unflag, :update_custom_note, :invoice_matches, :search_invoices, :link_invoice, :upload_invoice, :unlink_invoice ]
 
   def index
     selected_month = parse_selected_month
     transactions = Transaction
       .joins(:bank_connection)
-      .includes(:bank_connection, :invoice, :category)
+      .includes(:bank_connection, invoice: :category)
       .where(bank_connections: { user_id: current_user.id })
 
     if selected_month
@@ -67,12 +67,6 @@ class TransactionsController < ApplicationController
 
   def update_custom_note
     @transaction.update!(custom_note: params[:custom_note])
-    redirect_back fallback_location: transactions_path
-  end
-
-  def update_category
-    category = current_user.categories.find(params[:category_id]) if params[:category_id].present?
-    @transaction.update!(category: category)
     redirect_back fallback_location: transactions_path
   end
 
@@ -159,7 +153,6 @@ class TransactionsController < ApplicationController
       invoice_id: tx.invoice_id,
       invoice_match_source: tx.invoice_match_source,
       invoice: tx.invoice ? serialize_invoice_summary(tx.invoice) : nil,
-      category: tx.category ? serialize_category(tx.category) : nil,
       direction: tx.direction,
       booking_date_label: format_date(tx.booking_date),
       amount_cents: tx.amount_cents,
@@ -211,7 +204,8 @@ class TransactionsController < ApplicationController
 
     {
       id: invoice.id,
-      label: label_parts.join(" - ")
+      label: label_parts.join(" - "),
+      category: invoice.category ? serialize_category(invoice.category) : nil
     }
   end
 

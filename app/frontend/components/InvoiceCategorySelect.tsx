@@ -11,7 +11,7 @@ export const CategorySchema = z.object({
 export type Category = z.infer<typeof CategorySchema>
 
 const PropsSchema = z.object({
-  transactionId: z.number().nullable(),
+  invoiceId: z.number(),
   category: CategorySchema.nullable(),
   categories: z.array(CategorySchema),
 })
@@ -20,8 +20,8 @@ type Props = z.infer<typeof PropsSchema>
 
 const UNCATEGORIZED_VALUE = "uncategorized"
 
-export default function TransactionCategorySelect(props: Props) {
-  const { transactionId, category, categories } = PropsSchema.parse(props)
+export default function InvoiceCategorySelect(props: Props) {
+  const { invoiceId, category, categories } = PropsSchema.parse(props)
   const persistedValue = category?.id.toString() ?? UNCATEGORIZED_VALUE
   const [value, setValue] = useState(persistedValue)
   const [isSaving, setIsSaving] = useState(false)
@@ -29,14 +29,14 @@ export default function TransactionCategorySelect(props: Props) {
   useEffect(() => setValue(persistedValue), [persistedValue])
 
   const updateCategory = (nextValue: string) => {
-    if (!transactionId || nextValue === value) return
+    if (nextValue === value) return
 
     const previousValue = value
     setValue(nextValue)
     setIsSaving(true)
 
     router.patch(
-      `/transactions/${transactionId}/category`,
+      `/invoices/${invoiceId}/category`,
       { category_id: nextValue === UNCATEGORIZED_VALUE ? null : Number(nextValue) },
       {
         preserveScroll: true,
@@ -47,9 +47,9 @@ export default function TransactionCategorySelect(props: Props) {
   }
 
   return (
-    <Select.Root size="1" value={value} onValueChange={updateCategory} disabled={isSaving || !transactionId}>
+    <Select.Root size="1" value={value} onValueChange={updateCategory} disabled={isSaving}>
       <Select.Trigger
-        aria-label="Transaction category"
+        aria-label="Invoice category"
         variant="soft"
         color="gray"
         className="font-medium"

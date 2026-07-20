@@ -138,7 +138,7 @@ export default function CategorySpendingBreakdown(props: Props) {
     <Box mb="7">
       <Heading size="5" mb="1">Categorized spending</Heading>
       <Text as="p" size="2" color="gray" mb="4">
-        Based on invoice amounts and accounting dates. Uncategorized or unlinked invoices are excluded.
+        Based on invoice amounts and accounting dates. Uncategorized invoices are excluded.
       </Text>
 
       {breakdowns.length === 0 ? (

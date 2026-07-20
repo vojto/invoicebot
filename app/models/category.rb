@@ -1,6 +1,6 @@
 class Category < ApplicationRecord
   belongs_to :user
-  has_many :transactions, dependent: :nullify
+  has_many :invoices, dependent: :nullify
 
   normalizes :name, with: ->(name) { name.strip }
 

@@ -6,7 +6,7 @@ import { z } from "zod"
 const CategorySchema = z.object({
   id: z.number(),
   name: z.string(),
-  transactions_count: z.number(),
+  invoices_count: z.number(),
 })
 
 const PropsSchema = z.object({
@@ -34,7 +34,7 @@ function CategoryRow({ category }: { category: Category }) {
   }
 
   const deleteCategory = () => {
-    if (!window.confirm(`Delete “${category.name}”? Its transactions will become uncategorized.`)) return
+    if (!window.confirm(`Delete “${category.name}”? Its invoices will become uncategorized.`)) return
 
     router.delete(`/categories/${category.id}`, { preserveScroll: true })
   }
@@ -59,7 +59,7 @@ function CategoryRow({ category }: { category: Category }) {
           </Flex>
         </form>
       </Table.Cell>
-      <Table.Cell>{category.transactions_count}</Table.Cell>
+      <Table.Cell>{category.invoices_count}</Table.Cell>
       <Table.Cell>
         <Button size="1" variant="soft" color="red" onClick={deleteCategory}>
           Delete
@@ -94,7 +94,7 @@ export default function CategoriesIndex(props: Props) {
       <Box>
         <Heading size="6" mb="2">Categories</Heading>
         <Text color="gray" as="p" mb="5">
-          Create categories for classifying your transactions.
+          Create categories for classifying your invoices.
         </Text>
 
         <form onSubmit={createCategory}>
@@ -120,7 +120,7 @@ export default function CategoriesIndex(props: Props) {
             <Table.Header>
               <Table.Row>
                 <Table.ColumnHeaderCell>Name</Table.ColumnHeaderCell>
-                <Table.ColumnHeaderCell width="140px">Transactions</Table.ColumnHeaderCell>
+                <Table.ColumnHeaderCell width="140px">Invoices</Table.ColumnHeaderCell>
                 <Table.ColumnHeaderCell width="100px">Actions</Table.ColumnHeaderCell>
               </Table.Row>
             </Table.Header>

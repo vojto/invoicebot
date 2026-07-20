@@ -28,10 +28,24 @@ Rails.application.routes.draw do
   post "/transactions/:id/flag", to: "transactions#flag", as: :flag_transaction
   post "/transactions/:id/unflag", to: "transactions#unflag", as: :unflag_transaction
   post "/transactions/:id/update_custom_note", to: "transactions#update_custom_note", as: :update_transaction_custom_note
-  patch "/transactions/:id/category", to: "transactions#update_category", as: :update_transaction_category
 
   # Categories
   resources :categories, only: [ :index, :create, :update, :destroy ]
+
+  # Accountant access management
+  resources :accountant_accesses, only: [ :index, :create ] do
+    member do
+      post :revoke
+      post :rotate
+    end
+  end
+
+  # Public, read-only accountant portal
+  scope "/accountant/:access_token", as: :accountant do
+    get "/", to: "public_accountant_invoices#redirect_to_current_month", as: :root
+    get "/invoices/:month", to: "public_accountant_invoices#show", as: :month
+    get "/invoices/:id/pdf", to: "public_accountant_invoices#pdf", as: :invoice_pdf
+  end
 
   # Statements
   get "/statements/:month", to: "statements#show", as: :statement
@@ -55,6 +69,7 @@ Rails.application.routes.draw do
       post :restore
       post :reprocess
       post :update_accounting_date
+      patch :category, action: :update_category
     end
   end
 

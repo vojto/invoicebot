@@ -1,0 +1,24 @@
+import { ReactNode } from "react"
+import { Box, Flex, Text } from "@radix-ui/themes"
+
+export default function PublicLayout({ children }: { children: ReactNode }) {
+  return (
+    <Box style={{ minHeight: "100vh", backgroundColor: "var(--color-background)" }}>
+      <Box asChild>
+        <header style={{ backgroundColor: "var(--gray-a2)", borderBottom: "1px solid var(--gray-a5)" }}>
+          <Flex className="mx-auto" style={{ maxWidth: "1100px" }} px="4" py="4" justify="between" align="center">
+            <Text size="5" weight="bold" color="blue">Invoicebot</Text>
+            <Text size="2" color="gray">Shared accountant access</Text>
+          </Flex>
+        </header>
+      </Box>
+      <Box asChild>
+        <main>
+          <Box className="mx-auto" style={{ maxWidth: "1100px" }} px="4" py="8">
+            {children}
+          </Box>
+        </main>
+      </Box>
+    </Box>
+  )
+}

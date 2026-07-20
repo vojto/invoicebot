@@ -5,9 +5,9 @@ RSpec.describe "Categories", type: :request do
 
   before { sign_in(user) }
 
-  it "lists only the current user's categories with transaction counts" do
+  it "lists only the current user's categories with invoice counts" do
     category = create(:category, user: user, name: "Software")
-    create(:transaction, bank_connection: create(:bank_connection, user: user), category: category)
+    create(:invoice, user: user, category: category)
     create(:category, name: "Someone else's category")
 
     get "/categories", headers: inertia_headers
@@ -15,7 +15,7 @@ RSpec.describe "Categories", type: :request do
     expect(response).to have_http_status(:ok)
     expect(response.parsed_body["component"]).to eq("categories/index")
     expect(response.parsed_body.dig("props", "categories")).to eq([
-      { "id" => category.id, "name" => "Software", "transactions_count" => 1 }
+      { "id" => category.id, "name" => "Software", "invoices_count" => 1 }
     ])
   end
 
@@ -28,14 +28,14 @@ RSpec.describe "Categories", type: :request do
     expect(category.reload.name).to eq("Transport")
   end
 
-  it "deletes a category and leaves its transactions uncategorized" do
+  it "deletes a category and leaves its invoices uncategorized" do
     category = create(:category, user: user)
-    transaction = create(:transaction, bank_connection: create(:bank_connection, user: user), category: category)
+    invoice = create(:invoice, user: user, category: category)
 
     delete "/categories/#{category.id}"
 
     expect(Category.exists?(category.id)).to be(false)
-    expect(transaction.reload.category).to be_nil
+    expect(invoice.reload.category).to be_nil
   end
 
   def inertia_headers

@@ -1,13 +1,13 @@
 class InvoicesController < ApplicationController
   before_action :require_authentication
   before_action :set_invoice_month, only: [ :index ]
-  before_action :set_invoice, only: [ :show, :pdf, :pages, :remove, :restore, :reprocess, :update_accounting_date ]
+  before_action :set_invoice, only: [ :show, :pdf, :pages, :remove, :restore, :reprocess, :update_accounting_date, :update_category ]
 
   def index
     invoices = current_user.invoices
       .where(accounting_date: @invoice_month..@invoice_month.end_of_month)
       .order(accounting_date: :desc, created_at: :desc)
-      .includes(:email, { bank_transaction: :category }, pdf_attachment: :blob)
+      .includes(:email, :category, :bank_transaction, pdf_attachment: :blob)
 
     render inertia: "invoices/index", props: {
       invoice_month: {
@@ -16,7 +16,8 @@ class InvoicesController < ApplicationController
       },
       invoices: invoices.map { |invoice| serialize_invoice_list_item(invoice) },
       categories: current_user.categories.order(Arel.sql("LOWER(name)")).map { |category| serialize_category(category) },
-      spending_breakdowns: build_spending_breakdowns(invoices)
+      spending_breakdowns: build_spending_breakdowns(invoices),
+      accountant_url: accountant_url_for(@invoice_month)
     }
   end
 
@@ -78,6 +79,12 @@ class InvoicesController < ApplicationController
     redirect_back fallback_location: invoice_path(@invoice)
   rescue ArgumentError
     redirect_back fallback_location: invoice_path(@invoice), alert: "Invalid date format"
+  end
+
+  def update_category
+    category = current_user.categories.find(params[:category_id]) if params[:category_id].present?
+    @invoice.update!(category: category)
+    redirect_back fallback_location: invoice_path(@invoice)
   end
 
   def upload
@@ -142,6 +149,16 @@ class InvoicesController < ApplicationController
       .find(params[:id])
   end
 
+  def accountant_url_for(month)
+    access = current_user.accountant_accesses.active.order(:created_at, :id).first
+    return unless access
+
+    accountant_month_path(
+      access_token: access.public_token,
+      month: month.strftime("%Y-%m")
+    )
+  end
+
   def serialize_invoice_list_item(invoice)
     email = invoice.email
     transaction = invoice.bank_transaction
@@ -154,6 +171,7 @@ class InvoicesController < ApplicationController
       accounting_date: invoice.accounting_date&.iso8601,
       deleted_at: invoice.deleted_at&.iso8601,
       note: invoice.note,
+      category: invoice.category ? serialize_category(invoice.category) : nil,
       pdf_url: invoice.pdf.attached? ? url_for(invoice.pdf) : nil,
       email: email ? {
         id: email.id,
@@ -164,8 +182,7 @@ class InvoicesController < ApplicationController
       } : nil,
       bank_transaction: transaction ? {
         id: transaction.id,
-        vendor_name: transaction.vendor_name,
-        category: transaction.category ? serialize_category(transaction.category) : nil
+        vendor_name: transaction.vendor_name
       } : nil
     }
   end
@@ -181,11 +198,10 @@ class InvoicesController < ApplicationController
     totals = Hash.new { |currencies, currency| currencies[currency] = Hash.new(0) }
 
     invoices.each do |invoice|
-      transaction = invoice.bank_transaction
       next if invoice.soft_deleted? || !invoice.document_type_invoice?
-      next unless transaction&.category && invoice.amount_cents.present? && invoice.currency.present?
+      next unless invoice.category && invoice.amount_cents.present? && invoice.currency.present?
 
-      totals[invoice.currency][transaction.category] += invoice.amount_cents
+      totals[invoice.currency][invoice.category] += invoice.amount_cents
     end
 
     totals.map do |currency, category_totals|

@@ -4,7 +4,7 @@ import { z } from "zod"
 import DateDifferenceBadge from "./DateDifferenceBadge"
 import AccountingDateEditor from "./AccountingDateEditor"
 import InvoicePdfPopover from "./InvoicePdfPopover"
-import TransactionCategorySelect, { CategorySchema, type Category } from "./TransactionCategorySelect"
+import InvoiceCategorySelect, { CategorySchema, type Category } from "./InvoiceCategorySelect"
 import formatCurrency from "../lib/formatCurrency"
 
 const EmailSchema = z.object({
@@ -23,12 +23,12 @@ export const InvoiceSchema = z.object({
   accounting_date: z.string().nullish(),
   deleted_at: z.string().nullish(),
   note: z.string().nullable(),
+  category: CategorySchema.nullable(),
   pdf_url: z.string().nullish(),
   email: EmailSchema.nullable(),
   bank_transaction: z.object({
     id: z.number(),
     vendor_name: z.string().nullable(),
-    category: CategorySchema.nullable(),
   }).nullable(),
 })
 
@@ -122,9 +122,9 @@ export default function InvoiceRow({ invoice, categories = [], showCategory = fa
       </Table.Cell>
       {showCategory && (
         <Table.Cell>
-          <TransactionCategorySelect
-            transactionId={invoice.bank_transaction?.id ?? null}
-            category={invoice.bank_transaction?.category ?? null}
+          <InvoiceCategorySelect
+            invoiceId={invoice.id}
+            category={invoice.category}
             categories={categories}
           />
         </Table.Cell>
