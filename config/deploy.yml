@@ -89,6 +89,7 @@ asset_path: /rails/public
 # Configure the image builder.
 builder:
   arch: amd64
+  # Preserve intermediate dependency layers across ephemeral GitHub runners.
   cache:
     type: registry
     image: vojto/invoicebot-build-cache
