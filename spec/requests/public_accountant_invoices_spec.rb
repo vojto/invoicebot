@@ -24,7 +24,16 @@ RSpec.describe "Public accountant invoices", type: :request do
   end
 
   it "keeps the access token in month navigation and PDF URLs" do
-    invoice = create(:invoice, user: user, issue_date: Date.new(2026, 7, 10))
+    invoice = create(
+      :invoice,
+      user: user,
+      issue_date: Date.new(2026, 7, 10),
+      delivery_date: Date.new(2026, 7, 11),
+      document_type: :credit_note,
+      vendor_country: "SK",
+      vendor_eu_vat_id: "SK2020000000",
+      note: "Quarterly adjustment"
+    )
     invoice.pdf.attach(io: StringIO.new("%PDF-1.4 test"), filename: "invoice.pdf", content_type: "application/pdf")
 
     get accountant_month_path(
@@ -41,6 +50,14 @@ RSpec.describe "Public accountant invoices", type: :request do
     )
     expect(props.dig("invoices", 0, "pdf_url")).to eq(
       accountant_invoice_pdf_path(id: invoice.id, access_token: access.public_token)
+    )
+    expect(props.dig("invoices", 0)).to include(
+      "issue_date" => "2026-07-10",
+      "delivery_date" => "2026-07-11",
+      "document_type" => "credit_note",
+      "vendor_country" => "SK",
+      "vendor_eu_vat_id" => "SK2020000000",
+      "note" => "Quarterly adjustment"
     )
   end
 

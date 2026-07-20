@@ -90,6 +90,12 @@ class PublicAccountantInvoicesController < ApplicationController
       amount_cents: invoice.amount_cents,
       currency: invoice.currency,
       accounting_date: invoice.accounting_date&.iso8601,
+      issue_date: invoice.issue_date&.iso8601,
+      delivery_date: invoice.delivery_date&.iso8601,
+      document_type: invoice.document_type,
+      vendor_country: invoice.vendor_country,
+      vendor_eu_vat_id: invoice.vendor_eu_vat_id,
+      note: invoice.note,
       pdf_url: invoice.pdf.attached? ? accountant_invoice_pdf_path(
         id: invoice.id,
         access_token: @accountant_access.public_token

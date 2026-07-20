@@ -6,7 +6,7 @@ export default function PublicLayout({ children }: { children: ReactNode }) {
     <Box style={{ minHeight: "100vh", backgroundColor: "var(--color-background)" }}>
       <Box asChild>
         <header style={{ backgroundColor: "var(--gray-a2)", borderBottom: "1px solid var(--gray-a5)" }}>
-          <Flex className="mx-auto" style={{ maxWidth: "1100px" }} px="4" py="4" justify="between" align="center">
+          <Flex width="100%" px="4" py="4" justify="between" align="center">
             <Text size="5" weight="bold" color="blue">Invoicebot</Text>
             <Text size="2" color="gray">Shared accountant access</Text>
           </Flex>
@@ -14,7 +14,7 @@ export default function PublicLayout({ children }: { children: ReactNode }) {
       </Box>
       <Box asChild>
         <main>
-          <Box className="mx-auto" style={{ maxWidth: "1100px" }} px="4" py="8">
+          <Box width="100%" px="4" py="6">
             {children}
           </Box>
         </main>
