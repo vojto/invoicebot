@@ -9,8 +9,11 @@ RSpec.describe "PATCH /transactions/:id/category", type: :request do
   it "assigns and clears one of the user's categories" do
     category = create(:category, user: user)
 
-    patch "/transactions/#{transaction.id}/category", params: { category_id: category.id }
+    patch "/transactions/#{transaction.id}/category",
+      params: { category_id: category.id },
+      headers: { "HTTP_REFERER" => "/invoices/month/2026-07" }
     expect(transaction.reload.category).to eq(category)
+    expect(response).to redirect_to("/invoices/month/2026-07")
 
     patch "/transactions/#{transaction.id}/category", params: { category_id: nil }
     expect(transaction.reload.category).to be_nil

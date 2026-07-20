@@ -53,7 +53,7 @@ export default function TransactionCategorySelect(props: Props) {
         variant="soft"
         color="gray"
         className="font-medium"
-        style={{ minWidth: "150px", maxWidth: "190px" }}
+        style={{ minWidth: "150px", maxWidth: "190px", backgroundColor: "var(--gray-3)" }}
       />
       <Select.Content position="popper">
         <Select.Item value={UNCATEGORIZED_VALUE}>Uncategorized</Select.Item>

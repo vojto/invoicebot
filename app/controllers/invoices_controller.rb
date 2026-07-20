@@ -52,12 +52,12 @@ class InvoicesController < ApplicationController
 
   def remove
     @invoice.soft_delete!
-    redirect_to dashboard_path
+    redirect_back fallback_location: dashboard_path
   end
 
   def restore
     @invoice.restore!
-    redirect_to dashboard_path
+    redirect_back fallback_location: dashboard_path
   end
 
   def reprocess

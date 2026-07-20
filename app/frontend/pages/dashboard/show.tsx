@@ -117,7 +117,7 @@ export default function DashboardShow(props: Props) {
 
   return (
     <PdfDropZone enabled={true}>
-      <Head title="Dashboard" />
+      <Head title="Invoices" />
       <SyncStatus running={sync_running} completedAt={sync_completed_at} error={sync_error} />
       <Box>
         {invoices.length === 0 ? (

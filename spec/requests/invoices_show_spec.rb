@@ -100,6 +100,26 @@ RSpec.describe "GET /invoices/:id", type: :request do
     expect(props.dig("bank_transaction", "amount_label")).to eq("53.65 EUR")
   end
 
+  describe "invoice table actions" do
+    let(:month_path) { "/invoices/month/2026-01" }
+
+    it "returns to the current month after removing an invoice" do
+      post "/invoices/#{invoice.id}/remove", headers: { "HTTP_REFERER" => month_path }
+
+      expect(response).to redirect_to(month_path)
+      expect(invoice.reload).to be_soft_deleted
+    end
+
+    it "returns to the current month after restoring an invoice" do
+      invoice.soft_delete!
+
+      post "/invoices/#{invoice.id}/restore", headers: { "HTTP_REFERER" => month_path }
+
+      expect(response).to redirect_to(month_path)
+      expect(invoice.reload).not_to be_soft_deleted
+    end
+  end
+
   describe "POST /invoices/:id/reprocess" do
     around do |example|
       original_adapter = ActiveJob::Base.queue_adapter

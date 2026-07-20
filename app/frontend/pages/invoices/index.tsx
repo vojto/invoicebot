@@ -35,7 +35,7 @@ export default function InvoicesIndex(props: Props) {
           </Box>
           <Flex gap="2">
             <Button variant="soft" color="gray" asChild>
-              <Link href="/dashboard">Back to Dashboard</Link>
+              <Link href="/dashboard">Back to Invoices</Link>
             </Button>
             {activeInvoices.length > 0 && (
               <Button variant="soft" asChild>
