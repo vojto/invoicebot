@@ -47,7 +47,7 @@ class AccountantAccessesController < ApplicationController
       active: access.active?,
       created_at: access.created_at.iso8601,
       last_accessed_at: access.last_accessed_at&.iso8601,
-      public_url: access.active? ? accountant_month_url(
+      public_url: access.active? ? accountant_root_url(
         access_token: access.public_token,
         month: Date.current.strftime("%Y-%m")
       ) : nil

@@ -59,7 +59,7 @@ RSpec.describe "Invoices index", type: :request do
     get "/invoices/month/2026-07", headers: inertia_headers
 
     expect(response.parsed_body.dig("props", "accountant_url")).to eq(
-      accountant_month_path(access_token: first_access.public_token, month: "2026-07")
+      accountant_root_path(access_token: first_access.public_token, month: "2026-07")
     )
   end
 

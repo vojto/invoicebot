@@ -10,7 +10,8 @@ RSpec.describe "Public accountant invoices", type: :request do
     create(:invoice, issue_date: Date.new(2026, 7, 12))
     create(:invoice, user: user, issue_date: Date.new(2026, 6, 30))
 
-    get accountant_month_path(access_token: access.public_token, month: "2026-07"), headers: inertia_headers
+    open_access(access, "2026-07")
+    get accountant_month_path(month: "2026-07"), headers: inertia_headers
 
     expect(response).to have_http_status(:ok)
     expect(response.parsed_body["component"]).to eq("accountant/invoices/show")
@@ -26,25 +27,40 @@ RSpec.describe "Public accountant invoices", type: :request do
     other_invoice = create(:invoice)
     other_invoice.pdf.attach(io: StringIO.new("%PDF-1.4 private"), filename: "private.pdf", content_type: "application/pdf")
 
-    get accountant_invoice_pdf_path(access_token: access.public_token, id: invoice.id)
+    open_access(access)
+    get accountant_invoice_pdf_path(id: invoice.id)
     expect(response).to have_http_status(:ok)
     expect(response.media_type).to eq("application/pdf")
 
-    get accountant_invoice_pdf_path(access_token: access.public_token, id: other_invoice.id)
+    get accountant_invoice_pdf_path(id: other_invoice.id)
     expect(response).to have_http_status(:not_found)
   end
 
   it "returns not found for invalid, revoked, and malformed links" do
-    get accountant_month_path(access_token: "invalid", month: "2026-07")
+    get accountant_root_path(access_token: "invalid", month: "2026-07")
     expect(response).to have_http_status(:not_found)
 
     access.revoke!
-    get accountant_month_path(access_token: access.public_token, month: "2026-07")
+    get accountant_root_path(access_token: access.public_token, month: "2026-07")
     expect(response).to have_http_status(:not_found)
 
     active_access = create(:accountant_access, user: user)
-    get accountant_month_path(access_token: active_access.public_token, month: "bad-month")
+    get accountant_root_path(access_token: active_access.public_token, month: "bad-month")
     expect(response).to have_http_status(:not_found)
+  end
+
+  it "invalidates an established session when its link is regenerated" do
+    open_access(access)
+    access.rotate_token!
+
+    get accountant_month_path(month: "2026-07")
+
+    expect(response).to have_http_status(:not_found)
+  end
+
+  def open_access(accountant_access, month = "2026-07")
+    get accountant_root_path(access_token: accountant_access.public_token, month: month)
+    expect(response).to redirect_to(accountant_month_path(month: month))
   end
 
   def inertia_headers

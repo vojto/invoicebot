@@ -153,7 +153,7 @@ class InvoicesController < ApplicationController
     access = current_user.accountant_accesses.active.order(:created_at, :id).first
     return unless access
 
-    accountant_month_path(
+    accountant_root_path(
       access_token: access.public_token,
       month: month.strftime("%Y-%m")
     )

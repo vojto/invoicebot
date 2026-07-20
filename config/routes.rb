@@ -41,11 +41,9 @@ Rails.application.routes.draw do
   end
 
   # Public, read-only accountant portal
-  scope "/accountant/:access_token", as: :accountant do
-    get "/", to: "public_accountant_invoices#redirect_to_current_month", as: :root
-    get "/invoices/:month", to: "public_accountant_invoices#show", as: :month
-    get "/invoices/:id/pdf", to: "public_accountant_invoices#pdf", as: :invoice_pdf
-  end
+  get "/accountant", to: "public_accountant_invoices#open", as: :accountant_root
+  get "/accountant/invoices/:month", to: "public_accountant_invoices#show", as: :accountant_month
+  get "/accountant/invoices/:id/pdf", to: "public_accountant_invoices#pdf", as: :accountant_invoice_pdf
 
   # Statements
   get "/statements/:month", to: "statements#show", as: :statement
