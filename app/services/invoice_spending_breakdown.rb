@@ -14,7 +14,7 @@ class InvoiceSpendingBreakdown
 
     @invoices.each do |invoice|
       next if invoice.soft_deleted? || !invoice.document_type_invoice?
-      next unless invoice.category && invoice.amount_cents.present? && invoice.currency.present?
+      next unless invoice.amount_cents.present? && invoice.currency.present?
 
       category_totals[invoice.category] += converted_amount(invoice)
     rescue EcbExchangeRateService::RateUnavailable
@@ -46,8 +46,9 @@ class InvoiceSpendingBreakdown
       .sort_by { |_, amount_cents| -amount_cents }
       .map do |category, amount_cents|
         {
-          id: category.id,
-          name: category.name,
+          id: category&.id,
+          name: category&.name || "Uncategorized",
+          uncategorized: category.nil?,
           amount_cents: amount_cents,
           amount_label: format_amount(amount_cents)
         }

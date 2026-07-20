@@ -7,8 +7,9 @@ export const SpendingBreakdownSchema = z.object({
   total_amount_label: z.string(),
   unconverted_currencies: z.array(z.string()),
   categories: z.array(z.object({
-    id: z.number(),
+    id: z.number().nullable(),
     name: z.string(),
+    uncategorized: z.boolean(),
     amount_cents: z.number(),
     amount_label: z.string(),
   })),
@@ -31,6 +32,11 @@ const CHART_COLORS = [
   "var(--amber-9)",
   "var(--indigo-9)",
 ]
+const UNCATEGORIZED_COLOR = "var(--gray-8)"
+
+function categoryColor(category: SpendingBreakdown["categories"][number], index: number) {
+  return category.uncategorized ? UNCATEGORIZED_COLOR : CHART_COLORS[index % CHART_COLORS.length]
+}
 
 function percentage(amountCents: number, totalAmountCents: number) {
   return totalAmountCents === 0 ? 0 : (amountCents / totalAmountCents) * 100
@@ -40,7 +46,7 @@ function chartGradient(breakdown: SpendingBreakdown) {
   let start = 0
   const segments = breakdown.categories.map((category, index) => {
     const end = start + percentage(category.amount_cents, breakdown.total_amount_cents)
-    const segment = `${CHART_COLORS[index % CHART_COLORS.length]} ${start}% ${end}%`
+    const segment = `${categoryColor(category, index)} ${start}% ${end}%`
     start = end
     return segment
   })
@@ -68,7 +74,7 @@ function BreakdownCard({ breakdown }: { breakdown: SpendingBreakdown }) {
             </Table.Header>
             <Table.Body>
               {breakdown.categories.map((category, index) => (
-                <Table.Row key={category.id}>
+                <Table.Row key={category.id ?? "uncategorized"}>
                   <Table.Cell>
                     <Flex align="center" gap="2">
                       <Box
@@ -77,7 +83,7 @@ function BreakdownCard({ breakdown }: { breakdown: SpendingBreakdown }) {
                           width: "10px",
                           height: "10px",
                           borderRadius: "999px",
-                          background: CHART_COLORS[index % CHART_COLORS.length],
+                          background: categoryColor(category, index),
                           flexShrink: 0,
                         }}
                       />
@@ -99,7 +105,7 @@ function BreakdownCard({ breakdown }: { breakdown: SpendingBreakdown }) {
         <Flex style={{ flex: "0 1 300px" }} justify="center" align="center">
           <Box
             role="img"
-            aria-label={`Pie chart of categorized ${breakdown.currency} spending`}
+            aria-label={`Pie chart of ${breakdown.currency} spending by category`}
             style={{
               position: "relative",
               width: "220px",
@@ -137,11 +143,6 @@ export default function CategorySpendingBreakdown(props: Props) {
 
   return (
     <Box mb="7">
-      <Heading size="5" mb="1">Categorized spending</Heading>
-      <Text as="p" size="2" color="gray" mb="4">
-        Invoice amounts are converted to EUR using monthly ECB reference rates. Uncategorized invoices are excluded.
-      </Text>
-
       {breakdown.unconverted_currencies.length > 0 && (
         <Text as="p" size="2" color="orange" mb="4">
           Some invoices were excluded because no EUR rate was available for {breakdown.unconverted_currencies.join(", ")}.
@@ -150,7 +151,7 @@ export default function CategorySpendingBreakdown(props: Props) {
 
       {breakdown.categories.length === 0 ? (
         <Card>
-          <Text color="gray">No categorized invoice spending for this month yet.</Text>
+          <Text color="gray">No invoice spending for this month yet.</Text>
         </Card>
       ) : (
         <BreakdownCard breakdown={breakdown} />

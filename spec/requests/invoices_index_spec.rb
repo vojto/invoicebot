@@ -8,7 +8,7 @@ RSpec.describe "Invoices index", type: :request do
 
   before { sign_in(user) }
 
-  it "shows monthly invoices and categorized spending ordered by amount" do
+  it "shows monthly invoices and spending by category ordered by amount" do
     create(:exchange_rate, currency: "USD", month: Date.new(2026, 7, 1), currency_per_eur: 1.25)
     food_invoice = create(:invoice, user: user, category: food, issue_date: Date.new(2026, 7, 5), amount_cents: 1_250, currency: "USD")
     software_invoice = create(:invoice, user: user, category: software, issue_date: Date.new(2026, 7, 10), amount_cents: 3_000)
@@ -41,12 +41,17 @@ RSpec.describe "Invoices index", type: :request do
 
     breakdown = page.dig("props", "spending_breakdown")
     expect(breakdown["currency"]).to eq("EUR")
-    expect(breakdown["total_amount_cents"]).to eq(10_000)
+    expect(breakdown["total_amount_cents"]).to eq(15_000)
     expect(breakdown["unconverted_currencies"]).to eq([])
     expect(breakdown["categories"].pluck("name", "amount_cents")).to eq([
       [ "Food", 7_000 ],
+      [ "Uncategorized", 5_000 ],
       [ "Software", 3_000 ]
     ])
+    expect(breakdown["categories"].find { |category| category["name"] == "Uncategorized" }).to include(
+      "id" => nil,
+      "uncategorized" => true
+    )
   end
 
   it "returns not found for an invalid month" do
