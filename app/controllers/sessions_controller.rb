@@ -15,7 +15,7 @@ class SessionsController < ApplicationController
     user.google_token_expires_at = Time.at(creds.expires_at) if creds.expires_at
     user.save!
 
-    session[:user_id] ||= user.id
+    session[:user_id] = user.id
 
     PeriodicSyncAndProcessJob.perform_later(user_id: user.id)
 
