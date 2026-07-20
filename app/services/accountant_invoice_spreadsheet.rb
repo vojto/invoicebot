@@ -8,7 +8,7 @@ class AccountantInvoiceSpreadsheet
     workbook = package.workbook
     @styles = workbook.styles
     @amount_styles = {}
-    date_style = @styles.add_style(format_code: "yyyy-mm-dd")
+    date_style = @styles.add_style(format_code: "mm/dd")
     @default_amount_style = @styles.add_style(format_code: "#,##0.00", alignment: { horizontal: :right })
     link_style = @styles.add_style(fg_color: "FF0563C1", u: true)
     row_styles = @table.columns.map do |column|

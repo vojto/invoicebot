@@ -90,10 +90,9 @@ RSpec.describe "Public accountant invoices", type: :request do
     )
     expect(props.dig("invoices", 0)).not_to have_key("note")
     expect(props.dig("table", "columns").pluck("label")).to eq([
-      "Accounting date",
-      "Delivery date",
-      "Transaction date",
       "Vendor",
+      "Accounting date",
+      "Transaction date",
       "Country",
       "VAT ID",
       "Category",
@@ -104,7 +103,7 @@ RSpec.describe "Public accountant invoices", type: :request do
     ])
     expect(
       props.dig("table", "columns").select { |column| column["split_view"] }.pluck("label")
-    ).to eq([ "Accounting date", "Vendor", "Country", "VAT ID", "Invoice amount" ])
+    ).to eq([ "Vendor", "Accounting date", "Country", "VAT ID", "Invoice amount" ])
     expect(props.dig("table", "rows", 0, "pdf_url")).to eq(
       accountant_invoice_pdf_url(id: invoice.id, access_token: access.public_token)
     )
@@ -112,8 +111,7 @@ RSpec.describe "Public accountant invoices", type: :request do
     expect(props.dig("table", "rows", 0, "values")).to include(
       "vendor_name" => invoice.vendor_name,
       "vendor_country" => "SK",
-      "vendor_eu_vat_id" => "SK2020000000",
-      "delivery_date" => "2026-07-11"
+      "vendor_eu_vat_id" => "SK2020000000"
     )
   end
 
@@ -232,11 +230,11 @@ RSpec.describe "Public accountant invoices", type: :request do
       worksheet = zip.find_entry("xl/worksheets/sheet1.xml").get_input_stream.read
       expect(worksheet).to include("Invoice amount", "Transaction date", "VAT ID", "July Vendor")
       expect(worksheet).not_to include(
-        "Status", "Issue date", "Direction", ">PDF<",
+        "Status", "Issue date", "Delivery date", "Direction", ">PDF<",
         "Invoice currency", "Bank currency", "Original currency"
       )
       styles = zip.find_entry("xl/styles.xml").get_input_stream.read.force_encoding(Encoding::UTF_8)
-      expect(styles).to include("€", "$", "£")
+      expect(styles).to include("mm/dd", "€", "$", "£")
       expect(zip.find_entry("xl/worksheets/_rels/sheet1.xml.rels").get_input_stream.read).to include(
         accountant_invoice_pdf_url(id: invoice.id, access_token: access.public_token)
       )

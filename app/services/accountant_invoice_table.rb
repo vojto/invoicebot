@@ -21,10 +21,9 @@ class AccountantInvoiceTable
   end
 
   COLUMNS = [
-    Column.build(key: :accounting_date, label: "Accounting date", kind: :date, width: 16, split_view: true),
-    Column.build(key: :delivery_date, label: "Delivery date", kind: :date, width: 14),
-    Column.build(key: :transaction_date, label: "Transaction date", kind: :date, width: 16),
     Column.build(key: :vendor_name, label: "Vendor", kind: :text, width: 28, split_view: true),
+    Column.build(key: :accounting_date, label: "Accounting date", kind: :date, width: 10, split_view: true),
+    Column.build(key: :transaction_date, label: "Transaction date", kind: :date, width: 10),
     Column.build(key: :vendor_country, label: "Country", kind: :flag, width: 10, split_view: true),
     Column.build(key: :vendor_eu_vat_id, label: "VAT ID", kind: :text, width: 18, split_view: true),
     Column.build(key: :category_name, label: "Category", kind: :text, width: 18),
@@ -73,7 +72,6 @@ class AccountantInvoiceTable
     when :vendor_eu_vat_id then invoice.vendor_eu_vat_id
     when :category_name then invoice.category&.name
     when :accounting_date then invoice.accounting_date
-    when :delivery_date then invoice.delivery_date
     when :invoice_amount then amount(invoice.amount_cents)
     when :transaction_date then (transaction&.booking_date || transaction&.value_date)
     when :bank_account then transaction&.bank_connection&.institution_name.presence

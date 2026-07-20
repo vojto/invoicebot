@@ -96,6 +96,16 @@ function formatDate(value: string | null) {
   }).format(new Date(value))
 }
 
+function formatTableDate(value: string | null) {
+  if (!value) return "—"
+
+  return new Intl.DateTimeFormat("en-US", {
+    month: "2-digit",
+    day: "2-digit",
+    timeZone: "UTC",
+  }).format(new Date(value))
+}
+
 function CountryFlag({ country }: { country: string | null }) {
   const countryCode = country?.trim().toUpperCase()
   const flagUrl = countryCode
@@ -388,7 +398,7 @@ function TableCellContent({
   case "flag":
     return <CountryFlag country={typeof value === "string" ? value : null} />
   case "date":
-    return formatDate(typeof value === "string" ? value : null)
+    return formatTableDate(typeof value === "string" ? value : null)
   case "amount": {
     if (typeof value !== "number") return "—"
 
