@@ -125,22 +125,22 @@ function ViewToggle({ value, onChange }: { value: ViewMode; onChange: (value: Vi
       <Button
         size="2"
         variant="soft"
-        color={value === "split" ? undefined : "gray"}
-        type="button"
-        aria-pressed={value === "split"}
-        onClick={() => onChange("split")}
-      >
-        <ColumnsIcon /> Split
-      </Button>
-      <Button
-        size="2"
-        variant="soft"
         color={value === "table" ? undefined : "gray"}
         type="button"
         aria-pressed={value === "table"}
         onClick={() => onChange("table")}
       >
         <TableIcon /> Table
+      </Button>
+      <Button
+        size="2"
+        variant="soft"
+        color={value === "split" ? undefined : "gray"}
+        type="button"
+        aria-pressed={value === "split"}
+        onClick={() => onChange("split")}
+      >
+        <ColumnsIcon /> Split
       </Button>
     </Flex>
   )
@@ -482,7 +482,7 @@ function AccountantInvoicesShow(props: Props) {
     ? selection.invoiceId
     : firstUnprocessedInvoice?.id ?? null
   const selectedInvoice = invoices.find((invoice) => invoice.id === selectedInvoiceId)
-  const [viewMode, setViewMode] = useState<ViewMode>("split")
+  const [viewMode, setViewMode] = useState<ViewMode>("table")
   const scrollTargetInvoiceId = useRef<number | null>(null)
   const splitViewColumns = table.columns.filter((column) => column.split_view)
   const tableRowsByInvoiceId = new Map(table.rows.map((row) => [row.invoice_id, row]))
