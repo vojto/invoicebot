@@ -44,7 +44,7 @@ const InvoiceSchema = z.object({
 const TableColumnSchema = z.object({
   key: z.string(),
   label: z.string(),
-  kind: z.enum(["text", "flag", "date", "amount"]),
+  kind: z.enum(["text", "flag", "country_vat", "date", "amount"]),
   width: z.number(),
   split_view: z.boolean(),
   align: z.enum(["start", "center", "end"]),
@@ -395,6 +395,20 @@ function TableCellContent({
   }
 
   switch (column.kind) {
+  case "country_vat": {
+    const vatId = typeof value === "string" && value ? value : null
+    const country = typeof row.values.vendor_country === "string"
+      ? row.values.vendor_country
+      : null
+    if (!country && !vatId) return "—"
+
+    return (
+      <Flex align="center" gap="2">
+        {country && <CountryFlag country={country} />}
+        {vatId && <Text>{vatId}</Text>}
+      </Flex>
+    )
+  }
   case "flag":
     return <CountryFlag country={typeof value === "string" ? value : null} />
   case "date":

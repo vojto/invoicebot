@@ -53,7 +53,7 @@ class AccountantInvoiceSpreadsheet
     vendor_index = @table.columns.index { |column| column.key == :vendor_name }
 
     @table.rows.each do |record|
-      values = @table.columns.map { |column| record[:values][column.key] }
+      values = @table.columns.map { |column| spreadsheet_value(record, column) }
       styles = row_styles.dup
       @table.columns.each_with_index do |column, index|
         next unless column.kind == :amount
@@ -71,6 +71,13 @@ class AccountantInvoiceSpreadsheet
         tooltip: "Open invoice PDF"
       )
     end
+  end
+
+  def spreadsheet_value(record, column)
+    value = record[:values][column.key]
+    return value unless column.kind == :country_vat
+
+    [ record[:values][:vendor_country], value ].compact_blank.join(" · ").presence
   end
 
   def currency_style(currency_code)

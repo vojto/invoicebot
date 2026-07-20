@@ -93,8 +93,7 @@ RSpec.describe "Public accountant invoices", type: :request do
       "Vendor",
       "Accounting date",
       "Transaction date",
-      "Country",
-      "VAT ID",
+      "Country / VAT ID",
       "Category",
       "Invoice amount",
       "Bank account",
@@ -103,7 +102,7 @@ RSpec.describe "Public accountant invoices", type: :request do
     ])
     expect(
       props.dig("table", "columns").select { |column| column["split_view"] }.pluck("label")
-    ).to eq([ "Vendor", "Accounting date", "Country", "VAT ID", "Invoice amount" ])
+    ).to eq([ "Vendor", "Accounting date", "Country / VAT ID", "Invoice amount" ])
     expect(props.dig("table", "rows", 0, "pdf_url")).to eq(
       accountant_invoice_pdf_url(id: invoice.id, access_token: access.public_token)
     )
@@ -200,6 +199,7 @@ RSpec.describe "Public accountant invoices", type: :request do
       user: user,
       vendor_name: "July Vendor",
       vendor_country: "SK",
+      vendor_eu_vat_id: "SK2020000000",
       amount_cents: 12_345,
       currency: "EUR",
       issue_date: Date.new(2026, 7, 10)
@@ -227,8 +227,9 @@ RSpec.describe "Public accountant invoices", type: :request do
     expect(response.body).to start_with("PK")
 
     Zip::File.open_buffer(response.body) do |zip|
-      worksheet = zip.find_entry("xl/worksheets/sheet1.xml").get_input_stream.read
-      expect(worksheet).to include("Invoice amount", "Transaction date", "VAT ID", "July Vendor")
+      worksheet = zip.find_entry("xl/worksheets/sheet1.xml").get_input_stream.read.force_encoding(Encoding::UTF_8)
+      expect(worksheet).to include("Invoice amount", "Transaction date", "Country / VAT ID", "July Vendor")
+      expect(worksheet).to include("SK · SK2020000000")
       expect(worksheet).not_to include(
         "Status", "Issue date", "Delivery date", "Direction", ">PDF<",
         "Invoice currency", "Bank currency", "Original currency"

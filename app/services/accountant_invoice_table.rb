@@ -24,8 +24,7 @@ class AccountantInvoiceTable
     Column.build(key: :vendor_name, label: "Vendor", kind: :text, width: 28, split_view: true),
     Column.build(key: :accounting_date, label: "Accounting date", kind: :date, width: 10, split_view: true),
     Column.build(key: :transaction_date, label: "Transaction date", kind: :date, width: 10),
-    Column.build(key: :vendor_country, label: "Country", kind: :flag, width: 10, split_view: true),
-    Column.build(key: :vendor_eu_vat_id, label: "VAT ID", kind: :text, width: 18, split_view: true),
+    Column.build(key: :vendor_eu_vat_id, label: "Country / VAT ID", kind: :country_vat, width: 24, split_view: true),
     Column.build(key: :category_name, label: "Category", kind: :text, width: 18),
     Column.build(key: :invoice_amount, label: "Invoice amount", kind: :amount, width: 18, split_view: true),
     Column.build(key: :bank_account, label: "Bank account", kind: :text, width: 22),
@@ -57,6 +56,7 @@ class AccountantInvoiceTable
           original_amount: transaction&.original_currency
         },
         values: columns.to_h { |column| [ column.key, value_for(invoice, column.key) ] }
+          .merge(vendor_country: invoice.vendor_country)
       }
     end
   end
@@ -68,7 +68,6 @@ class AccountantInvoiceTable
 
     case key
     when :vendor_name then invoice.vendor_name
-    when :vendor_country then invoice.vendor_country
     when :vendor_eu_vat_id then invoice.vendor_eu_vat_id
     when :category_name then invoice.category&.name
     when :accounting_date then invoice.accounting_date
