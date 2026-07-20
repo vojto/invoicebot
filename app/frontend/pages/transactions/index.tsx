@@ -1,6 +1,6 @@
 import { Head, Link, router } from "@inertiajs/react"
 import { Heading, Box, Text, Button, Flex, Table } from "@radix-ui/themes"
-import { CheckIcon, ChevronDownIcon, FileTextIcon, PlusIcon } from "@radix-ui/react-icons"
+import { CheckIcon, ChevronDownIcon, FileTextIcon, MagicWandIcon, PlusIcon } from "@radix-ui/react-icons"
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu"
 import { z } from "zod"
 import BankSyncStatusList, { BankSyncStatusSchema } from "../../components/BankSyncStatusList"
@@ -12,6 +12,7 @@ import PdfDropZone from "../../components/PdfDropZone"
 const TransactionSchema = z.object({
   id: z.number(),
   invoice_id: z.number().nullable(),
+  invoice_match_source: z.enum(["manual", "automatic"]).nullable(),
   invoice: z
     .object({
       id: z.number(),
@@ -41,6 +42,12 @@ type TransactionGroup = z.infer<typeof TransactionGroupSchema>
 const PropsSchema = z.object({
   transaction_groups: z.array(TransactionGroupSchema),
   bank_sync_statuses: z.array(BankSyncStatusSchema),
+  selected_month: z
+    .object({
+      key: z.string(),
+      label: z.string(),
+    })
+    .nullable(),
 })
 
 type Props = z.infer<typeof PropsSchema>
@@ -102,7 +109,7 @@ function TransactionActions({ transactionId, isFlagged, isLinked }: ActionButton
 }
 
 export default function TransactionsIndex(props: Props) {
-  const { transaction_groups, bank_sync_statuses } = PropsSchema.parse(props)
+  const { transaction_groups, bank_sync_statuses, selected_month } = PropsSchema.parse(props)
   const hasTransactions = transaction_groups.length > 0
 
   return (
@@ -110,19 +117,30 @@ export default function TransactionsIndex(props: Props) {
       <Head title="Transactions" />
       <Box>
         <Flex justify="between" align="center" mb="4">
-          <Heading size="6">Transactions</Heading>
-          <Button asChild>
-            <Link href="/banks">
-              <PlusIcon />
-              Connect Bank Account
-            </Link>
-          </Button>
+          <Heading size="6">
+            {selected_month ? `Transactions — ${selected_month.label}` : "Transactions"}
+          </Heading>
+          <Flex gap="2">
+            {selected_month && (
+              <Button variant="soft" color="gray" asChild>
+                <Link href="/transactions">All months</Link>
+              </Button>
+            )}
+            <Button asChild>
+              <Link href="/banks">
+                <PlusIcon />
+                Connect Bank Account
+              </Link>
+            </Button>
+          </Flex>
         </Flex>
         <BankSyncStatusList bankSyncStatuses={bank_sync_statuses} />
 
         {!hasTransactions ? (
           <Text color="gray">
-            No transactions found. Connect a bank account to see your transactions.
+            {selected_month
+              ? `No transactions found for ${selected_month.label}.`
+              : "No transactions found. Connect a bank account to see your transactions."}
           </Text>
         ) : (
           <Flex direction="column" gap="6">
@@ -130,7 +148,17 @@ export default function TransactionsIndex(props: Props) {
               <Box key={group.month_key}>
                 <Flex justify="between" align="center" mb="4">
                   <Heading size="5" as="h2">
-                    {group.month_label} <Text size="4" color="gray" weight="regular">({group.transactions.length})</Text>
+                    {group.month_key === "unknown" ? (
+                      group.month_label
+                    ) : (
+                      <Link
+                        href={`/transactions/month/${group.month_key}`}
+                        className="text-inherit underline decoration-dotted underline-offset-4 hover:decoration-solid"
+                      >
+                        {group.month_label}
+                      </Link>
+                    )}{" "}
+                    <Text size="4" color="gray" weight="regular">({group.transactions.length})</Text>
                   </Heading>
                   {group.month_key !== "unknown" && (
                     <Button size="1" variant="soft" asChild>
@@ -204,12 +232,23 @@ export default function TransactionsIndex(props: Props) {
                           <Table.Cell>
                             {!isFlagged && (
                               tx.invoice ? (
-                                <Button size="1" variant="soft" color="blue" className="gap-1 max-w-[300px]" asChild>
-                                  <Link href={`/invoices/${tx.invoice.id}`}>
-                                    <FileTextIcon className="shrink-0" />
-                                    <span className="truncate">{tx.invoice.label}</span>
-                                  </Link>
-                                </Button>
+                                <Flex align="center" gap="1">
+                                  <Button size="1" variant="soft" color="blue" className="gap-1 max-w-[300px]" asChild>
+                                    <Link href={`/invoices/${tx.invoice.id}`}>
+                                      <FileTextIcon className="shrink-0" />
+                                      <span className="truncate">{tx.invoice.label}</span>
+                                    </Link>
+                                  </Button>
+                                  {tx.invoice_match_source === "automatic" && (
+                                    <span
+                                      title="Matched automatically"
+                                      aria-label="Matched automatically"
+                                      className="inline-flex text-violet-600"
+                                    >
+                                      <MagicWandIcon />
+                                    </span>
+                                  )}
+                                </Flex>
                               ) : (
                                 !isHidden && (
                                 <Flex gap="2" wrap="wrap">

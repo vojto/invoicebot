@@ -3,7 +3,9 @@ class InvoiceReprocessingJob < ApplicationJob
     invoice = Invoice.find_by(id: invoice_id)
     return unless invoice&.pdf&.attached?
 
-    InvoiceProcessingService.new.reprocess_invoice(invoice)
+    if InvoiceProcessingService.new.reprocess_invoice(invoice)
+      AutomaticInvoiceMatchingService.match_invoice(invoice.reload)
+    end
   ensure
     invoice&.update!(is_reprocessing: false)
   end

@@ -10,10 +10,17 @@ class TransactionsController < ApplicationController
   before_action :set_transaction, only: [ :show, :hide, :restore, :flag, :unflag, :update_custom_note, :invoice_matches, :search_invoices, :link_invoice, :upload_invoice, :unlink_invoice ]
 
   def index
+    selected_month = parse_selected_month
     transactions = Transaction
       .joins(:bank_connection)
       .includes(:bank_connection, :invoice)
       .where(bank_connections: { user_id: current_user.id })
+
+    if selected_month
+      transactions = transactions.where(booking_date: selected_month..selected_month.end_of_month)
+    end
+
+    transactions = transactions
       .order(booking_date: :desc, created_at: :desc)
       .limit(500)
 
@@ -23,7 +30,11 @@ class TransactionsController < ApplicationController
 
     render inertia: "transactions/index", props: {
       transaction_groups: group_transactions(transactions),
-      bank_sync_statuses: bank_sync_statuses.map { |connection| serialize_bank_sync_status(connection) }
+      bank_sync_statuses: bank_sync_statuses.map { |connection| serialize_bank_sync_status(connection) },
+      selected_month: selected_month ? {
+        key: selected_month.strftime("%Y-%m"),
+        label: selected_month.strftime("%B %Y")
+      } : nil
     }
   end
 
@@ -35,27 +46,27 @@ class TransactionsController < ApplicationController
 
   def hide
     @transaction.update!(hidden_at: Time.current)
-    redirect_to transactions_path
+    redirect_back fallback_location: transactions_path
   end
 
   def restore
     @transaction.update!(hidden_at: nil)
-    redirect_to transactions_path
+    redirect_back fallback_location: transactions_path
   end
 
   def flag
     @transaction.update!(is_flagged: true)
-    redirect_to transactions_path
+    redirect_back fallback_location: transactions_path
   end
 
   def unflag
     @transaction.update!(is_flagged: false)
-    redirect_to transactions_path
+    redirect_back fallback_location: transactions_path
   end
 
   def update_custom_note
     @transaction.update!(custom_note: params[:custom_note])
-    redirect_to transactions_path
+    redirect_back fallback_location: transactions_path
   end
 
   def invoice_matches
@@ -94,12 +105,12 @@ class TransactionsController < ApplicationController
       link_invoice_to_transaction!(invoice)
     end
 
-    redirect_to transactions_path
+    redirect_back fallback_location: transactions_path
   end
 
   def unlink_invoice
     @transaction.update!(invoice: nil)
-    redirect_to transaction_path(@transaction), notice: "Invoice unlinked from transaction"
+    redirect_back fallback_location: transaction_path(@transaction), notice: "Invoice unlinked from transaction"
   end
 
   def upload_invoice
@@ -137,6 +148,7 @@ class TransactionsController < ApplicationController
     {
       id: tx.id,
       invoice_id: tx.invoice_id,
+      invoice_match_source: tx.invoice_match_source,
       invoice: tx.invoice ? serialize_invoice_summary(tx.invoice) : nil,
       direction: tx.direction,
       booking_date_label: format_date(tx.booking_date),
@@ -279,6 +291,15 @@ class TransactionsController < ApplicationController
     date.strftime("%Y-%m")
   end
 
+  def parse_selected_month
+    return if params[:month].blank?
+    raise ActiveRecord::RecordNotFound unless params[:month].match?(/\A\d{4}-\d{2}\z/)
+
+    Date.strptime(params[:month], "%Y-%m")
+  rescue Date::Error
+    raise ActiveRecord::RecordNotFound
+  end
+
   def month_label(key)
     return "Unknown Date" if key == "unknown"
 
@@ -356,7 +377,7 @@ class TransactionsController < ApplicationController
       .where(bank_connections: { user_id: current_user.id })
       .find_by(invoice_id: invoice.id)
 
-    existing&.update!(invoice_id: nil) if existing && existing.id != @transaction.id
-    @transaction.update!(invoice_id: invoice.id)
+    existing&.update!(invoice: nil) if existing && existing.id != @transaction.id
+    @transaction.update!(invoice: invoice, invoice_match_source: :manual)
   end
 end

@@ -60,7 +60,7 @@ class TransactionSyncService
       tx["additionalInformation"]
     ].compact.join(" - ").presence
 
-    Transaction.create!(
+    transaction = Transaction.create!(
       bank_connection: @bank_connection,
       transaction_id: tx["transactionId"],
       internal_transaction_id: internal_id,
@@ -76,6 +76,8 @@ class TransactionSyncService
       description: description,
       bank_transaction_code: tx["bankTransactionCode"]
     )
+
+    AutomaticInvoiceMatchingService.match_transaction(transaction)
   end
 
   def parse_amount(amount_string)

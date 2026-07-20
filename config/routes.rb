@@ -16,6 +16,7 @@ Rails.application.routes.draw do
 
   # Transactions
   get "/transactions", to: "transactions#index", as: :transactions
+  get "/transactions/month/:month", to: "transactions#index", as: :monthly_transactions
   get "/transactions/:id", to: "transactions#show", as: :transaction
   get "/transactions/:id/invoice_matches", to: "transactions#invoice_matches", as: :transaction_invoice_matches
   get "/transactions/:id/search_invoices", to: "transactions#search_invoices", as: :search_transaction_invoices

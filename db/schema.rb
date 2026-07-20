@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_06_03_070828) do
+ActiveRecord::Schema[8.1].define(version: 2026_07_20_120000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -134,6 +134,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_06_03_070828) do
     t.datetime "hidden_at"
     t.string "internal_transaction_id"
     t.bigint "invoice_id"
+    t.string "invoice_match_source"
     t.boolean "is_enriched", default: false, null: false
     t.boolean "is_flagged", default: false, null: false
     t.integer "original_amount_cents"
@@ -147,6 +148,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_06_03_070828) do
     t.index ["booking_date"], name: "index_transactions_on_booking_date"
     t.index ["direction"], name: "index_transactions_on_direction"
     t.index ["invoice_id"], name: "index_transactions_on_invoice_id", unique: true
+    t.check_constraint "(invoice_match_source::text = ANY (ARRAY['manual'::character varying, 'automatic'::character varying]::text[])) OR invoice_match_source IS NULL", name: "transactions_invoice_match_source"
   end
 
   create_table "users", force: :cascade do |t|

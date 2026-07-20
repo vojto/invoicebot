@@ -27,7 +27,7 @@ RSpec.describe "POST /transactions/:id/upload_invoice", type: :request do
     }
 
     expect(response).to redirect_to("/transactions/#{transaction.id}")
-    expect(transaction.reload.invoice).to eq(invoice)
+    expect(transaction.reload).to have_attributes(invoice: invoice, invoice_match_source: "manual")
   end
 
   it "rejects non-pdf uploads" do

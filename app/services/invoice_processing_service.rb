@@ -84,6 +84,7 @@ class InvoiceProcessingService
     end
 
     invoice = extract_and_save_invoice_from_email(email, pdf_attachments, result[:pdf_filename], verbose: verbose)
+    AutomaticInvoiceMatchingService.match_invoice(invoice) if invoice
     puts "-" * 60 if verbose
 
     invoice

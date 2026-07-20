@@ -56,6 +56,7 @@ class InvoicesController < ApplicationController
     date_string = params[:accounting_date]
     date = date_string.present? ? Date.parse(date_string) : nil
     @invoice.update!(accounting_date_override: date)
+    AutomaticInvoiceMatchingService.match_invoice(@invoice.reload)
     redirect_back fallback_location: invoice_path(@invoice)
   rescue ArgumentError
     redirect_back fallback_location: invoice_path(@invoice), alert: "Invalid date format"
@@ -73,6 +74,7 @@ class InvoicesController < ApplicationController
     )
 
     if invoice
+      AutomaticInvoiceMatchingService.match_invoice(invoice)
       redirect_to invoice_path(invoice), notice: "Invoice created: #{invoice.vendor_name}"
     else
       redirect_to dashboard_path, alert: "Could not extract invoice from PDF"
