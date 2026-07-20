@@ -1,6 +1,4 @@
 class PublicAccountantInvoicesController < ApplicationController
-  ACCESS_COOKIE = :accountant_access
-
   before_action :set_private_response_headers
   before_action :set_accountant_access, except: :open
   before_action :set_invoice_month, only: :show
@@ -10,10 +8,10 @@ class PublicAccountantInvoicesController < ApplicationController
     raise ActiveRecord::RecordNotFound unless access
 
     month = parse_month(params[:month].presence || Date.current.strftime("%Y-%m"))
-    store_access_cookie(access)
 
     redirect_to accountant_month_path(
-      month: month.strftime("%Y-%m")
+      month: month.strftime("%Y-%m"),
+      access_token: access.public_token
     )
   end
 
@@ -27,10 +25,12 @@ class PublicAccountantInvoicesController < ApplicationController
     render inertia: "accountant/invoices/show", props: {
       invoice_month: serialize_month(@invoice_month),
       previous_month_url: accountant_month_path(
-        month: @invoice_month.prev_month.strftime("%Y-%m")
+        month: @invoice_month.prev_month.strftime("%Y-%m"),
+        access_token: @accountant_access.public_token
       ),
       next_month_url: accountant_month_path(
-        month: @invoice_month.next_month.strftime("%Y-%m")
+        month: @invoice_month.next_month.strftime("%Y-%m"),
+        access_token: @accountant_access.public_token
       ),
       invoices: invoices.map { |invoice| serialize_invoice(invoice) }
     }
@@ -55,14 +55,8 @@ class PublicAccountantInvoicesController < ApplicationController
   end
 
   def set_accountant_access
-    cookie = JSON.parse(cookies.encrypted[ACCESS_COOKIE].to_s)
-    @accountant_access = AccountantAccess.active.find_by(
-      id: cookie["id"],
-      token_digest: cookie["token_digest"]
-    )
+    @accountant_access = AccountantAccess.authenticate(params[:access_token])
     raise ActiveRecord::RecordNotFound unless @accountant_access
-  rescue JSON::ParserError
-    raise ActiveRecord::RecordNotFound
   end
 
   def set_invoice_month
@@ -76,16 +70,6 @@ class PublicAccountantInvoicesController < ApplicationController
     Date.strptime(month, "%Y-%m")
   rescue Date::Error
     raise ActiveRecord::RecordNotFound
-  end
-
-  def store_access_cookie(access)
-    cookies.encrypted[ACCESS_COOKIE] = {
-      value: { id: access.id, token_digest: access.token_digest }.to_json,
-      expires: 1.year.from_now,
-      httponly: true,
-      same_site: :lax,
-      secure: Rails.env.production?
-    }
   end
 
   def shared_invoices
@@ -107,7 +91,8 @@ class PublicAccountantInvoicesController < ApplicationController
       currency: invoice.currency,
       accounting_date: invoice.accounting_date&.iso8601,
       pdf_url: invoice.pdf.attached? ? accountant_invoice_pdf_path(
-        id: invoice.id
+        id: invoice.id,
+        access_token: @accountant_access.public_token
       ) : nil
     }
   end

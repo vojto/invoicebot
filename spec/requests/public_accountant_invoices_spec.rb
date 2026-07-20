@@ -10,8 +10,10 @@ RSpec.describe "Public accountant invoices", type: :request do
     create(:invoice, issue_date: Date.new(2026, 7, 12))
     create(:invoice, user: user, issue_date: Date.new(2026, 6, 30))
 
-    open_access(access, "2026-07")
-    get accountant_month_path(month: "2026-07"), headers: inertia_headers
+    get accountant_month_path(
+      month: "2026-07",
+      access_token: access.public_token
+    ), headers: inertia_headers
 
     expect(response).to have_http_status(:ok)
     expect(response.parsed_body["component"]).to eq("accountant/invoices/show")
@@ -21,22 +23,49 @@ RSpec.describe "Public accountant invoices", type: :request do
     expect(access.reload.last_accessed_at).to be_present
   end
 
+  it "keeps the access token in month navigation and PDF URLs" do
+    invoice = create(:invoice, user: user, issue_date: Date.new(2026, 7, 10))
+    invoice.pdf.attach(io: StringIO.new("%PDF-1.4 test"), filename: "invoice.pdf", content_type: "application/pdf")
+
+    get accountant_month_path(
+      month: "2026-07",
+      access_token: access.public_token
+    ), headers: inertia_headers
+
+    props = response.parsed_body["props"]
+    expect(props["previous_month_url"]).to eq(
+      accountant_month_path(month: "2026-06", access_token: access.public_token)
+    )
+    expect(props["next_month_url"]).to eq(
+      accountant_month_path(month: "2026-08", access_token: access.public_token)
+    )
+    expect(props.dig("invoices", 0, "pdf_url")).to eq(
+      accountant_invoice_pdf_path(id: invoice.id, access_token: access.public_token)
+    )
+  end
+
+  it "redirects generated links to a self-contained month URL" do
+    open_access(access)
+  end
+
   it "serves PDFs only from the shared user's active invoices" do
     invoice = create(:invoice, user: user)
     invoice.pdf.attach(io: StringIO.new("%PDF-1.4 test"), filename: "invoice.pdf", content_type: "application/pdf")
     other_invoice = create(:invoice)
     other_invoice.pdf.attach(io: StringIO.new("%PDF-1.4 private"), filename: "private.pdf", content_type: "application/pdf")
 
-    open_access(access)
-    get accountant_invoice_pdf_path(id: invoice.id)
+    get accountant_invoice_pdf_path(id: invoice.id, access_token: access.public_token)
     expect(response).to have_http_status(:ok)
     expect(response.media_type).to eq("application/pdf")
 
-    get accountant_invoice_pdf_path(id: other_invoice.id)
+    get accountant_invoice_pdf_path(id: other_invoice.id, access_token: access.public_token)
     expect(response).to have_http_status(:not_found)
   end
 
   it "returns not found for invalid, revoked, and malformed links" do
+    get accountant_month_path(month: "2026-07")
+    expect(response).to have_http_status(:not_found)
+
     get accountant_root_path(access_token: "invalid", month: "2026-07")
     expect(response).to have_http_status(:not_found)
 
@@ -49,18 +78,20 @@ RSpec.describe "Public accountant invoices", type: :request do
     expect(response).to have_http_status(:not_found)
   end
 
-  it "invalidates an established session when its link is regenerated" do
-    open_access(access)
+  it "invalidates shared URLs when their token is regenerated" do
+    original_token = access.public_token
     access.rotate_token!
 
-    get accountant_month_path(month: "2026-07")
+    get accountant_month_path(month: "2026-07", access_token: original_token)
 
     expect(response).to have_http_status(:not_found)
   end
 
   def open_access(accountant_access, month = "2026-07")
     get accountant_root_path(access_token: accountant_access.public_token, month: month)
-    expect(response).to redirect_to(accountant_month_path(month: month))
+    expect(response).to redirect_to(
+      accountant_month_path(month: month, access_token: accountant_access.public_token)
+    )
   end
 
   def inertia_headers
