@@ -41,6 +41,19 @@ const InvoiceSchema = z.object({
   pages_url: z.string().nullable(),
 })
 
+const TableColumnSchema = z.object({
+  key: z.string(),
+  label: z.string(),
+  kind: z.enum(["status", "text", "flag", "date", "amount", "direction", "pdf"]),
+  width: z.number(),
+  align: z.enum(["start", "center", "end"]),
+})
+
+const TableRowSchema = z.object({
+  invoice_id: z.number(),
+  values: z.record(z.string(), z.union([z.string(), z.number(), z.boolean(), z.null()])),
+})
+
 const PropsSchema = z.object({
   invoice_month: z.object({
     key: z.string(),
@@ -50,11 +63,18 @@ const PropsSchema = z.object({
   previous_month_url: z.string(),
   next_month_url: z.string(),
   download_url: z.string(),
+  spreadsheet_url: z.string(),
+  table: z.object({
+    columns: z.array(TableColumnSchema),
+    rows: z.array(TableRowSchema),
+  }),
   invoices: z.array(InvoiceSchema),
 })
 
 type Props = z.infer<typeof PropsSchema>
 type Invoice = z.infer<typeof InvoiceSchema>
+type TableColumn = z.infer<typeof TableColumnSchema>
+type TableRow = z.infer<typeof TableRowSchema>
 type ViewMode = "split" | "table"
 
 const flagUrls = import.meta.glob(
@@ -79,18 +99,11 @@ function amountLabel(invoice: Invoice) {
     : formatCurrency(invoice.amount_cents, invoice.currency)
 }
 
-function transactionAmountLabel(invoice: Invoice) {
-  if (invoice.transaction?.amount_cents == null) return "—"
-
-  const amount = formatCurrency(invoice.transaction.amount_cents, invoice.transaction.currency)
-  return invoice.transaction.currency ? `${amount} ${invoice.transaction.currency}` : amount
-}
-
-function originalTransactionAmountLabel(invoice: Invoice) {
-  if (invoice.transaction?.original_amount_cents == null) return "—"
-
-  const amount = formatCurrency(invoice.transaction.original_amount_cents, invoice.transaction.original_currency)
-  return invoice.transaction.original_currency ? `${amount} ${invoice.transaction.original_currency}` : amount
+function formatTableAmount(value: number) {
+  return new Intl.NumberFormat("en-US", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(value)
 }
 
 function CountryFlag({ country }: { country: string | null }) {
@@ -155,6 +168,40 @@ function ViewToggle({ value, onChange }: { value: ViewMode; onChange: (value: Vi
       >
         <TableIcon /> Table
       </button>
+    </div>
+  )
+}
+
+function DownloadGroup({ zipUrl, spreadsheetUrl, processedInvoiceIds, monthLabel }: {
+  zipUrl: string
+  spreadsheetUrl: string
+  processedInvoiceIds: number[]
+  monthLabel: string
+}) {
+  const processedParam = processedInvoiceIds.length > 0
+    ? `&processed_invoice_ids=${encodeURIComponent(processedInvoiceIds.join(","))}`
+    : ""
+
+  return (
+    <div
+      role="group"
+      aria-label={`Download ${monthLabel} invoices`}
+      className="inline-flex overflow-hidden rounded-md border border-[var(--accent-a7)] bg-[var(--accent-a3)] shadow-sm"
+    >
+      <a
+        href={zipUrl}
+        download
+        className="inline-flex h-8 items-center gap-1.5 border-r border-[var(--accent-a7)] px-2.5 text-sm font-medium text-[var(--accent-11)] hover:bg-[var(--accent-a4)]"
+      >
+        <DownloadIcon /> ZIP
+      </a>
+      <a
+        href={`${spreadsheetUrl}${processedParam}`}
+        download
+        className="inline-flex h-8 items-center gap-1.5 px-2.5 text-sm font-medium text-[var(--accent-11)] hover:bg-[var(--accent-a4)]"
+      >
+        <TableIcon /> Excel
+      </a>
     </div>
   )
 }
@@ -319,81 +366,85 @@ function ProgressFooter({ processedCount, invoiceCount, onReset }: { processedCo
 }
 
 function FullInvoiceTable({
-  invoices,
+  table,
   processedInvoiceIds,
   onToggleProcessed,
   onReset,
 }: {
-  invoices: Invoice[]
+  table: Props["table"]
   processedInvoiceIds: Set<number>
-  onToggleProcessed: (invoice: Invoice) => void
+  onToggleProcessed: (invoiceId: number) => void
   onReset: () => void
 }) {
+  const tableWidth = table.columns.reduce((width, column) => width + column.width * 8, 0)
+
+  const renderCell = (column: TableColumn, row: TableRow) => {
+    const value = row.values[column.key]
+    const isProcessed = processedInvoiceIds.has(row.invoice_id)
+
+    switch (column.kind) {
+    case "status":
+      return (
+        <Button
+          size="1"
+          variant={isProcessed ? "soft" : "ghost"}
+          color={isProcessed ? "gray" : undefined}
+          onClick={() => onToggleProcessed(row.invoice_id)}
+          data-testid={`accountant-table-toggle-${row.invoice_id}`}
+        >
+          {isProcessed ? <ResetIcon /> : <CheckIcon />}
+          {isProcessed ? "Undo" : "Done"}
+        </Button>
+      )
+    case "flag":
+      return <CountryFlag country={typeof value === "string" ? value : null} />
+    case "date":
+      return formatDate(typeof value === "string" ? value : null)
+    case "amount":
+      return typeof value === "number" ? <Text weight="medium">{formatTableAmount(value)}</Text> : "—"
+    case "direction":
+      return <span className="capitalize">{typeof value === "string" ? value : "—"}</span>
+    case "pdf":
+      return typeof value === "string" ? (
+        <Button size="1" variant="ghost" asChild>
+          <a href={value} target="_blank" rel="noreferrer">
+            <ExternalLinkIcon /> Open
+          </a>
+        </Button>
+      ) : "—"
+    default:
+      return value == null || value === "" ? "—" : String(value)
+    }
+  }
+
   return (
     <section className="flex w-full min-w-0 flex-col overflow-hidden rounded-xl border border-[var(--gray-a6)] bg-[var(--color-background)] shadow-sm" aria-label="Invoice table">
       <div className="w-full overflow-auto">
-        <Table.Root size="2" style={{ minWidth: 1900, width: "100%" }}>
+        <Table.Root size="2" style={{ minWidth: tableWidth, width: "100%" }}>
           <Table.Header style={{ position: "sticky", top: 0, zIndex: 1, backgroundColor: "var(--color-background)" }}>
             <Table.Row>
-              <Table.ColumnHeaderCell>Status</Table.ColumnHeaderCell>
-              <Table.ColumnHeaderCell>Vendor</Table.ColumnHeaderCell>
-              <Table.ColumnHeaderCell justify="center">Country</Table.ColumnHeaderCell>
-              <Table.ColumnHeaderCell>VAT ID</Table.ColumnHeaderCell>
-              <Table.ColumnHeaderCell>Category</Table.ColumnHeaderCell>
-              <Table.ColumnHeaderCell>Accounting date</Table.ColumnHeaderCell>
-              <Table.ColumnHeaderCell>Issue date</Table.ColumnHeaderCell>
-              <Table.ColumnHeaderCell>Delivery date</Table.ColumnHeaderCell>
-              <Table.ColumnHeaderCell justify="end">Invoice amount</Table.ColumnHeaderCell>
-              <Table.ColumnHeaderCell>Transaction date</Table.ColumnHeaderCell>
-              <Table.ColumnHeaderCell>Bank account</Table.ColumnHeaderCell>
-              <Table.ColumnHeaderCell justify="end">Bank amount</Table.ColumnHeaderCell>
-              <Table.ColumnHeaderCell justify="end">Original amount</Table.ColumnHeaderCell>
-              <Table.ColumnHeaderCell>Direction</Table.ColumnHeaderCell>
-              <Table.ColumnHeaderCell>PDF</Table.ColumnHeaderCell>
+              {table.columns.map((column) => (
+                <Table.ColumnHeaderCell
+                  key={column.key}
+                  justify={column.align}
+                  style={{ minWidth: column.width * 8 }}
+                >
+                  {column.label}
+                </Table.ColumnHeaderCell>
+              ))}
             </Table.Row>
           </Table.Header>
           <Table.Body>
-            {invoices.map((invoice) => {
-              const isProcessed = processedInvoiceIds.has(invoice.id)
+            {table.rows.map((row) => {
+              const isProcessed = processedInvoiceIds.has(row.invoice_id)
 
               return (
-                <Table.Row key={invoice.id} style={{ color: isProcessed ? "var(--gray-9)" : undefined }}>
-                  <Table.Cell className="whitespace-nowrap">
-                    <Button
-                      size="1"
-                      variant={isProcessed ? "soft" : "ghost"}
-                      color={isProcessed ? "gray" : undefined}
-                      onClick={() => onToggleProcessed(invoice)}
-                      data-testid={`accountant-table-toggle-${invoice.id}`}
-                    >
-                      {isProcessed ? <ResetIcon /> : <CheckIcon />}
-                      {isProcessed ? "Undo" : "Done"}
-                    </Button>
-                  </Table.Cell>
-                  <Table.Cell className="min-w-48">
-                    <Text weight="medium">{invoice.vendor_name || "Unknown"}</Text>
-                  </Table.Cell>
-                  <Table.Cell justify="center"><CountryFlag country={invoice.vendor_country} /></Table.Cell>
-                  <Table.Cell className="whitespace-nowrap">{invoice.vendor_eu_vat_id || "—"}</Table.Cell>
-                  <Table.Cell className="whitespace-nowrap">{invoice.category_name || "Uncategorized"}</Table.Cell>
-                  <Table.Cell className="whitespace-nowrap">{formatDate(invoice.accounting_date)}</Table.Cell>
-                  <Table.Cell className="whitespace-nowrap">{formatDate(invoice.issue_date)}</Table.Cell>
-                  <Table.Cell className="whitespace-nowrap">{formatDate(invoice.delivery_date)}</Table.Cell>
-                  <Table.Cell justify="end" className="whitespace-nowrap"><Text weight="medium">{amountLabel(invoice)}</Text></Table.Cell>
-                  <Table.Cell className="whitespace-nowrap">{formatDate(invoice.transaction?.date || null)}</Table.Cell>
-                  <Table.Cell className="whitespace-nowrap">{invoice.transaction?.account_name || "—"}</Table.Cell>
-                  <Table.Cell justify="end" className="whitespace-nowrap"><Text weight="medium">{transactionAmountLabel(invoice)}</Text></Table.Cell>
-                  <Table.Cell justify="end" className="whitespace-nowrap">{originalTransactionAmountLabel(invoice)}</Table.Cell>
-                  <Table.Cell className="capitalize">{invoice.transaction?.direction || "—"}</Table.Cell>
-                  <Table.Cell>
-                    {invoice.pdf_url ? (
-                      <Button size="1" variant="ghost" asChild>
-                        <a href={invoice.pdf_url} target="_blank" rel="noreferrer">
-                          <ExternalLinkIcon /> Open
-                        </a>
-                      </Button>
-                    ) : "—"}
-                  </Table.Cell>
+                <Table.Row key={row.invoice_id} style={{ color: isProcessed ? "var(--gray-9)" : undefined }}>
+                  {table.columns.map((column) => (
+                    <Table.Cell key={column.key} justify={column.align} className="whitespace-nowrap">
+                      {renderCell(column, row)}
+                    </Table.Cell>
+                  ))}
                 </Table.Row>
               )
             })}
@@ -401,7 +452,7 @@ function FullInvoiceTable({
         </Table.Root>
       </div>
 
-      <ProgressFooter processedCount={processedInvoiceIds.size} invoiceCount={invoices.length} onReset={onReset} />
+      <ProgressFooter processedCount={processedInvoiceIds.size} invoiceCount={table.rows.length} onReset={onReset} />
     </section>
   )
 }
@@ -413,6 +464,8 @@ function AccountantInvoicesShow(props: Props) {
     previous_month_url,
     next_month_url,
     download_url,
+    spreadsheet_url,
+    table,
     invoices,
   } = PropsSchema.parse(props)
   const storageKey = `invoicebot:accountant-progress:${progress_storage_key}:${invoice_month.key}`
@@ -485,11 +538,12 @@ function AccountantInvoicesShow(props: Props) {
           <ViewToggle value={viewMode} onChange={setViewMode} />
           <MonthNavigation previousUrl={previous_month_url} nextUrl={next_month_url} />
           {invoices.length > 0 && (
-            <Button size="1" variant="soft" asChild>
-              <a href={download_url} download aria-label={`Download all ${invoice_month.label} invoices as a ZIP file`}>
-                <DownloadIcon /> ZIP
-              </a>
-            </Button>
+            <DownloadGroup
+              zipUrl={download_url}
+              spreadsheetUrl={spreadsheet_url}
+              processedInvoiceIds={processedInvoiceIds}
+              monthLabel={invoice_month.label}
+            />
           )}
         </Flex>
       </Flex>
@@ -501,9 +555,12 @@ function AccountantInvoicesShow(props: Props) {
         </Flex>
       ) : viewMode === "table" ? (
         <FullInvoiceTable
-          invoices={invoices}
+          table={table}
           processedInvoiceIds={processedInvoiceIdSet}
-          onToggleProcessed={(invoice) => toggleProcessed(invoice, false)}
+          onToggleProcessed={(invoiceId) => {
+            const invoice = invoices.find((candidate) => candidate.id === invoiceId)
+            if (invoice) toggleProcessed(invoice, false)
+          }}
           onReset={handleReset}
         />
       ) : (

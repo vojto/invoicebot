@@ -72,6 +72,9 @@ RSpec.describe "Public accountant invoices", type: :request do
     expect(props["download_url"]).to eq(
       accountant_month_download_path(month: "2026-07", access_token: access.public_token)
     )
+    expect(props["spreadsheet_url"]).to eq(
+      accountant_month_spreadsheet_path(month: "2026-07", access_token: access.public_token)
+    )
     expect(props.dig("invoices", 0, "pdf_url")).to eq(
       accountant_invoice_pdf_path(id: invoice.id, access_token: access.public_token)
     )
@@ -86,6 +89,17 @@ RSpec.describe "Public accountant invoices", type: :request do
       "vendor_eu_vat_id" => "SK2020000000"
     )
     expect(props.dig("invoices", 0)).not_to have_key("note")
+    expect(props.dig("table", "columns").pluck("label")).to eq(
+      AccountantInvoiceTable::COLUMNS.map(&:label)
+    )
+    expect(props.dig("table", "rows", 0, "values")).to include(
+      "status" => "Pending",
+      "vendor_name" => invoice.vendor_name,
+      "vendor_country" => "SK",
+      "vendor_eu_vat_id" => "SK2020000000",
+      "issue_date" => "2026-07-10",
+      "delivery_date" => "2026-07-11"
+    )
   end
 
   it "orders invoices from oldest to newest" do
@@ -164,6 +178,36 @@ RSpec.describe "Public accountant invoices", type: :request do
     Zip::File.open_buffer(response.body) do |zip|
       expect(zip.entries.map(&:name)).to eq([ "2026-07-10__July_Vendor_#{invoice.id}.pdf" ])
       expect(zip.entries.first.get_input_stream.read).to eq("July PDF")
+    end
+  end
+
+  it "downloads the table columns for the selected month as an Excel workbook" do
+    invoice = create(
+      :invoice,
+      user: user,
+      vendor_name: "July Vendor",
+      vendor_country: "SK",
+      amount_cents: 12_345,
+      currency: "EUR",
+      issue_date: Date.new(2026, 7, 10)
+    )
+    invoice.pdf.attach(io: StringIO.new("July PDF"), filename: "invoice.pdf", content_type: "application/pdf")
+
+    get accountant_month_spreadsheet_path(
+      month: "2026-07",
+      access_token: access.public_token,
+      processed_invoice_ids: invoice.id.to_s
+    )
+
+    expect(response).to have_http_status(:ok)
+    expect(response.media_type).to eq("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+    expect(response.headers["Content-Disposition"]).to include("invoices-2026-07.xlsx")
+    expect(response.body).to start_with("PK")
+
+    Zip::File.open_buffer(response.body) do |zip|
+      worksheet = zip.find_entry("xl/worksheets/sheet1.xml").get_input_stream.read
+      expect(worksheet).to include("Invoice amount", "Transaction date", "VAT ID", "Processed", "July Vendor")
+      expect(zip.find_entry("xl/tables/table1.xml").get_input_stream.read).to include('name="AccountantInvoices"')
     end
   end
 

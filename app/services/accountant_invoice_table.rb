@@ -1,0 +1,92 @@
+require "set"
+
+class AccountantInvoiceTable
+  Column = Data.define(:key, :label, :kind, :width) do
+    def as_json(*)
+      {
+        key: key,
+        label: label,
+        kind: kind,
+        width: width,
+        align: case kind
+               when :amount then :end
+               when :flag then :center
+               else :start
+               end
+      }
+    end
+  end
+
+  COLUMNS = [
+    Column.new(key: :status, label: "Status", kind: :status, width: 12),
+    Column.new(key: :vendor_name, label: "Vendor", kind: :text, width: 28),
+    Column.new(key: :vendor_country, label: "Country", kind: :flag, width: 10),
+    Column.new(key: :vendor_eu_vat_id, label: "VAT ID", kind: :text, width: 18),
+    Column.new(key: :category_name, label: "Category", kind: :text, width: 18),
+    Column.new(key: :accounting_date, label: "Accounting date", kind: :date, width: 16),
+    Column.new(key: :issue_date, label: "Issue date", kind: :date, width: 14),
+    Column.new(key: :delivery_date, label: "Delivery date", kind: :date, width: 14),
+    Column.new(key: :invoice_amount, label: "Invoice amount", kind: :amount, width: 16),
+    Column.new(key: :invoice_currency, label: "Invoice currency", kind: :text, width: 16),
+    Column.new(key: :transaction_date, label: "Transaction date", kind: :date, width: 16),
+    Column.new(key: :bank_account, label: "Bank account", kind: :text, width: 22),
+    Column.new(key: :bank_amount, label: "Bank amount", kind: :amount, width: 16),
+    Column.new(key: :bank_currency, label: "Bank currency", kind: :text, width: 14),
+    Column.new(key: :original_amount, label: "Original amount", kind: :amount, width: 16),
+    Column.new(key: :original_currency, label: "Original currency", kind: :text, width: 16),
+    Column.new(key: :direction, label: "Direction", kind: :direction, width: 12),
+    Column.new(key: :pdf_url, label: "PDF", kind: :pdf, width: 12)
+  ].freeze
+
+  attr_reader :invoices
+
+  def initialize(invoices, processed_invoice_ids: [], pdf_url:)
+    @invoices = invoices
+    @processed_invoice_ids = processed_invoice_ids.to_set
+    @pdf_url = pdf_url
+  end
+
+  def columns
+    COLUMNS
+  end
+
+  def rows
+    invoices.map do |invoice|
+      {
+        invoice_id: invoice.id,
+        values: columns.to_h { |column| [ column.key, value_for(invoice, column.key) ] }
+      }
+    end
+  end
+
+  private
+
+  def value_for(invoice, key)
+    transaction = invoice.bank_transaction
+
+    case key
+    when :status then @processed_invoice_ids.include?(invoice.id) ? "Processed" : "Pending"
+    when :vendor_name then invoice.vendor_name
+    when :vendor_country then invoice.vendor_country
+    when :vendor_eu_vat_id then invoice.vendor_eu_vat_id
+    when :category_name then invoice.category&.name
+    when :accounting_date then invoice.accounting_date
+    when :issue_date then invoice.issue_date
+    when :delivery_date then invoice.delivery_date
+    when :invoice_amount then amount(invoice.amount_cents)
+    when :invoice_currency then invoice.currency
+    when :transaction_date then (transaction&.booking_date || transaction&.value_date)
+    when :bank_account then transaction&.bank_connection&.institution_name.presence
+    when :bank_amount then amount(transaction&.amount_cents)
+    when :bank_currency then transaction&.currency
+    when :original_amount then amount(transaction&.original_amount_cents)
+    when :original_currency then transaction&.original_currency
+    when :direction then transaction&.direction
+    when :pdf_url then @pdf_url.call(invoice)
+    end
+  end
+
+  def amount(amount_cents)
+    amount_cents&.fdiv(100)
+  end
+end

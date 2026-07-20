@@ -1,7 +1,7 @@
 class PublicAccountantInvoicesController < ApplicationController
   before_action :set_private_response_headers
   before_action :set_accountant_access, except: :open
-  before_action :set_invoice_month, only: [ :show, :download ]
+  before_action :set_invoice_month, only: [ :show, :download, :spreadsheet ]
 
   def open
     access = AccountantAccess.authenticate(params[:access_token])
@@ -17,9 +17,8 @@ class PublicAccountantInvoicesController < ApplicationController
 
   def show
     @accountant_access.touch(:last_accessed_at)
-    invoices = monthly_invoices
-      .order(accounting_date: :asc, created_at: :asc)
-      .includes(:category, bank_transaction: :bank_connection, pdf_attachment: :blob)
+    invoices = ordered_monthly_invoices
+    invoice_table = accountant_invoice_table(invoices)
 
     render inertia: "accountant/invoices/show", props: {
       invoice_month: serialize_month(@invoice_month),
@@ -36,6 +35,14 @@ class PublicAccountantInvoicesController < ApplicationController
         month: @invoice_month.strftime("%Y-%m"),
         access_token: @accountant_access.public_token
       ),
+      spreadsheet_url: accountant_month_spreadsheet_path(
+        month: @invoice_month.strftime("%Y-%m"),
+        access_token: @accountant_access.public_token
+      ),
+      table: {
+        columns: invoice_table.columns,
+        rows: invoice_table.rows
+      },
       invoices: invoices.map { |invoice| serialize_invoice(invoice) }
     }
   end
@@ -47,6 +54,21 @@ class PublicAccountantInvoicesController < ApplicationController
     send_data InvoiceZip.new(invoices).call,
       filename: "invoices-#{@invoice_month.strftime('%Y-%m')}.zip",
       type: "application/zip",
+      disposition: "attachment"
+  end
+
+  def spreadsheet
+    invoices = ordered_monthly_invoices
+    return head :not_found if invoices.empty?
+
+    invoice_table = accountant_invoice_table(
+      invoices,
+      processed_invoice_ids: processed_invoice_ids
+    )
+
+    send_data AccountantInvoiceSpreadsheet.new(invoice_table).call,
+      filename: "invoices-#{@invoice_month.strftime('%Y-%m')}.xlsx",
+      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
       disposition: "attachment"
   end
 
@@ -120,6 +142,31 @@ class PublicAccountantInvoicesController < ApplicationController
 
   def monthly_invoices
     shared_invoices.where(accounting_date: @invoice_month..@invoice_month.end_of_month)
+  end
+
+  def ordered_monthly_invoices
+    monthly_invoices
+      .order(accounting_date: :asc, created_at: :asc)
+      .includes(:category, bank_transaction: :bank_connection, pdf_attachment: :blob)
+  end
+
+  def accountant_invoice_table(invoices, processed_invoice_ids: [])
+    AccountantInvoiceTable.new(
+      invoices,
+      processed_invoice_ids: processed_invoice_ids,
+      pdf_url: ->(invoice) {
+        invoice.pdf.attached? ? accountant_invoice_pdf_url(
+          id: invoice.id,
+          access_token: @accountant_access.public_token
+        ) : nil
+      }
+    )
+  end
+
+  def processed_invoice_ids
+    params[:processed_invoice_ids].to_s.split(",").filter_map do |invoice_id|
+      Integer(invoice_id, exception: false)
+    end
   end
 
   def serialize_month(month)
