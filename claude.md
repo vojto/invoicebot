@@ -94,7 +94,9 @@ Added after reviewing automatic deploys #10 and #11 on 2026-07-20:
 
 The registry-backed BuildKit cache remains in `mode=max`; npm installation, TypeScript, and RSpec were already fast enough that more caching was not justified.
 
-After pushing to `main`, do not report the task as deployed until its GitHub Actions run—or a newer run containing that commit—finishes successfully. Find the run for the pushed commit and wait for it:
+After pushing ordinary completed application work to `main`, do not wait for the automatic deployment. Report the commit and push as complete without claiming that the change is deployed.
+
+Wait for deployment only when subsequent work depends on it—for example, before running a production migration or data operation, when deployment-dependent verification or coordination is required, or when the user explicitly requests deployment confirmation. In those cases, find the run for the pushed commit and wait for it:
 
 ```bash
 deploy_sha=$(git rev-parse HEAD)
@@ -103,7 +105,7 @@ gh run list --workflow Deploy --commit "$deploy_sha" --limit 1 \
 gh run watch RUN_ID --exit-status --interval 10
 ```
 
-It can take a few seconds for a run to appear and several minutes for a pending or in-progress run to finish. Waiting is expected; continue monitoring rather than starting a competing manual deploy.
+It can take a few seconds for a run to appear and several minutes for a pending or in-progress run to finish. When waiting is required, continue monitoring rather than starting a competing manual deploy.
 
 If the run is cancelled because a newer pending run replaced it, fetch `origin/main` and check whether the newer branch still contains the pushed commit with `git merge-base --is-ancestor "$deploy_sha" origin/main`. When it does, wait for the newest `main` deployment instead of rerunning the obsolete commit. When it does not, investigate before claiming deployment. Always inspect the newest `main` run before claiming that current production is up to date.
 
