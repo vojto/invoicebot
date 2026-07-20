@@ -122,11 +122,13 @@ export default function InvoiceRow({ invoice, categories = [], showCategory = fa
       </Table.Cell>
       {showCategory && (
         <Table.Cell>
-          <InvoiceCategorySelect
-            invoiceId={invoice.id}
-            category={invoice.category}
-            categories={categories}
-          />
+          {!isDeleted && (
+            <InvoiceCategorySelect
+              invoiceId={invoice.id}
+              category={invoice.category}
+              categories={categories}
+            />
+          )}
         </Table.Cell>
       )}
       <Table.Cell>
