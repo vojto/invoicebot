@@ -80,9 +80,9 @@ Every push to `main` triggers `.github/workflows/deploy.yml`. The workflow:
 4. Builds and pushes the image to GHCR, then deploys all three roles with Kamal.
 5. Requires `https://invoices.rinik.net/up` to return a successful response.
 
-Deployments use the `production` concurrency group with `cancel-in-progress: false`. Only one deployment runs at a time; pushes made while another deployment is running remain pending and deploy in order.
+Deployments use the `production` concurrency group with `cancel-in-progress: false`. The running deployment is never cancelled by a newer push. GitHub retains at most one pending deployment, however, so a newer push can cancel and replace an older pending run; queued commits are not guaranteed to deploy individually.
 
-After pushing to `main`, do not report the task as deployed until its GitHub Actions run finishes successfully. Find the run for the pushed commit and wait for it:
+After pushing to `main`, do not report the task as deployed until its GitHub Actions run—or a newer run containing that commit—finishes successfully. Find the run for the pushed commit and wait for it:
 
 ```bash
 deploy_sha=$(git rev-parse HEAD)
@@ -91,7 +91,9 @@ gh run list --workflow Deploy --commit "$deploy_sha" --limit 1 \
 gh run watch RUN_ID --exit-status --interval 10
 ```
 
-It can take a few seconds for a run to appear and several minutes for a pending or in-progress run to finish. Waiting is expected; continue monitoring rather than starting a competing manual deploy. If newer commits land on `main` while waiting, also inspect the newest `main` run before claiming that current production is up to date.
+It can take a few seconds for a run to appear and several minutes for a pending or in-progress run to finish. Waiting is expected; continue monitoring rather than starting a competing manual deploy.
+
+If the run is cancelled because a newer pending run replaced it, fetch `origin/main` and check whether the newer branch still contains the pushed commit with `git merge-base --is-ancestor "$deploy_sha" origin/main`. When it does, wait for the newest `main` deployment instead of rerunning the obsolete commit. When it does not, investigate before claiming deployment. Always inspect the newest `main` run before claiming that current production is up to date.
 
 If a deployment fails, inspect the failed step with `gh run view RUN_ID --log-failed`. Fix the root cause and push again, or rerun the failed workflow when the fix was an external configuration change such as a repository secret. Independently verify a successful deployment with:
 
