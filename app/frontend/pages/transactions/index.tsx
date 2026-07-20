@@ -130,7 +130,7 @@ export default function TransactionsIndex(props: Props) {
               <Box key={group.month_key}>
                 <Flex justify="between" align="center" mb="4">
                   <Heading size="5" as="h2">
-                    {group.month_label}
+                    {group.month_label} <Text size="4" color="gray" weight="regular">({group.transactions.length})</Text>
                   </Heading>
                   {group.month_key !== "unknown" && (
                     <Button size="1" variant="soft" asChild>
