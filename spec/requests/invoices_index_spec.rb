@@ -9,7 +9,8 @@ RSpec.describe "Invoices index", type: :request do
   before { sign_in(user) }
 
   it "shows monthly invoices and categorized spending ordered by amount" do
-    food_invoice = create(:invoice, user: user, category: food, issue_date: Date.new(2026, 7, 5), amount_cents: 1_000)
+    create(:exchange_rate, currency: "USD", month: Date.new(2026, 7, 1), currency_per_eur: 1.25)
+    food_invoice = create(:invoice, user: user, category: food, issue_date: Date.new(2026, 7, 5), amount_cents: 1_250, currency: "USD")
     software_invoice = create(:invoice, user: user, category: software, issue_date: Date.new(2026, 7, 10), amount_cents: 3_000)
     uncategorized_invoice = create(:invoice, user: user, issue_date: Date.new(2026, 7, 12), amount_cents: 5_000)
     unlinked_invoice = create(:invoice, user: user, category: food, issue_date: Date.new(2026, 7, 13), amount_cents: 6_000)
@@ -38,8 +39,10 @@ RSpec.describe "Invoices index", type: :request do
     )
     expect(page.dig("props", "invoices").find { |invoice| invoice["id"] == unlinked_invoice.id }["bank_transaction"]).to be_nil
 
-    breakdown = page.dig("props", "spending_breakdowns", 0)
+    breakdown = page.dig("props", "spending_breakdown")
+    expect(breakdown["currency"]).to eq("EUR")
     expect(breakdown["total_amount_cents"]).to eq(10_000)
+    expect(breakdown["unconverted_currencies"]).to eq([])
     expect(breakdown["categories"].pluck("name", "amount_cents")).to eq([
       [ "Food", 7_000 ],
       [ "Software", 3_000 ]

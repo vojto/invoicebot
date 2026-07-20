@@ -5,6 +5,7 @@ export const SpendingBreakdownSchema = z.object({
   currency: z.string(),
   total_amount_cents: z.number(),
   total_amount_label: z.string(),
+  unconverted_currencies: z.array(z.string()),
   categories: z.array(z.object({
     id: z.number(),
     name: z.string(),
@@ -14,7 +15,7 @@ export const SpendingBreakdownSchema = z.object({
 })
 
 const PropsSchema = z.object({
-  breakdowns: z.array(SpendingBreakdownSchema),
+  breakdown: SpendingBreakdownSchema,
 })
 
 type Props = z.infer<typeof PropsSchema>
@@ -132,25 +133,27 @@ function BreakdownCard({ breakdown }: { breakdown: SpendingBreakdown }) {
 }
 
 export default function CategorySpendingBreakdown(props: Props) {
-  const { breakdowns } = PropsSchema.parse(props)
+  const { breakdown } = PropsSchema.parse(props)
 
   return (
     <Box mb="7">
       <Heading size="5" mb="1">Categorized spending</Heading>
       <Text as="p" size="2" color="gray" mb="4">
-        Based on invoice amounts and accounting dates. Uncategorized invoices are excluded.
+        Invoice amounts are converted to EUR using monthly ECB reference rates. Uncategorized invoices are excluded.
       </Text>
 
-      {breakdowns.length === 0 ? (
+      {breakdown.unconverted_currencies.length > 0 && (
+        <Text as="p" size="2" color="orange" mb="4">
+          Some invoices were excluded because no EUR rate was available for {breakdown.unconverted_currencies.join(", ")}.
+        </Text>
+      )}
+
+      {breakdown.categories.length === 0 ? (
         <Card>
           <Text color="gray">No categorized invoice spending for this month yet.</Text>
         </Card>
       ) : (
-        <Flex direction="column" gap="4">
-          {breakdowns.map((breakdown) => (
-            <BreakdownCard key={breakdown.currency} breakdown={breakdown} />
-          ))}
-        </Flex>
+        <BreakdownCard breakdown={breakdown} />
       )}
     </Box>
   )

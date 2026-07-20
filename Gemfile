@@ -46,6 +46,7 @@ gem "thruster", require: false
 
 # Zip file creation
 gem "rubyzip", require: "zip"
+gem "csv"
 
 # LLM integration
 gem "ruby_llm", github: "crmne/ruby_llm"

@@ -15,14 +15,14 @@ const PropsSchema = z.object({
   }),
   invoices: z.array(InvoiceSchema),
   categories: z.array(CategorySchema),
-  spending_breakdowns: z.array(SpendingBreakdownSchema),
+  spending_breakdown: SpendingBreakdownSchema,
   accountant_url: z.string().nullable(),
 })
 
 type Props = z.infer<typeof PropsSchema>
 
 export default function InvoicesIndex(props: Props) {
-  const { invoice_month, invoices, categories, spending_breakdowns, accountant_url } = PropsSchema.parse(props)
+  const { invoice_month, invoices, categories, spending_breakdown, accountant_url } = PropsSchema.parse(props)
   const activeInvoices = invoices.filter((invoice) => !invoice.deleted_at)
 
   return (
@@ -58,7 +58,7 @@ export default function InvoicesIndex(props: Props) {
           </Flex>
         </Flex>
 
-        <CategorySpendingBreakdown breakdowns={spending_breakdowns} />
+        <CategorySpendingBreakdown breakdown={spending_breakdown} />
 
         <Heading size="5" mb="4">Invoices</Heading>
         {invoices.length === 0 ? (

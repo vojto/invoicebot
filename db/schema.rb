@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_07_20_160000) do
+ActiveRecord::Schema[8.1].define(version: 2026_07_20_170000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -110,6 +110,16 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_20_160000) do
     t.index ["date"], name: "index_emails_on_date"
     t.index ["user_id", "gmail_id"], name: "index_emails_on_user_id_and_gmail_id", unique: true
     t.index ["user_id"], name: "index_emails_on_user_id"
+  end
+
+  create_table "exchange_rates", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.string "currency", null: false
+    t.decimal "currency_per_eur", precision: 20, scale: 10, null: false
+    t.datetime "fetched_at", null: false
+    t.date "month", null: false
+    t.datetime "updated_at", null: false
+    t.index ["currency", "month"], name: "index_exchange_rates_on_currency_and_month", unique: true
   end
 
   create_table "invoice_page_images", force: :cascade do |t|

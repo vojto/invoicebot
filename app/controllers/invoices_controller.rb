@@ -16,7 +16,7 @@ class InvoicesController < ApplicationController
       },
       invoices: invoices.map { |invoice| serialize_invoice_list_item(invoice) },
       categories: current_user.categories.order(Arel.sql("LOWER(name)")).map { |category| serialize_category(category) },
-      spending_breakdowns: build_spending_breakdowns(invoices),
+      spending_breakdown: InvoiceSpendingBreakdown.new(invoices).call,
       accountant_url: accountant_url_for(@invoice_month)
     }
   end
@@ -192,36 +192,6 @@ class InvoicesController < ApplicationController
       id: category.id,
       name: category.name
     }
-  end
-
-  def build_spending_breakdowns(invoices)
-    totals = Hash.new { |currencies, currency| currencies[currency] = Hash.new(0) }
-
-    invoices.each do |invoice|
-      next if invoice.soft_deleted? || !invoice.document_type_invoice?
-      next unless invoice.category && invoice.amount_cents.present? && invoice.currency.present?
-
-      totals[invoice.currency][invoice.category] += invoice.amount_cents
-    end
-
-    totals.map do |currency, category_totals|
-      total_amount_cents = category_totals.values.sum
-      {
-        currency: currency,
-        total_amount_cents: total_amount_cents,
-        total_amount_label: format_amount(total_amount_cents, currency),
-        categories: category_totals
-          .sort_by { |_, amount_cents| -amount_cents }
-          .map { |category, amount_cents|
-            {
-              id: category.id,
-              name: category.name,
-              amount_cents: amount_cents,
-              amount_label: format_amount(amount_cents, currency)
-            }
-          }
-      }
-    end.sort_by { |breakdown| -breakdown[:total_amount_cents] }
   end
 
   def serialize_invoice_detail(invoice)
