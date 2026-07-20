@@ -93,4 +93,5 @@ builder:
   cache:
     type: registry
     image: vojto/invoicebot-build-cache
+    # mode=max retains intermediate build-stage layers such as Bundler and npm.
     options: mode=max
