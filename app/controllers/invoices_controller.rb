@@ -126,10 +126,12 @@ class InvoicesController < ApplicationController
 
     return head :not_found if invoices.empty?
 
-    zip_data = create_zip(invoices)
     filename = "invoices-#{month}.zip"
 
-    send_data zip_data, filename: filename, type: "application/zip", disposition: "attachment"
+    send_data InvoiceZip.new(invoices).call,
+      filename: filename,
+      type: "application/zip",
+      disposition: "attachment"
   end
 
   private
@@ -235,23 +237,4 @@ class InvoicesController < ApplicationController
     ActiveSupport::NumberHelper.number_to_currency(amount, unit: unit, format: "%n %u")
   end
 
-  def create_zip(invoices)
-    require "zip"
-
-    buffer = Zip::OutputStream.write_buffer do |zip|
-      invoices.each do |invoice|
-        next unless invoice.pdf.attached?
-
-        # Create a safe filename with date prefix, vendor name, and invoice id
-        date_prefix = invoice.accounting_date.strftime("%Y-%m-%d")
-        safe_vendor = (invoice.vendor_name || "unknown").gsub(/[^a-zA-Z0-9\-_]/, "_").truncate(50, omission: "")
-        filename = "#{date_prefix}__#{safe_vendor}_#{invoice.id}.pdf"
-
-        zip.put_next_entry(filename)
-        zip.write(invoice.pdf.download)
-      end
-    end
-
-    buffer.string
-  end
 end

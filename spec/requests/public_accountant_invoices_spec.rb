@@ -48,6 +48,9 @@ RSpec.describe "Public accountant invoices", type: :request do
     expect(props["next_month_url"]).to eq(
       accountant_month_path(month: "2026-08", access_token: access.public_token)
     )
+    expect(props["download_url"]).to eq(
+      accountant_month_download_path(month: "2026-07", access_token: access.public_token)
+    )
     expect(props.dig("invoices", 0, "pdf_url")).to eq(
       accountant_invoice_pdf_path(id: invoice.id, access_token: access.public_token)
     )
@@ -92,6 +95,24 @@ RSpec.describe "Public accountant invoices", type: :request do
 
     get accountant_invoice_pdf_path(id: other_invoice.id, access_token: access.public_token)
     expect(response).to have_http_status(:not_found)
+  end
+
+  it "downloads the shared user's active invoices for the selected month as a ZIP" do
+    invoice = create(:invoice, user: user, vendor_name: "July Vendor", issue_date: Date.new(2026, 7, 10))
+    invoice.pdf.attach(io: StringIO.new("July PDF"), filename: "invoice.pdf", content_type: "application/pdf")
+    create(:invoice, user: user, issue_date: Date.new(2026, 6, 30))
+    create(:invoice, issue_date: Date.new(2026, 7, 10))
+
+    get accountant_month_download_path(month: "2026-07", access_token: access.public_token)
+
+    expect(response).to have_http_status(:ok)
+    expect(response.media_type).to eq("application/zip")
+    expect(response.headers["Content-Disposition"]).to include("invoices-2026-07.zip")
+
+    Zip::File.open_buffer(response.body) do |zip|
+      expect(zip.entries.map(&:name)).to eq([ "2026-07-10__July_Vendor_#{invoice.id}.pdf" ])
+      expect(zip.entries.first.get_input_stream.read).to eq("July PDF")
+    end
   end
 
   it "returns not found for invalid, revoked, and malformed links" do

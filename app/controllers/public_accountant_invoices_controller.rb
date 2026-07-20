@@ -1,7 +1,7 @@
 class PublicAccountantInvoicesController < ApplicationController
   before_action :set_private_response_headers
   before_action :set_accountant_access, except: :open
-  before_action :set_invoice_month, only: :show
+  before_action :set_invoice_month, only: [ :show, :download ]
 
   def open
     access = AccountantAccess.authenticate(params[:access_token])
@@ -17,8 +17,7 @@ class PublicAccountantInvoicesController < ApplicationController
 
   def show
     @accountant_access.touch(:last_accessed_at)
-    invoices = shared_invoices
-      .where(accounting_date: @invoice_month..@invoice_month.end_of_month)
+    invoices = monthly_invoices
       .order(accounting_date: :asc, created_at: :asc)
       .includes(pdf_attachment: :blob)
 
@@ -33,8 +32,22 @@ class PublicAccountantInvoicesController < ApplicationController
         month: @invoice_month.next_month.strftime("%Y-%m"),
         access_token: @accountant_access.public_token
       ),
+      download_url: accountant_month_download_path(
+        month: @invoice_month.strftime("%Y-%m"),
+        access_token: @accountant_access.public_token
+      ),
       invoices: invoices.map { |invoice| serialize_invoice(invoice) }
     }
+  end
+
+  def download
+    invoices = monthly_invoices.includes(pdf_attachment: :blob)
+    return head :not_found if invoices.empty?
+
+    send_data InvoiceZip.new(invoices).call,
+      filename: "invoices-#{@invoice_month.strftime('%Y-%m')}.zip",
+      type: "application/zip",
+      disposition: "attachment"
   end
 
   def pdf
@@ -75,6 +88,10 @@ class PublicAccountantInvoicesController < ApplicationController
 
   def shared_invoices
     @accountant_access.user.invoices.where(deleted_at: nil)
+  end
+
+  def monthly_invoices
+    shared_invoices.where(accounting_date: @invoice_month..@invoice_month.end_of_month)
   end
 
   def serialize_month(month)

@@ -1,5 +1,5 @@
 import { Head, Link } from "@inertiajs/react"
-import { CheckIcon, ExternalLinkIcon, FileTextIcon, ResetIcon } from "@radix-ui/react-icons"
+import { CheckIcon, DownloadIcon, ExternalLinkIcon, FileTextIcon, ResetIcon } from "@radix-ui/react-icons"
 import { Box, Button, Flex, Heading, Table, Text } from "@radix-ui/themes"
 import { ReactNode, useState } from "react"
 import { z } from "zod"
@@ -28,6 +28,7 @@ const PropsSchema = z.object({
   progress_storage_key: z.string(),
   previous_month_url: z.string(),
   next_month_url: z.string(),
+  download_url: z.string(),
   invoices: z.array(InvoiceSchema),
 })
 
@@ -178,6 +179,7 @@ function AccountantInvoicesShow(props: Props) {
     progress_storage_key,
     previous_month_url,
     next_month_url,
+    download_url,
     invoices,
   } = PropsSchema.parse(props)
   const storageKey = `invoicebot:accountant-progress:${progress_storage_key}:${invoice_month.key}`
@@ -240,6 +242,13 @@ function AccountantInvoicesShow(props: Props) {
           <Button size="1" variant="soft" color="gray" asChild>
             <Link href={next_month_url}>Next month</Link>
           </Button>
+          {invoices.length > 0 && (
+            <Button size="1" variant="soft" asChild>
+              <a href={download_url} download aria-label={`Download all ${invoice_month.label} invoices as a ZIP file`}>
+                <DownloadIcon /> ZIP
+              </a>
+            </Button>
+          )}
         </Flex>
       </Flex>
 
