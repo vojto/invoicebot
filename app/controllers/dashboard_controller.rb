@@ -6,7 +6,7 @@ class DashboardController < ApplicationController
       .left_joins(:email)
       .order(Arel.sql("COALESCE(invoices.issue_date, emails.date::date) DESC NULLS LAST"))
       .limit(100)
-      .includes(:email, :bank_transaction, pdf_attachment: :blob)
+      .includes(:email, { bank_transaction: :category }, pdf_attachment: :blob)
 
     render inertia: "dashboard/show", props: {
       invoices: invoices.map { |invoice| serialize_invoice(invoice) },
@@ -49,7 +49,11 @@ class DashboardController < ApplicationController
       } : nil,
       bank_transaction: invoice.bank_transaction ? {
         id: invoice.bank_transaction.id,
-        vendor_name: invoice.bank_transaction.vendor_name
+        vendor_name: invoice.bank_transaction.vendor_name,
+        category: invoice.bank_transaction.category ? {
+          id: invoice.bank_transaction.category.id,
+          name: invoice.bank_transaction.category.name
+        } : nil
       } : nil
     }
   end

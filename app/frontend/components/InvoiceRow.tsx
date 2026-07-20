@@ -4,6 +4,7 @@ import { z } from "zod"
 import DateDifferenceBadge from "./DateDifferenceBadge"
 import AccountingDateEditor from "./AccountingDateEditor"
 import InvoicePdfPopover from "./InvoicePdfPopover"
+import TransactionCategorySelect, { CategorySchema, type Category } from "./TransactionCategorySelect"
 
 const EmailSchema = z.object({
   id: z.number(),
@@ -26,6 +27,7 @@ export const InvoiceSchema = z.object({
   bank_transaction: z.object({
     id: z.number(),
     vendor_name: z.string().nullable(),
+    category: CategorySchema.nullable(),
   }).nullable(),
 })
 
@@ -58,9 +60,11 @@ function formatDate(dateString: string | null | undefined): string {
 
 type Props = {
   invoice: Invoice
+  categories?: Category[]
+  showCategory?: boolean
 }
 
-export default function InvoiceRow({ invoice }: Props) {
+export default function InvoiceRow({ invoice, categories = [], showCategory = false }: Props) {
   const isDeleted = !!invoice.deleted_at
   const isLinked = !!invoice.bank_transaction
   const deletedStyle = isDeleted ? { textDecoration: "line-through", opacity: 0.4 } : undefined
@@ -129,6 +133,15 @@ export default function InvoiceRow({ invoice }: Props) {
           </Link>
         )}
       </Table.Cell>
+      {showCategory && (
+        <Table.Cell>
+          <TransactionCategorySelect
+            transactionId={invoice.bank_transaction?.id ?? null}
+            category={invoice.bank_transaction?.category ?? null}
+            categories={categories}
+          />
+        </Table.Cell>
+      )}
       <Table.Cell>
         <Flex gap="2" justify="end">
           {isDeleted ? (

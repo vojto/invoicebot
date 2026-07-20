@@ -1,8 +1,9 @@
-import { Head, router } from "@inertiajs/react"
-import { Heading, Box, Text, Table, Flex, Button, Callout } from "@radix-ui/themes"
+import { Head, Link, router } from "@inertiajs/react"
+import { Heading, Box, Text, Flex, Button, Callout } from "@radix-ui/themes"
 import { DownloadIcon, UpdateIcon, CheckCircledIcon, CrossCircledIcon } from "@radix-ui/react-icons"
 import { z } from "zod"
-import InvoiceRow, { InvoiceSchema, type Invoice } from "../../components/InvoiceRow"
+import { InvoiceSchema, type Invoice } from "../../components/InvoiceRow"
+import InvoiceTable from "../../components/InvoiceTable"
 import PdfDropZone from "../../components/PdfDropZone"
 
 const PropsSchema = z.object({
@@ -133,7 +134,17 @@ export default function DashboardShow(props: Props) {
               <Box key={monthKey}>
                 <Flex justify="between" align="center" mb="4">
                   <Heading size="5" as="h2">
-                    {formatMonthHeading(monthKey)} <Text size="4" color="gray" weight="regular">({validCount})</Text>
+                    {monthKey === "unknown" ? (
+                      formatMonthHeading(monthKey)
+                    ) : (
+                      <Link
+                        href={`/invoices/month/${monthKey}`}
+                        className="text-inherit underline decoration-dotted underline-offset-4 hover:decoration-solid"
+                      >
+                        {formatMonthHeading(monthKey)}
+                      </Link>
+                    )}{" "}
+                    <Text size="4" color="gray" weight="regular">({validCount})</Text>
                   </Heading>
                   {hasDownloadableInvoices && (
                     <Button
@@ -148,24 +159,7 @@ export default function DashboardShow(props: Props) {
                     </Button>
                   )}
                 </Flex>
-                <Table.Root variant="surface" size="2">
-                  <Table.Header>
-                    <Table.Row>
-                      <Table.ColumnHeaderCell width="400px">Vendor</Table.ColumnHeaderCell>
-                      <Table.ColumnHeaderCell width="120px">Amount</Table.ColumnHeaderCell>
-                      <Table.ColumnHeaderCell width="140px">Accounting Date</Table.ColumnHeaderCell>
-                      <Table.ColumnHeaderCell width="200px">Email Date</Table.ColumnHeaderCell>
-                      <Table.ColumnHeaderCell>Email Subject</Table.ColumnHeaderCell>
-                      <Table.ColumnHeaderCell>Transaction</Table.ColumnHeaderCell>
-                      <Table.ColumnHeaderCell width="140px">Actions</Table.ColumnHeaderCell>
-                    </Table.Row>
-                  </Table.Header>
-                  <Table.Body>
-                    {monthInvoices.map((invoice) => (
-                      <InvoiceRow key={invoice.id} invoice={invoice} />
-                    ))}
-                  </Table.Body>
-                </Table.Root>
+                <InvoiceTable invoices={monthInvoices} />
               </Box>
             )})}
           </Flex>

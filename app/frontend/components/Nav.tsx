@@ -34,6 +34,9 @@ export default function Nav() {
         <NavLink href="/transactions" isActive={url.startsWith("/transactions")}>
           Transactions
         </NavLink>
+        <NavLink href="/categories" isActive={url.startsWith("/categories")}>
+          Categories
+        </NavLink>
       </nav>
     </Flex>
   )

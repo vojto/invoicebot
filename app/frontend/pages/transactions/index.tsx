@@ -7,6 +7,7 @@ import BankSyncStatusList, { BankSyncStatusSchema } from "../../components/BankS
 import InvoiceSelector from "../../components/InvoiceSelector"
 import TransactionNoteEditor from "../../components/TransactionNoteEditor"
 import TransactionInvoiceUploadButton from "../../components/TransactionInvoiceUploadButton"
+import TransactionCategorySelect, { CategorySchema } from "../../components/TransactionCategorySelect"
 import PdfDropZone from "../../components/PdfDropZone"
 
 const TransactionSchema = z.object({
@@ -19,6 +20,7 @@ const TransactionSchema = z.object({
       label: z.string(),
     })
     .nullable(),
+  category: CategorySchema.nullable(),
   direction: z.enum(["credit", "debit"]),
   booking_date_label: z.string(),
   amount_cents: z.number(),
@@ -41,6 +43,7 @@ type TransactionGroup = z.infer<typeof TransactionGroupSchema>
 
 const PropsSchema = z.object({
   transaction_groups: z.array(TransactionGroupSchema),
+  categories: z.array(CategorySchema),
   bank_sync_statuses: z.array(BankSyncStatusSchema),
   selected_month: z
     .object({
@@ -109,7 +112,7 @@ function TransactionActions({ transactionId, isFlagged, isLinked }: ActionButton
 }
 
 export default function TransactionsIndex(props: Props) {
-  const { transaction_groups, bank_sync_statuses, selected_month } = PropsSchema.parse(props)
+  const { transaction_groups, categories, bank_sync_statuses, selected_month } = PropsSchema.parse(props)
   const hasTransactions = transaction_groups.length > 0
 
   return (
@@ -178,6 +181,7 @@ export default function TransactionsIndex(props: Props) {
                       <Table.ColumnHeaderCell width="140px">Original</Table.ColumnHeaderCell>
                       <Table.ColumnHeaderCell>Note</Table.ColumnHeaderCell>
                       <Table.ColumnHeaderCell>Document</Table.ColumnHeaderCell>
+                      <Table.ColumnHeaderCell width="190px">Category</Table.ColumnHeaderCell>
                       <Table.ColumnHeaderCell width="100px">Actions</Table.ColumnHeaderCell>
                     </Table.Row>
                   </Table.Header>
@@ -258,6 +262,13 @@ export default function TransactionsIndex(props: Props) {
                                 )
                               )
                             )}
+                          </Table.Cell>
+                          <Table.Cell>
+                            <TransactionCategorySelect
+                              transactionId={tx.id}
+                              category={tx.category}
+                              categories={categories}
+                            />
                           </Table.Cell>
                           <Table.Cell>
                             {isHidden || isFlagged ? (

@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_07_20_130000) do
+ActiveRecord::Schema[8.1].define(version: 2026_07_20_140000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -71,6 +71,15 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_20_130000) do
     t.index ["user_id"], name: "index_bank_connections_on_user_id"
   end
 
+  create_table "categories", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.string "name", null: false
+    t.datetime "updated_at", null: false
+    t.bigint "user_id", null: false
+    t.index "user_id, lower((name)::text)", name: "index_categories_on_user_id_and_lower_name", unique: true
+    t.index ["user_id"], name: "index_categories_on_user_id"
+  end
+
   create_table "emails", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.datetime "date"
@@ -116,7 +125,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_20_130000) do
     t.string "vendor_name"
     t.index ["email_id"], name: "index_invoices_on_email_id"
     t.index ["user_id"], name: "index_invoices_on_user_id"
-    t.check_constraint "document_type::text = ANY (ARRAY['invoice'::character varying, 'credit_note'::character varying]::text[])", name: "invoices_document_type"
+    t.check_constraint "document_type::text = ANY (ARRAY['invoice'::character varying::text, 'credit_note'::character varying::text])", name: "invoices_document_type"
   end
 
   create_table "transactions", force: :cascade do |t|
@@ -124,6 +133,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_20_130000) do
     t.bigint "bank_connection_id", null: false
     t.string "bank_transaction_code"
     t.date "booking_date"
+    t.bigint "category_id"
     t.datetime "created_at", null: false
     t.string "creditor_iban"
     t.string "creditor_name"
@@ -148,9 +158,10 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_20_130000) do
     t.index ["bank_connection_id", "internal_transaction_id"], name: "idx_on_bank_connection_id_internal_transaction_id_7e9d222c1d", unique: true
     t.index ["bank_connection_id"], name: "index_transactions_on_bank_connection_id"
     t.index ["booking_date"], name: "index_transactions_on_booking_date"
+    t.index ["category_id"], name: "index_transactions_on_category_id"
     t.index ["direction"], name: "index_transactions_on_direction"
     t.index ["invoice_id"], name: "index_transactions_on_invoice_id", unique: true
-    t.check_constraint "(invoice_match_source::text = ANY (ARRAY['manual'::character varying, 'automatic'::character varying]::text[])) OR invoice_match_source IS NULL", name: "transactions_invoice_match_source"
+    t.check_constraint "(invoice_match_source::text = ANY (ARRAY['manual'::character varying::text, 'automatic'::character varying::text])) OR invoice_match_source IS NULL", name: "transactions_invoice_match_source"
   end
 
   create_table "users", force: :cascade do |t|
@@ -177,10 +188,12 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_20_130000) do
   add_foreign_key "active_storage_variant_records", "active_storage_blobs", column: "blob_id"
   add_foreign_key "attachments", "emails"
   add_foreign_key "bank_connections", "users"
+  add_foreign_key "categories", "users"
   add_foreign_key "emails", "users"
   add_foreign_key "invoice_page_images", "invoices"
   add_foreign_key "invoices", "emails"
   add_foreign_key "invoices", "users"
   add_foreign_key "transactions", "bank_connections"
+  add_foreign_key "transactions", "categories", on_delete: :nullify
   add_foreign_key "transactions", "invoices"
 end

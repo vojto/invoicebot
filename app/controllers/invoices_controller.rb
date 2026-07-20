@@ -1,6 +1,24 @@
 class InvoicesController < ApplicationController
   before_action :require_authentication
+  before_action :set_invoice_month, only: [ :index ]
   before_action :set_invoice, only: [ :show, :pdf, :pages, :remove, :restore, :reprocess, :update_accounting_date ]
+
+  def index
+    invoices = current_user.invoices
+      .where(accounting_date: @invoice_month..@invoice_month.end_of_month)
+      .order(accounting_date: :desc, created_at: :desc)
+      .includes(:email, { bank_transaction: :category }, pdf_attachment: :blob)
+
+    render inertia: "invoices/index", props: {
+      invoice_month: {
+        key: @invoice_month.strftime("%Y-%m"),
+        label: @invoice_month.strftime("%B %Y")
+      },
+      invoices: invoices.map { |invoice| serialize_invoice_list_item(invoice) },
+      categories: current_user.categories.order(Arel.sql("LOWER(name)")).map { |category| serialize_category(category) },
+      spending_breakdowns: build_spending_breakdowns(invoices)
+    }
+  end
 
   def show
     render inertia: "invoices/show", props: {
@@ -104,10 +122,85 @@ class InvoicesController < ApplicationController
 
   private
 
+  def set_invoice_month
+    month = params[:month].to_s
+    raise ActiveRecord::RecordNotFound unless month.match?(/\A\d{4}-\d{2}\z/)
+
+    @invoice_month = Date.strptime(month, "%Y-%m")
+  rescue Date::Error
+    raise ActiveRecord::RecordNotFound
+  end
+
   def set_invoice
     @invoice = current_user.invoices
       .includes(:email, :bank_transaction, pdf_attachment: :blob)
       .find(params[:id])
+  end
+
+  def serialize_invoice_list_item(invoice)
+    email = invoice.email
+    transaction = invoice.bank_transaction
+
+    {
+      id: invoice.id,
+      vendor_name: invoice.vendor_name,
+      amount_cents: invoice.amount_cents,
+      currency: invoice.currency,
+      accounting_date: invoice.accounting_date&.iso8601,
+      deleted_at: invoice.deleted_at&.iso8601,
+      note: invoice.note,
+      pdf_url: invoice.pdf.attached? ? url_for(invoice.pdf) : nil,
+      email: email ? {
+        id: email.id,
+        subject: email.subject,
+        from_name: email.from_name,
+        from_address: email.from_address,
+        date: email.date&.iso8601
+      } : nil,
+      bank_transaction: transaction ? {
+        id: transaction.id,
+        vendor_name: transaction.vendor_name,
+        category: transaction.category ? serialize_category(transaction.category) : nil
+      } : nil
+    }
+  end
+
+  def serialize_category(category)
+    {
+      id: category.id,
+      name: category.name
+    }
+  end
+
+  def build_spending_breakdowns(invoices)
+    totals = Hash.new { |currencies, currency| currencies[currency] = Hash.new(0) }
+
+    invoices.each do |invoice|
+      transaction = invoice.bank_transaction
+      next if invoice.soft_deleted? || !invoice.document_type_invoice?
+      next unless transaction&.category && invoice.amount_cents.present? && invoice.currency.present?
+
+      totals[invoice.currency][transaction.category] += invoice.amount_cents
+    end
+
+    totals.map do |currency, category_totals|
+      total_amount_cents = category_totals.values.sum
+      {
+        currency: currency,
+        total_amount_cents: total_amount_cents,
+        total_amount_label: format_amount(total_amount_cents, currency),
+        categories: category_totals
+          .sort_by { |_, amount_cents| -amount_cents }
+          .map { |category, amount_cents|
+            {
+              id: category.id,
+              name: category.name,
+              amount_cents: amount_cents,
+              amount_label: format_amount(amount_cents, currency)
+            }
+          }
+      }
+    end.sort_by { |breakdown| -breakdown[:total_amount_cents] }
   end
 
   def serialize_invoice_detail(invoice)
