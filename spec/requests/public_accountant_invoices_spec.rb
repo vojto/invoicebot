@@ -5,7 +5,8 @@ RSpec.describe "Public accountant invoices", type: :request do
   let(:access) { create(:accountant_access, user: user) }
 
   it "lists only active invoices belonging to the shared user without signing in" do
-    invoice = create(:invoice, user: user, issue_date: Date.new(2026, 7, 10))
+    category = create(:category, user: user, name: "Software")
+    invoice = create(:invoice, user: user, category: category, issue_date: Date.new(2026, 7, 10))
     create(:invoice, user: user, issue_date: Date.new(2026, 7, 11), deleted_at: Time.current)
     create(:invoice, issue_date: Date.new(2026, 7, 12))
     create(:invoice, user: user, issue_date: Date.new(2026, 6, 30))
@@ -18,6 +19,7 @@ RSpec.describe "Public accountant invoices", type: :request do
     expect(response).to have_http_status(:ok)
     expect(response.parsed_body["component"]).to eq("accountant/invoices/show")
     expect(response.parsed_body.dig("props", "invoices").pluck("id")).to eq([ invoice.id ])
+    expect(response.parsed_body.dig("props", "invoices", 0, "category_name")).to eq("Software")
     expect(response.parsed_body.dig("props", "progress_storage_key")).to match(/\A[0-9a-f]{16}\z/)
     expect(response.headers["Cache-Control"]).to include("no-store")
     expect(response.headers["Referrer-Policy"]).to eq("no-referrer")
@@ -30,7 +32,6 @@ RSpec.describe "Public accountant invoices", type: :request do
       user: user,
       issue_date: Date.new(2026, 7, 10),
       delivery_date: Date.new(2026, 7, 11),
-      document_type: :credit_note,
       vendor_country: "SK",
       vendor_eu_vat_id: "SK2020000000"
     )
@@ -57,7 +58,7 @@ RSpec.describe "Public accountant invoices", type: :request do
     expect(props.dig("invoices", 0)).to include(
       "issue_date" => "2026-07-10",
       "delivery_date" => "2026-07-11",
-      "document_type" => "credit_note",
+      "category_name" => nil,
       "vendor_country" => "SK",
       "vendor_eu_vat_id" => "SK2020000000"
     )

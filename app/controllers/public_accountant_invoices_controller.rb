@@ -19,7 +19,7 @@ class PublicAccountantInvoicesController < ApplicationController
     @accountant_access.touch(:last_accessed_at)
     invoices = monthly_invoices
       .order(accounting_date: :asc, created_at: :asc)
-      .includes(pdf_attachment: :blob)
+      .includes(:category, pdf_attachment: :blob)
 
     render inertia: "accountant/invoices/show", props: {
       invoice_month: serialize_month(@invoice_month),
@@ -110,7 +110,7 @@ class PublicAccountantInvoicesController < ApplicationController
       accounting_date: invoice.accounting_date&.iso8601,
       issue_date: invoice.issue_date&.iso8601,
       delivery_date: invoice.delivery_date&.iso8601,
-      document_type: invoice.document_type,
+      category_name: invoice.category&.name,
       vendor_country: invoice.vendor_country,
       vendor_eu_vat_id: invoice.vendor_eu_vat_id,
       pdf_url: invoice.pdf.attached? ? accountant_invoice_pdf_path(

@@ -14,7 +14,7 @@ const InvoiceSchema = z.object({
   accounting_date: z.string().nullable(),
   issue_date: z.string().nullable(),
   delivery_date: z.string().nullable(),
-  document_type: z.enum(["invoice", "credit_note"]),
+  category_name: z.string().nullable(),
   vendor_country: z.string().nullable(),
   vendor_eu_vat_id: z.string().nullable(),
   pdf_url: z.string().nullable(),
@@ -50,10 +50,6 @@ function amountLabel(invoice: Invoice) {
   return invoice.amount_cents == null
     ? "—"
     : formatCurrency(invoice.amount_cents, invoice.currency)
-}
-
-function documentTypeLabel(invoice: Invoice) {
-  return invoice.document_type === "credit_note" ? "Credit note" : "Invoice"
 }
 
 function countryFlag(country: string | null) {
@@ -303,7 +299,7 @@ function AccountantInvoicesShow(props: Props) {
                               : <FileTextIcon color={invoice.pdf_url ? "var(--accent-9)" : "var(--gray-7)"} />}
                             <Box style={{ minWidth: 0 }}>
                               <Text as="div" weight="medium" truncate>{invoice.vendor_name || "Unknown"}</Text>
-                              <Text as="div" size="1" color="gray">{documentTypeLabel(invoice)}</Text>
+                              <Text as="div" size="1" color="gray">{invoice.category_name || "Uncategorized"}</Text>
                             </Box>
                           </Flex>
                         </Table.Cell>
