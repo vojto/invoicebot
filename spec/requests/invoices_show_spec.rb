@@ -49,6 +49,36 @@ RSpec.describe "GET /invoices/:id", type: :request do
       expect(response).to redirect_to("/invoices/#{invoice.id}")
       expect(flash[:notice]).to eq("Invoice created: Hetzner")
     end
+
+    it "processes every PDF in a multi-file upload" do
+      invoices = [
+        create(:invoice, user: user, vendor_name: "Hetzner"),
+        create(:invoice, user: user, vendor_name: "OpenAI")
+      ]
+      processing_service = instance_double(InvoiceProcessingService)
+
+      allow(InvoiceProcessingService).to receive(:new).and_return(processing_service)
+      expect(processing_service).to receive(:extract_invoice_from_pdf).with(
+        user,
+        instance_of(Tempfile),
+        filename: "hetzner.pdf"
+      ).and_return(invoices.first)
+      expect(processing_service).to receive(:extract_invoice_from_pdf).with(
+        user,
+        instance_of(Tempfile),
+        filename: "openai.pdf"
+      ).and_return(invoices.second)
+
+      post "/invoices/upload", params: {
+        files: {
+          "0" => uploaded_file(filename: "hetzner.pdf", content_type: "application/pdf"),
+          "1" => uploaded_file(filename: "openai.pdf", content_type: "application/pdf")
+        }
+      }
+
+      expect(response).to redirect_to("/dashboard")
+      expect(flash[:notice]).to eq("2 invoices created")
+    end
   end
 
   it "renders the invoice detail page with linked email and transaction data" do

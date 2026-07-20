@@ -16,13 +16,13 @@ export default function PdfDropZone({ enabled, children }: PdfDropZoneProps) {
 
     if (!enabled) return
 
-    const files = e.dataTransfer?.files
-    if (!files || files.length === 0) return
+    const droppedFiles = Array.from(e.dataTransfer?.files ?? [])
+    const files = droppedFiles.filter((file) =>
+      file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf"),
+    )
+    if (files.length === 0) return
 
-    const file = files[0]
-    if (file.type !== "application/pdf") return
-
-    router.post("/invoices/upload", { file }, {
+    router.post("/invoices/upload", { files }, {
       forceFormData: true,
     })
   }, [enabled])
@@ -71,7 +71,7 @@ export default function PdfDropZone({ enabled, children }: PdfDropZoneProps) {
           }}
         >
           <Text size="6" weight="bold" style={{ color: "var(--accent-11)" }}>
-            Drop PDF to upload invoice
+            Drop PDFs to upload invoices
           </Text>
         </Box>
       )}

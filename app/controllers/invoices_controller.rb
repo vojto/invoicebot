@@ -81,21 +81,26 @@ class InvoicesController < ApplicationController
   end
 
   def upload
-    file = pdf_upload_param
-    return head :bad_request unless file
+    files = pdf_upload_params
+    return head :bad_request if files.empty?
 
     processing_service = InvoiceProcessingService.new
-    invoice = processing_service.extract_invoice_from_pdf(
-      current_user,
-      file.tempfile,
-      filename: file.original_filename
-    )
+    invoices = files.filter_map do |file|
+      invoice = processing_service.extract_invoice_from_pdf(
+        current_user,
+        file.tempfile,
+        filename: file.original_filename
+      )
+      AutomaticInvoiceMatchingService.match_invoice(invoice) if invoice
+      invoice
+    end
 
-    if invoice
-      AutomaticInvoiceMatchingService.match_invoice(invoice)
-      redirect_to invoice_path(invoice), notice: "Invoice created: #{invoice.vendor_name}"
+    if files.one? && invoices.one?
+      redirect_to invoice_path(invoices.first), notice: "Invoice created: #{invoices.first.vendor_name}"
+    elsif invoices.any?
+      redirect_to dashboard_path, notice: "#{invoices.size} invoices created"
     else
-      redirect_to dashboard_path, alert: "Could not extract invoice from PDF"
+      redirect_to dashboard_path, alert: "Could not extract invoices from PDFs"
     end
   end
 
