@@ -46,7 +46,7 @@ RSpec.describe "Public accountant invoices", type: :request do
     expect(access.reload.last_accessed_at).to be_present
   end
 
-  it "keeps the access token in month navigation and PDF URLs" do
+  it "keeps the access token in download and PDF URLs" do
     invoice = create(
       :invoice,
       user: user,
@@ -63,12 +63,6 @@ RSpec.describe "Public accountant invoices", type: :request do
     ), headers: inertia_headers
 
     props = response.parsed_body["props"]
-    expect(props["previous_month_url"]).to eq(
-      accountant_month_path(month: "2026-06", access_token: access.public_token)
-    )
-    expect(props["next_month_url"]).to eq(
-      accountant_month_path(month: "2026-08", access_token: access.public_token)
-    )
     expect(props["download_url"]).to eq(
       accountant_month_download_path(month: "2026-07", access_token: access.public_token)
     )

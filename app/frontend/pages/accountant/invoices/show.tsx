@@ -1,8 +1,6 @@
-import { Head, Link } from "@inertiajs/react"
+import { Head } from "@inertiajs/react"
 import {
   CheckIcon,
-  ChevronLeftIcon,
-  ChevronRightIcon,
   ColumnsIcon,
   DownloadIcon,
   ExternalLinkIcon,
@@ -63,8 +61,6 @@ const PropsSchema = z.object({
     label: z.string(),
   }),
   progress_storage_key: z.string(),
-  previous_month_url: z.string(),
-  next_month_url: z.string(),
   download_url: z.string(),
   spreadsheet_url: z.string(),
   table: z.object({
@@ -120,25 +116,6 @@ function CountryFlag({ country }: { country: string | null }) {
       title={countryCode}
       className="inline-block h-3 w-[18px] rounded-[2px] shadow-[0_0_0_1px_var(--gray-a5)]"
     />
-  )
-}
-
-function MonthNavigation({ previousUrl, nextUrl }: { previousUrl: string; nextUrl: string }) {
-  return (
-    <nav aria-label="Invoice month">
-      <Flex gap="2">
-        <Button size="2" variant="soft" color="gray" asChild>
-          <Link href={previousUrl}>
-            <ChevronLeftIcon /> Previous
-          </Link>
-        </Button>
-        <Button size="2" variant="soft" color="gray" asChild>
-          <Link href={nextUrl}>
-            Next <ChevronRightIcon />
-          </Link>
-        </Button>
-      </Flex>
-    </nav>
   )
 }
 
@@ -482,8 +459,6 @@ function AccountantInvoicesShow(props: Props) {
   const {
     invoice_month,
     progress_storage_key,
-    previous_month_url,
-    next_month_url,
     download_url,
     spreadsheet_url,
     table,
@@ -577,7 +552,6 @@ function AccountantInvoicesShow(props: Props) {
         </Heading>
         <Flex gap="2" wrap="wrap" justify="end">
           <ViewToggle value={viewMode} onChange={setViewMode} />
-          <MonthNavigation previousUrl={previous_month_url} nextUrl={next_month_url} />
           {invoices.length > 0 && (
             <DownloadGroup
               zipUrl={download_url}
