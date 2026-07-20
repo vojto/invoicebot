@@ -2,10 +2,10 @@ require "rails_helper"
 
 RSpec.describe Invoice, type: :model do
   it "normalizes a valid vendor identity" do
-    invoice = create(:invoice, vendor_country: "sk", vendor_eu_vat_id: "SK 2120299335")
+    invoice = create(:invoice, vendor_country: "ie", vendor_eu_vat_id: "IE 3668997OH")
 
-    expect(invoice.vendor_country).to eq("SK")
-    expect(invoice.vendor_eu_vat_id).to eq("SK2120299335")
+    expect(invoice.vendor_country).to eq("IE")
+    expect(invoice.vendor_eu_vat_id).to eq("IE3668997OH")
   end
 
   it "does not store an invalid EU VAT ID" do

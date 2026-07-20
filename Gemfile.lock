@@ -371,6 +371,7 @@ GEM
       trailblazer-option (>= 0.1.1, < 0.2.0)
       uber (< 0.2.0)
     retriable (4.2.0)
+    rexml (3.4.4)
     rspec-core (3.13.6)
       rspec-support (~> 3.13.0)
     rspec-expectations (3.13.5)
@@ -461,6 +462,8 @@ GEM
     unicode-emoji (4.2.0)
     uri (1.1.1)
     useragent (0.16.11)
+    valvat (2.0.1)
+      rexml (>= 3.3.6, < 4.0.0)
     version_gem (1.1.14)
     vite_rails (3.11.1)
       railties (>= 5.1, < 9)
@@ -524,6 +527,7 @@ DEPENDENCIES
   solid_queue
   thruster
   tzinfo-data
+  valvat (~> 2.0)
   vite_rails (~> 3.0)
   web-console
   whenever

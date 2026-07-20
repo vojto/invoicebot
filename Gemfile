@@ -52,6 +52,9 @@ gem "csv"
 gem "ruby_llm", github: "crmne/ruby_llm"
 gem "ruby_llm-schema"
 
+# EU VAT number normalization and country-specific format validation
+gem "valvat", "~> 2.0"
+
 # Terminal colors
 gem "colorize"
 
