@@ -28,13 +28,10 @@ class AccountantInvoiceTable
     Column.build(key: :vendor_country, label: "Country", kind: :flag, width: 10, split_view: true),
     Column.build(key: :vendor_eu_vat_id, label: "VAT ID", kind: :text, width: 18, split_view: true),
     Column.build(key: :category_name, label: "Category", kind: :text, width: 18),
-    Column.build(key: :invoice_amount, label: "Invoice amount", kind: :amount, width: 16, split_view: true),
-    Column.build(key: :invoice_currency, label: "Invoice currency", kind: :text, width: 16),
+    Column.build(key: :invoice_amount, label: "Invoice amount", kind: :amount, width: 18, split_view: true),
     Column.build(key: :bank_account, label: "Bank account", kind: :text, width: 22),
-    Column.build(key: :bank_amount, label: "Bank amount", kind: :amount, width: 16),
-    Column.build(key: :bank_currency, label: "Bank currency", kind: :text, width: 14),
-    Column.build(key: :original_amount, label: "Original amount", kind: :amount, width: 16),
-    Column.build(key: :original_currency, label: "Original currency", kind: :text, width: 16)
+    Column.build(key: :bank_amount, label: "Bank amount", kind: :amount, width: 18),
+    Column.build(key: :original_amount, label: "Original amount", kind: :amount, width: 18)
   ].freeze
 
   attr_reader :invoices
@@ -50,9 +47,16 @@ class AccountantInvoiceTable
 
   def rows
     invoices.map do |invoice|
+      transaction = invoice.bank_transaction
+
       {
         invoice_id: invoice.id,
         pdf_url: @pdf_url.call(invoice),
+        currencies: {
+          invoice_amount: invoice.currency,
+          bank_amount: transaction&.currency,
+          original_amount: transaction&.original_currency
+        },
         values: columns.to_h { |column| [ column.key, value_for(invoice, column.key) ] }
       }
     end
@@ -71,13 +75,10 @@ class AccountantInvoiceTable
     when :accounting_date then invoice.accounting_date
     when :delivery_date then invoice.delivery_date
     when :invoice_amount then amount(invoice.amount_cents)
-    when :invoice_currency then invoice.currency
     when :transaction_date then (transaction&.booking_date || transaction&.value_date)
     when :bank_account then transaction&.bank_connection&.institution_name.presence
     when :bank_amount then amount(transaction&.amount_cents)
-    when :bank_currency then transaction&.currency
     when :original_amount then amount(transaction&.original_amount_cents)
-    when :original_currency then transaction&.original_currency
     end
   end
 

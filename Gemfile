@@ -47,6 +47,7 @@ gem "thruster", require: false
 # Zip file creation
 gem "rubyzip", require: "zip"
 gem "caxlsx", "~> 4.5"
+gem "money", "~> 7.0"
 gem "csv"
 
 # LLM integration

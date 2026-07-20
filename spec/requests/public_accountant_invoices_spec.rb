@@ -98,12 +98,9 @@ RSpec.describe "Public accountant invoices", type: :request do
       "VAT ID",
       "Category",
       "Invoice amount",
-      "Invoice currency",
       "Bank account",
       "Bank amount",
-      "Bank currency",
-      "Original amount",
-      "Original currency"
+      "Original amount"
     ])
     expect(
       props.dig("table", "columns").select { |column| column["split_view"] }.pluck("label")
@@ -111,6 +108,7 @@ RSpec.describe "Public accountant invoices", type: :request do
     expect(props.dig("table", "rows", 0, "pdf_url")).to eq(
       accountant_invoice_pdf_url(id: invoice.id, access_token: access.public_token)
     )
+    expect(props.dig("table", "rows", 0, "currencies", "invoice_amount")).to eq(invoice.currency)
     expect(props.dig("table", "rows", 0, "values")).to include(
       "vendor_name" => invoice.vendor_name,
       "vendor_country" => "SK",
@@ -209,6 +207,16 @@ RSpec.describe "Public accountant invoices", type: :request do
       issue_date: Date.new(2026, 7, 10)
     )
     invoice.pdf.attach(io: StringIO.new("July PDF"), filename: "invoice.pdf", content_type: "application/pdf")
+    connection = create(:bank_connection, user: user, institution_name: "Business account")
+    create(
+      :transaction,
+      bank_connection: connection,
+      invoice: invoice,
+      amount_cents: 10_000,
+      currency: "USD",
+      original_amount_cents: 8_000,
+      original_currency: "GBP"
+    )
 
     get accountant_month_spreadsheet_path(
       month: "2026-07",
@@ -223,7 +231,12 @@ RSpec.describe "Public accountant invoices", type: :request do
     Zip::File.open_buffer(response.body) do |zip|
       worksheet = zip.find_entry("xl/worksheets/sheet1.xml").get_input_stream.read
       expect(worksheet).to include("Invoice amount", "Transaction date", "VAT ID", "July Vendor")
-      expect(worksheet).not_to include("Status", "Issue date", "Direction", ">PDF<")
+      expect(worksheet).not_to include(
+        "Status", "Issue date", "Direction", ">PDF<",
+        "Invoice currency", "Bank currency", "Original currency"
+      )
+      styles = zip.find_entry("xl/styles.xml").get_input_stream.read.force_encoding(Encoding::UTF_8)
+      expect(styles).to include("€", "$", "£")
       expect(zip.find_entry("xl/worksheets/_rels/sheet1.xml.rels").get_input_stream.read).to include(
         accountant_invoice_pdf_url(id: invoice.id, access_token: access.public_token)
       )

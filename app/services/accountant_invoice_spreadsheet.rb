@@ -6,14 +6,15 @@ class AccountantInvoiceSpreadsheet
   def call
     package = Axlsx::Package.new
     workbook = package.workbook
-    styles = workbook.styles
-    date_style = styles.add_style(format_code: "yyyy-mm-dd")
-    amount_style = styles.add_style(format_code: "#,##0.00", alignment: { horizontal: :right })
-    link_style = styles.add_style(fg_color: "FF0563C1", u: true)
+    @styles = workbook.styles
+    @amount_styles = {}
+    date_style = @styles.add_style(format_code: "yyyy-mm-dd")
+    @default_amount_style = @styles.add_style(format_code: "#,##0.00", alignment: { horizontal: :right })
+    link_style = @styles.add_style(fg_color: "FF0563C1", u: true)
     row_styles = @table.columns.map do |column|
       case column.kind
       when :date then date_style
-      when :amount then amount_style
+      when :amount then @default_amount_style
       when :text then column.key == :vendor_name ? link_style : 0
       else 0
       end
@@ -54,6 +55,11 @@ class AccountantInvoiceSpreadsheet
     @table.rows.each do |record|
       values = @table.columns.map { |column| record[:values][column.key] }
       styles = row_styles.dup
+      @table.columns.each_with_index do |column, index|
+        next unless column.kind == :amount
+
+        styles[index] = currency_style(record[:currencies][column.key])
+      end
       pdf_url = record[:pdf_url]
       styles[vendor_index] = 0 unless pdf_url.present?
       row = sheet.add_row(values, style: styles)
@@ -65,5 +71,20 @@ class AccountantInvoiceSpreadsheet
         tooltip: "Open invoice PDF"
       )
     end
+  end
+
+  def currency_style(currency_code)
+    currency = Money::Currency.find(currency_code)
+    return @default_amount_style unless currency&.symbol.present?
+
+    @amount_styles[currency.iso_code] ||= @styles.add_style(
+      format_code: currency_format(currency),
+      alignment: { horizontal: :right }
+    )
+  end
+
+  def currency_format(currency)
+    symbol = currency.symbol.gsub("&", "&amp;").gsub('"', "&quot;")
+    currency.symbol_first ? "&quot;#{symbol}&quot;#,##0.00" : "#,##0.00 &quot;#{symbol}&quot;"
   end
 end

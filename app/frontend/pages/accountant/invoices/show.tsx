@@ -15,6 +15,7 @@ import { ReactNode, useState } from "react"
 import { z } from "zod"
 import PdfPreview from "../../../components/PdfPreview"
 import PublicLayout from "../../../layouts/public"
+import formatCurrency from "../../../lib/formatCurrency"
 
 const InvoiceSchema = z.object({
   id: z.number(),
@@ -52,6 +53,7 @@ const TableColumnSchema = z.object({
 const TableRowSchema = z.object({
   invoice_id: z.number(),
   pdf_url: z.string().nullable(),
+  currencies: z.record(z.string(), z.string().nullable()),
   values: z.record(z.string(), z.union([z.string(), z.number(), z.boolean(), z.null()])),
 })
 
@@ -92,13 +94,6 @@ function formatDate(value: string | null) {
     day: "numeric",
     timeZone: "UTC",
   }).format(new Date(value))
-}
-
-function formatTableAmount(value: number) {
-  return new Intl.NumberFormat("en-US", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(value)
 }
 
 function CountryFlag({ country }: { country: string | null }) {
@@ -397,11 +392,10 @@ function TableCellContent({
   case "amount": {
     if (typeof value !== "number") return "—"
 
-    const currencyKey = column.key.replace(/_amount$/, "_currency")
-    const currency = row.values[currencyKey]
+    const currency = row.currencies[column.key]
     return (
       <Text weight="medium">
-        {formatTableAmount(value)}{compact && typeof currency === "string" ? ` ${currency}` : ""}
+        {currency ? formatCurrency(Math.round(value * 100), currency) : value.toFixed(2)}
       </Text>
     )
   }
