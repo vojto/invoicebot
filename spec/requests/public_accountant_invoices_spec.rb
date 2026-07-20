@@ -18,6 +18,7 @@ RSpec.describe "Public accountant invoices", type: :request do
     expect(response).to have_http_status(:ok)
     expect(response.parsed_body["component"]).to eq("accountant/invoices/show")
     expect(response.parsed_body.dig("props", "invoices").pluck("id")).to eq([ invoice.id ])
+    expect(response.parsed_body.dig("props", "progress_storage_key")).to match(/\A[0-9a-f]{16}\z/)
     expect(response.headers["Cache-Control"]).to include("no-store")
     expect(response.headers["Referrer-Policy"]).to eq("no-referrer")
     expect(access.reload.last_accessed_at).to be_present

@@ -24,6 +24,7 @@ class PublicAccountantInvoicesController < ApplicationController
 
     render inertia: "accountant/invoices/show", props: {
       invoice_month: serialize_month(@invoice_month),
+      progress_storage_key: progress_storage_key,
       previous_month_url: accountant_month_path(
         month: @invoice_month.prev_month.strftime("%Y-%m"),
         access_token: @accountant_access.public_token
@@ -101,5 +102,9 @@ class PublicAccountantInvoicesController < ApplicationController
         access_token: @accountant_access.public_token
       ) : nil
     }
+  end
+
+  def progress_storage_key
+    Digest::SHA256.hexdigest("#{@accountant_access.id}:#{@accountant_access.token_digest}").first(16)
   end
 end
