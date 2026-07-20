@@ -14,7 +14,7 @@ class AccountantInvoiceSpreadsheet
       case column.kind
       when :date then date_style
       when :amount then amount_style
-      when :pdf then link_style
+      when :text then column.key == :vendor_name ? link_style : 0
       else 0
       end
     end
@@ -49,20 +49,19 @@ class AccountantInvoiceSpreadsheet
   private
 
   def add_data_rows(sheet, row_styles)
-    pdf_index = @table.columns.index { |column| column.kind == :pdf }
+    vendor_index = @table.columns.index { |column| column.key == :vendor_name }
 
     @table.rows.each do |record|
-      values = @table.columns.map do |column|
-        value = record[:values][column.key]
-        column.kind == :pdf && value.present? ? "Open PDF" : value
-      end
-      row = sheet.add_row(values, style: row_styles)
-      pdf_url = record[:values][:pdf_url]
+      values = @table.columns.map { |column| record[:values][column.key] }
+      styles = row_styles.dup
+      pdf_url = record[:pdf_url]
+      styles[vendor_index] = 0 unless pdf_url.present?
+      row = sheet.add_row(values, style: styles)
       next unless pdf_url.present?
 
       sheet.add_hyperlink(
         location: pdf_url,
-        ref: row.cells[pdf_index],
+        ref: row.cells[vendor_index],
         tooltip: "Open invoice PDF"
       )
     end

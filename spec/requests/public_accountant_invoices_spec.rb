@@ -89,18 +89,32 @@ RSpec.describe "Public accountant invoices", type: :request do
       "vendor_eu_vat_id" => "SK2020000000"
     )
     expect(props.dig("invoices", 0)).not_to have_key("note")
-    expect(props.dig("table", "columns").pluck("label")).to eq(
-      AccountantInvoiceTable::COLUMNS.map(&:label)
-    )
+    expect(props.dig("table", "columns").pluck("label")).to eq([
+      "Accounting date",
+      "Delivery date",
+      "Transaction date",
+      "Vendor",
+      "Country",
+      "VAT ID",
+      "Category",
+      "Invoice amount",
+      "Invoice currency",
+      "Bank account",
+      "Bank amount",
+      "Bank currency",
+      "Original amount",
+      "Original currency"
+    ])
     expect(
       props.dig("table", "columns").select { |column| column["split_view"] }.pluck("label")
-    ).to eq([ "Vendor", "Country", "VAT ID", "Accounting date", "Invoice amount" ])
+    ).to eq([ "Accounting date", "Vendor", "Country", "VAT ID", "Invoice amount" ])
+    expect(props.dig("table", "rows", 0, "pdf_url")).to eq(
+      accountant_invoice_pdf_url(id: invoice.id, access_token: access.public_token)
+    )
     expect(props.dig("table", "rows", 0, "values")).to include(
-      "status" => "Pending",
       "vendor_name" => invoice.vendor_name,
       "vendor_country" => "SK",
       "vendor_eu_vat_id" => "SK2020000000",
-      "issue_date" => "2026-07-10",
       "delivery_date" => "2026-07-11"
     )
   end
@@ -198,8 +212,7 @@ RSpec.describe "Public accountant invoices", type: :request do
 
     get accountant_month_spreadsheet_path(
       month: "2026-07",
-      access_token: access.public_token,
-      processed_invoice_ids: invoice.id.to_s
+      access_token: access.public_token
     )
 
     expect(response).to have_http_status(:ok)
@@ -209,7 +222,11 @@ RSpec.describe "Public accountant invoices", type: :request do
 
     Zip::File.open_buffer(response.body) do |zip|
       worksheet = zip.find_entry("xl/worksheets/sheet1.xml").get_input_stream.read
-      expect(worksheet).to include("Invoice amount", "Transaction date", "VAT ID", "Processed", "July Vendor")
+      expect(worksheet).to include("Invoice amount", "Transaction date", "VAT ID", "July Vendor")
+      expect(worksheet).not_to include("Status", "Issue date", "Direction", ">PDF<")
+      expect(zip.find_entry("xl/worksheets/_rels/sheet1.xml.rels").get_input_stream.read).to include(
+        accountant_invoice_pdf_url(id: invoice.id, access_token: access.public_token)
+      )
       expect(zip.find_entry("xl/tables/table1.xml").get_input_stream.read).to include('name="AccountantInvoices"')
     end
   end

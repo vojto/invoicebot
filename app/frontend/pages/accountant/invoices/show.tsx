@@ -43,7 +43,7 @@ const InvoiceSchema = z.object({
 const TableColumnSchema = z.object({
   key: z.string(),
   label: z.string(),
-  kind: z.enum(["status", "text", "flag", "date", "amount", "direction", "pdf"]),
+  kind: z.enum(["text", "flag", "date", "amount"]),
   width: z.number(),
   split_view: z.boolean(),
   align: z.enum(["start", "center", "end"]),
@@ -51,6 +51,7 @@ const TableColumnSchema = z.object({
 
 const TableRowSchema = z.object({
   invoice_id: z.number(),
+  pdf_url: z.string().nullable(),
   values: z.record(z.string(), z.union([z.string(), z.number(), z.boolean(), z.null()])),
 })
 
@@ -112,91 +113,87 @@ function CountryFlag({ country }: { country: string | null }) {
       src={flagUrl}
       alt={countryCode}
       title={countryCode}
-      className="inline-block h-4 w-6 rounded-[2px] shadow-[0_0_0_1px_var(--gray-a5)]"
+      className="inline-block h-3 w-[18px] rounded-[2px] shadow-[0_0_0_1px_var(--gray-a5)]"
     />
+  )
+}
+
+function ButtonGroup({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <div
+      role="group"
+      aria-label={label}
+      className="inline-flex items-center gap-1 rounded-lg bg-[var(--gray-a3)] p-1 shadow-[inset_0_0_0_1px_var(--gray-a5)]"
+    >
+      {children}
+    </div>
   )
 }
 
 function MonthNavigation({ previousUrl, nextUrl }: { previousUrl: string; nextUrl: string }) {
   return (
-    <nav
-      aria-label="Invoice month"
-      className="inline-flex overflow-hidden rounded-md border border-[var(--gray-a6)] bg-[var(--color-background)] shadow-sm"
-    >
-      <Link
-        href={previousUrl}
-        className="inline-flex h-8 items-center gap-1 border-r border-[var(--gray-a6)] px-2.5 text-sm font-medium text-[var(--gray-11)] hover:bg-[var(--gray-a3)] focus-visible:z-10 focus-visible:outline-2 focus-visible:outline-[var(--accent-8)]"
-      >
-        <ChevronLeftIcon /> Previous
-      </Link>
-      <Link
-        href={nextUrl}
-        className="inline-flex h-8 items-center gap-1 px-2.5 text-sm font-medium text-[var(--gray-11)] hover:bg-[var(--gray-a3)] focus-visible:z-10 focus-visible:outline-2 focus-visible:outline-[var(--accent-8)]"
-      >
-        Next <ChevronRightIcon />
-      </Link>
+    <nav aria-label="Invoice month">
+      <ButtonGroup label="Invoice month navigation">
+        <Button size="1" variant="ghost" color="gray" asChild>
+          <Link href={previousUrl}>
+            <ChevronLeftIcon /> Previous
+          </Link>
+        </Button>
+        <Button size="1" variant="ghost" color="gray" asChild>
+          <Link href={nextUrl}>
+            Next <ChevronRightIcon />
+          </Link>
+        </Button>
+      </ButtonGroup>
     </nav>
   )
 }
 
 function ViewToggle({ value, onChange }: { value: ViewMode; onChange: (value: ViewMode) => void }) {
   return (
-    <div
-      role="group"
-      aria-label="Invoice display"
-      className="inline-flex overflow-hidden rounded-md border border-[var(--gray-a6)] bg-[var(--color-background)] shadow-sm"
-    >
-      <button
+    <ButtonGroup label="Invoice display">
+      <Button
+        size="1"
+        variant={value === "split" ? "soft" : "ghost"}
+        color={value === "split" ? undefined : "gray"}
         type="button"
         aria-pressed={value === "split"}
         onClick={() => onChange("split")}
-        className={`inline-flex h-8 items-center gap-1.5 border-r border-[var(--gray-a6)] px-2.5 text-sm font-medium ${value === "split" ? "bg-[var(--accent-a4)] text-[var(--accent-11)]" : "text-[var(--gray-11)] hover:bg-[var(--gray-a3)]"}`}
       >
         <ColumnsIcon /> Split
-      </button>
-      <button
+      </Button>
+      <Button
+        size="1"
+        variant={value === "table" ? "soft" : "ghost"}
+        color={value === "table" ? undefined : "gray"}
         type="button"
         aria-pressed={value === "table"}
         onClick={() => onChange("table")}
-        className={`inline-flex h-8 items-center gap-1.5 px-2.5 text-sm font-medium ${value === "table" ? "bg-[var(--accent-a4)] text-[var(--accent-11)]" : "text-[var(--gray-11)] hover:bg-[var(--gray-a3)]"}`}
       >
         <TableIcon /> Table
-      </button>
-    </div>
+      </Button>
+    </ButtonGroup>
   )
 }
 
-function DownloadGroup({ zipUrl, spreadsheetUrl, processedInvoiceIds, monthLabel }: {
+function DownloadGroup({ zipUrl, spreadsheetUrl, monthLabel }: {
   zipUrl: string
   spreadsheetUrl: string
-  processedInvoiceIds: number[]
   monthLabel: string
 }) {
-  const processedParam = processedInvoiceIds.length > 0
-    ? `&processed_invoice_ids=${encodeURIComponent(processedInvoiceIds.join(","))}`
-    : ""
-
   return (
-    <div
-      role="group"
-      aria-label={`Download ${monthLabel} invoices`}
-      className="inline-flex overflow-hidden rounded-md border border-[var(--accent-a7)] bg-[var(--accent-a3)] shadow-sm"
-    >
-      <a
-        href={zipUrl}
-        download
-        className="inline-flex h-8 items-center gap-1.5 border-r border-[var(--accent-a7)] px-2.5 text-sm font-medium text-[var(--accent-11)] hover:bg-[var(--accent-a4)]"
-      >
-        <DownloadIcon /> ZIP
-      </a>
-      <a
-        href={`${spreadsheetUrl}${processedParam}`}
-        download
-        className="inline-flex h-8 items-center gap-1.5 px-2.5 text-sm font-medium text-[var(--accent-11)] hover:bg-[var(--accent-a4)]"
-      >
-        <TableIcon /> Excel
-      </a>
-    </div>
+    <ButtonGroup label={`Download ${monthLabel} invoices`}>
+      <Button size="1" variant="ghost" color="gray" asChild>
+        <a href={zipUrl} download>
+          <DownloadIcon /> ZIP
+        </a>
+      </Button>
+      <Button size="1" variant="ghost" color="gray" asChild>
+        <a href={spreadsheetUrl} download>
+          <TableIcon /> Excel
+        </a>
+      </Button>
+    </ButtonGroup>
   )
 }
 
@@ -362,26 +359,25 @@ function ProgressFooter({ processedCount, invoiceCount, onReset }: { processedCo
 function TableCellContent({
   column,
   row,
-  isProcessed,
+  isProcessed = false,
   compact = false,
-  onToggleProcessed,
 }: {
   column: TableColumn
   row: TableRow
-  isProcessed: boolean
+  isProcessed?: boolean
   compact?: boolean
-  onToggleProcessed?: () => void
 }) {
   const value = row.values[column.key]
 
-  if (compact && column.key === "vendor_name") {
-    return (
+  if (column.key === "vendor_name") {
+    const vendor = typeof value === "string" && value ? value : "Unknown"
+    const content = compact ? (
       <Flex align="center" gap="2">
         {isProcessed
           ? <CheckIcon style={{ color: "var(--accent-9)" }} />
-          : <FileTextIcon color={row.values.pdf_url ? "var(--accent-9)" : "var(--gray-7)"} />}
+          : <FileTextIcon color={row.pdf_url ? "var(--accent-9)" : "var(--gray-7)"} />}
         <Box style={{ minWidth: 0 }}>
-          <Text as="div" weight="medium" truncate>{typeof value === "string" && value ? value : "Unknown"}</Text>
+          <Text as="div" weight="medium" truncate>{vendor}</Text>
           <Text as="div" size="1" color="gray">
             {typeof row.values.category_name === "string" && row.values.category_name
               ? row.values.category_name
@@ -389,23 +385,23 @@ function TableCellContent({
           </Text>
         </Box>
       </Flex>
+    ) : <Text weight="medium">{vendor}</Text>
+
+    return !compact && row.pdf_url ? (
+      <a
+        href={row.pdf_url}
+        target="_blank"
+        rel="noreferrer"
+        className="text-inherit underline decoration-dotted underline-offset-2 hover:decoration-solid"
+      >
+        {content}
+      </a>
+    ) : (
+      content
     )
   }
 
   switch (column.kind) {
-  case "status":
-    return (
-      <Button
-        size="1"
-        variant={isProcessed ? "soft" : "ghost"}
-        color={isProcessed ? "gray" : undefined}
-        onClick={onToggleProcessed}
-        data-testid={`accountant-table-toggle-${row.invoice_id}`}
-      >
-        {isProcessed ? <ResetIcon /> : <CheckIcon />}
-        {isProcessed ? "Undo" : "Done"}
-      </Button>
-    )
   case "flag":
     return <CountryFlag country={typeof value === "string" ? value : null} />
   case "date":
@@ -421,16 +417,6 @@ function TableCellContent({
       </Text>
     )
   }
-  case "direction":
-    return <span className="capitalize">{typeof value === "string" ? value : "—"}</span>
-  case "pdf":
-    return typeof value === "string" ? (
-      <Button size="1" variant="ghost" asChild>
-        <a href={value} target="_blank" rel="noreferrer">
-          <ExternalLinkIcon /> Open
-        </a>
-      </Button>
-    ) : "—"
   default:
     return value == null || value === "" ? "—" : String(value)
   }
@@ -438,21 +424,15 @@ function TableCellContent({
 
 function FullInvoiceTable({
   table,
-  processedInvoiceIds,
-  onToggleProcessed,
-  onReset,
 }: {
   table: Props["table"]
-  processedInvoiceIds: Set<number>
-  onToggleProcessed: (invoiceId: number) => void
-  onReset: () => void
 }) {
   const tableWidth = table.columns.reduce((width, column) => width + column.width * 8, 0)
 
   return (
     <section className="flex w-full min-w-0 flex-col overflow-hidden rounded-xl border border-[var(--gray-a6)] bg-[var(--color-background)] shadow-sm" aria-label="Invoice table">
       <div className="w-full overflow-auto">
-        <Table.Root size="2" style={{ minWidth: tableWidth, width: "100%" }}>
+        <Table.Root size="1" style={{ minWidth: tableWidth, width: "100%" }}>
           <Table.Header style={{ position: "sticky", top: 0, zIndex: 1, backgroundColor: "var(--color-background)" }}>
             <Table.Row>
               {table.columns.map((column) => (
@@ -467,29 +447,18 @@ function FullInvoiceTable({
             </Table.Row>
           </Table.Header>
           <Table.Body>
-            {table.rows.map((row) => {
-              const isProcessed = processedInvoiceIds.has(row.invoice_id)
-
-              return (
-                <Table.Row key={row.invoice_id} style={{ color: isProcessed ? "var(--gray-9)" : undefined }}>
-                  {table.columns.map((column) => (
-                    <Table.Cell key={column.key} justify={column.align} className="whitespace-nowrap">
-                      <TableCellContent
-                        column={column}
-                        row={row}
-                        isProcessed={isProcessed}
-                        onToggleProcessed={() => onToggleProcessed(row.invoice_id)}
-                      />
-                    </Table.Cell>
-                  ))}
-                </Table.Row>
-              )
-            })}
+            {table.rows.map((row) => (
+              <Table.Row key={row.invoice_id}>
+                {table.columns.map((column) => (
+                  <Table.Cell key={column.key} justify={column.align} className="whitespace-nowrap">
+                    <TableCellContent column={column} row={row} />
+                  </Table.Cell>
+                ))}
+              </Table.Row>
+            ))}
           </Table.Body>
         </Table.Root>
       </div>
-
-      <ProgressFooter processedCount={processedInvoiceIds.size} invoiceCount={table.rows.length} onReset={onReset} />
     </section>
   )
 }
@@ -580,7 +549,6 @@ function AccountantInvoicesShow(props: Props) {
             <DownloadGroup
               zipUrl={download_url}
               spreadsheetUrl={spreadsheet_url}
-              processedInvoiceIds={processedInvoiceIds}
               monthLabel={invoice_month.label}
             />
           )}
@@ -593,15 +561,7 @@ function AccountantInvoicesShow(props: Props) {
           <Text color="gray">No invoices found for {invoice_month.label}.</Text>
         </Flex>
       ) : viewMode === "table" ? (
-        <FullInvoiceTable
-          table={table}
-          processedInvoiceIds={processedInvoiceIdSet}
-          onToggleProcessed={(invoiceId) => {
-            const invoice = invoices.find((candidate) => candidate.id === invoiceId)
-            if (invoice) toggleProcessed(invoice, false)
-          }}
-          onReset={handleReset}
-        />
+        <FullInvoiceTable table={table} />
       ) : (
         <div className="grid min-h-[680px] overflow-hidden rounded-xl border border-[var(--gray-a6)] bg-[var(--color-background)] shadow-sm lg:h-[calc(100vh-178px)] lg:grid-cols-2">
           <section className="flex min-h-0 min-w-0 flex-col border-b border-[var(--gray-a6)] lg:border-b-0 lg:border-r" aria-label="Invoices">

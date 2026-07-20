@@ -61,10 +61,7 @@ class PublicAccountantInvoicesController < ApplicationController
     invoices = ordered_monthly_invoices
     return head :not_found if invoices.empty?
 
-    invoice_table = accountant_invoice_table(
-      invoices,
-      processed_invoice_ids: processed_invoice_ids
-    )
+    invoice_table = accountant_invoice_table(invoices)
 
     send_data AccountantInvoiceSpreadsheet.new(invoice_table).call,
       filename: "invoices-#{@invoice_month.strftime('%Y-%m')}.xlsx",
@@ -150,10 +147,9 @@ class PublicAccountantInvoicesController < ApplicationController
       .includes(:category, bank_transaction: :bank_connection, pdf_attachment: :blob)
   end
 
-  def accountant_invoice_table(invoices, processed_invoice_ids: [])
+  def accountant_invoice_table(invoices)
     AccountantInvoiceTable.new(
       invoices,
-      processed_invoice_ids: processed_invoice_ids,
       pdf_url: ->(invoice) {
         invoice.pdf.attached? ? accountant_invoice_pdf_url(
           id: invoice.id,
@@ -161,12 +157,6 @@ class PublicAccountantInvoicesController < ApplicationController
         ) : nil
       }
     )
-  end
-
-  def processed_invoice_ids
-    params[:processed_invoice_ids].to_s.split(",").filter_map do |invoice_id|
-      Integer(invoice_id, exception: false)
-    end
   end
 
   def serialize_month(month)
