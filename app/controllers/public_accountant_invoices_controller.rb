@@ -19,7 +19,7 @@ class PublicAccountantInvoicesController < ApplicationController
     @accountant_access.touch(:last_accessed_at)
     invoices = shared_invoices
       .where(accounting_date: @invoice_month..@invoice_month.end_of_month)
-      .order(accounting_date: :desc, created_at: :desc)
+      .order(accounting_date: :asc, created_at: :asc)
       .includes(pdf_attachment: :blob)
 
     render inertia: "accountant/invoices/show", props: {
@@ -96,7 +96,6 @@ class PublicAccountantInvoicesController < ApplicationController
       document_type: invoice.document_type,
       vendor_country: invoice.vendor_country,
       vendor_eu_vat_id: invoice.vendor_eu_vat_id,
-      note: invoice.note,
       pdf_url: invoice.pdf.attached? ? accountant_invoice_pdf_path(
         id: invoice.id,
         access_token: @accountant_access.public_token

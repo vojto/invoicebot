@@ -32,8 +32,7 @@ RSpec.describe "Public accountant invoices", type: :request do
       delivery_date: Date.new(2026, 7, 11),
       document_type: :credit_note,
       vendor_country: "SK",
-      vendor_eu_vat_id: "SK2020000000",
-      note: "Quarterly adjustment"
+      vendor_eu_vat_id: "SK2020000000"
     )
     invoice.pdf.attach(io: StringIO.new("%PDF-1.4 test"), filename: "invoice.pdf", content_type: "application/pdf")
 
@@ -57,9 +56,24 @@ RSpec.describe "Public accountant invoices", type: :request do
       "delivery_date" => "2026-07-11",
       "document_type" => "credit_note",
       "vendor_country" => "SK",
-      "vendor_eu_vat_id" => "SK2020000000",
-      "note" => "Quarterly adjustment"
+      "vendor_eu_vat_id" => "SK2020000000"
     )
+    expect(props.dig("invoices", 0)).not_to have_key("note")
+  end
+
+  it "orders invoices from oldest to newest" do
+    newer_invoice = create(:invoice, user: user, issue_date: Date.new(2026, 7, 20))
+    older_invoice = create(:invoice, user: user, issue_date: Date.new(2026, 7, 2))
+
+    get accountant_month_path(
+      month: "2026-07",
+      access_token: access.public_token
+    ), headers: inertia_headers
+
+    expect(response.parsed_body.dig("props", "invoices").pluck("id")).to eq([
+      older_invoice.id,
+      newer_invoice.id
+    ])
   end
 
   it "redirects generated links to a self-contained month URL" do

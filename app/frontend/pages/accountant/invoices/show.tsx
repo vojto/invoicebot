@@ -1,6 +1,6 @@
 import { Head, Link } from "@inertiajs/react"
 import { CheckIcon, ExternalLinkIcon, FileTextIcon, ResetIcon } from "@radix-ui/react-icons"
-import { Badge, Box, Button, Flex, Heading, Table, Text } from "@radix-ui/themes"
+import { Box, Button, Flex, Heading, Table, Text } from "@radix-ui/themes"
 import { ReactNode, useState } from "react"
 import { z } from "zod"
 import PublicLayout from "../../../layouts/public"
@@ -17,7 +17,6 @@ const InvoiceSchema = z.object({
   document_type: z.enum(["invoice", "credit_note"]),
   vendor_country: z.string().nullable(),
   vendor_eu_vat_id: z.string().nullable(),
-  note: z.string().nullable(),
   pdf_url: z.string().nullable(),
 })
 
@@ -54,6 +53,13 @@ function amountLabel(invoice: Invoice) {
 
 function documentTypeLabel(invoice: Invoice) {
   return invoice.document_type === "credit_note" ? "Credit note" : "Invoice"
+}
+
+function countryFlag(country: string | null) {
+  const countryCode = country?.trim().toUpperCase()
+  if (!countryCode?.match(/^[A-Z]{2}$/)) return null
+
+  return String.fromCodePoint(...[...countryCode].map((letter) => letter.charCodeAt(0) + 127397))
 }
 
 function loadProcessedInvoiceIds(storageKey: string, invoices: Invoice[]) {
@@ -97,46 +103,27 @@ function Detail({ label, value }: { label: string; value: ReactNode }) {
 
 function InvoiceDetails({ invoice, onDone }: { invoice: Invoice; onDone: () => void }) {
   return (
-    <Box p="4" style={{ borderBottom: "1px solid var(--gray-a5)", backgroundColor: "var(--color-background)" }}>
-      <Flex justify="between" align="start" gap="4" wrap="wrap">
-        <Box>
-          <Flex align="center" gap="2" mb="2">
-            <Badge color={invoice.document_type === "credit_note" ? "orange" : "blue"}>
-              {documentTypeLabel(invoice)}
-            </Badge>
-            {invoice.vendor_country && <Badge color="gray">{invoice.vendor_country}</Badge>}
-          </Flex>
-          <Heading size="5">{invoice.vendor_name || "Unknown vendor"}</Heading>
-          <Text as="div" size="4" weight="bold" mt="1">{amountLabel(invoice)}</Text>
-        </Box>
+    <Box p="3" style={{ borderBottom: "1px solid var(--gray-a5)", backgroundColor: "var(--color-background)" }}>
+      <Flex justify="between" align="center" gap="4" wrap="wrap">
+        <div className="grid flex-1 grid-cols-2 gap-4 sm:grid-cols-3">
+          <Detail label="Issue date" value={formatDate(invoice.issue_date)} />
+          <Detail label="Delivery date" value={formatDate(invoice.delivery_date)} />
+          <Detail label="Supplier VAT ID" value={invoice.vendor_eu_vat_id} />
+        </div>
 
-        <Flex gap="2">
+        <Flex gap="2" ml="auto">
           {invoice.pdf_url && (
-            <Button variant="soft" asChild>
+            <Button size="1" variant="soft" asChild>
               <a href={invoice.pdf_url} target="_blank" rel="noreferrer">
                 <ExternalLinkIcon /> Open PDF
               </a>
             </Button>
           )}
-          <Button onClick={onDone} data-testid="accountant-done">
+          <Button size="1" onClick={onDone} data-testid="accountant-done">
             <CheckIcon /> Done
           </Button>
         </Flex>
       </Flex>
-
-      <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-4">
-        <Detail label="Accounting date" value={formatDate(invoice.accounting_date)} />
-        <Detail label="Issue date" value={formatDate(invoice.issue_date)} />
-        <Detail label="Delivery date" value={formatDate(invoice.delivery_date)} />
-        <Detail label="Supplier VAT ID" value={invoice.vendor_eu_vat_id} />
-      </div>
-
-      {invoice.note && (
-        <Box mt="4" pt="3" style={{ borderTop: "1px solid var(--gray-a4)" }}>
-          <Text as="div" size="1" color="gray" mb="1">Note</Text>
-          <Text as="div" size="2">{invoice.note}</Text>
-        </Box>
-      )}
     </Box>
   )
 }
@@ -239,16 +226,16 @@ function AccountantInvoicesShow(props: Props) {
         <meta name="referrer" content="no-referrer" />
       </Head>
 
-      <Flex justify="between" align="center" mb="5" wrap="wrap" gap="3">
-        <Box>
-          <Heading size="6">Invoices — {invoice_month.label}</Heading>
-          <Text size="2" color="gray">{invoices.length} invoices</Text>
-        </Box>
+      <Flex justify="between" align="center" mb="3" wrap="wrap" gap="3">
+        <Heading size="4">
+          Invoices — {invoice_month.label}{" "}
+          <Text as="span" size="3" color="gray" weight="regular">({invoices.length})</Text>
+        </Heading>
         <Flex gap="2">
-          <Button variant="soft" color="gray" asChild>
+          <Button size="1" variant="soft" color="gray" asChild>
             <Link href={previous_month_url}>Previous month</Link>
           </Button>
-          <Button variant="soft" color="gray" asChild>
+          <Button size="1" variant="soft" color="gray" asChild>
             <Link href={next_month_url}>Next month</Link>
           </Button>
         </Flex>
@@ -267,13 +254,15 @@ function AccountantInvoicesShow(props: Props) {
                 <Table.Header style={{ position: "sticky", top: 0, zIndex: 1, backgroundColor: "var(--color-background)" }}>
                   <Table.Row>
                     <Table.ColumnHeaderCell>Vendor</Table.ColumnHeaderCell>
-                    <Table.ColumnHeaderCell width="130px">Date</Table.ColumnHeaderCell>
-                    <Table.ColumnHeaderCell width="130px" justify="end">Amount</Table.ColumnHeaderCell>
+                    <Table.ColumnHeaderCell width="70px" justify="center">Country</Table.ColumnHeaderCell>
+                    <Table.ColumnHeaderCell width="120px">Date</Table.ColumnHeaderCell>
+                    <Table.ColumnHeaderCell width="120px" justify="end">Amount</Table.ColumnHeaderCell>
                   </Table.Row>
                 </Table.Header>
                 <Table.Body>
                   {visibleInvoices.map((invoice) => {
                     const isSelected = invoice.id === selectedInvoice?.id
+                    const flag = countryFlag(invoice.vendor_country)
 
                     return (
                       <Table.Row
@@ -302,6 +291,19 @@ function AccountantInvoicesShow(props: Props) {
                               <Text as="div" size="1" color="gray">{documentTypeLabel(invoice)}</Text>
                             </Box>
                           </Flex>
+                        </Table.Cell>
+                        <Table.Cell justify="center">
+                          {flag ? (
+                            <Text
+                              as="span"
+                              size="4"
+                              role="img"
+                              aria-label={invoice.vendor_country || undefined}
+                              title={invoice.vendor_country || undefined}
+                            >
+                              {flag}
+                            </Text>
+                          ) : "—"}
                         </Table.Cell>
                         <Table.Cell>{formatDate(invoice.accounting_date)}</Table.Cell>
                         <Table.Cell justify="end">
