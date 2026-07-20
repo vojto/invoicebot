@@ -6,6 +6,7 @@ RSpec.describe InvoiceReprocessingJob, type: :job do
       :invoice,
       is_reprocessing: true,
       vendor_name: "Old Vendor",
+      vendor_country: "US",
       amount_cents: 1000,
       currency: "EUR",
       issue_date: Date.new(2026, 1, 1),
@@ -30,6 +31,8 @@ RSpec.describe InvoiceReprocessingJob, type: :job do
         is_invoice: true,
         document_type: "credit_note",
         vendor_name: "New Vendor",
+        vendor_country: "sk",
+        vendor_eu_vat_id: "SK 2120299335",
         amount_cents: 2500,
         currency: "USD",
         issue_date: Date.new(2026, 2, 1),
@@ -43,6 +46,8 @@ RSpec.describe InvoiceReprocessingJob, type: :job do
     invoice.reload
     expect(invoice.is_reprocessing).to eq(false)
     expect(invoice.vendor_name).to eq("New Vendor")
+    expect(invoice.vendor_country).to eq("SK")
+    expect(invoice.vendor_eu_vat_id).to eq("SK2120299335")
     expect(invoice.amount_cents).to eq(2500)
     expect(invoice.currency).to eq("USD")
     expect(invoice.document_type).to eq("credit_note")

@@ -1,6 +1,19 @@
 require "rails_helper"
 
 RSpec.describe Invoice, type: :model do
+  it "normalizes a valid vendor identity" do
+    invoice = create(:invoice, vendor_country: "sk", vendor_eu_vat_id: "SK 2120299335")
+
+    expect(invoice.vendor_country).to eq("SK")
+    expect(invoice.vendor_eu_vat_id).to eq("SK2120299335")
+  end
+
+  it "does not store an invalid EU VAT ID" do
+    invoice = create(:invoice, vendor_eu_vat_id: "US123456789")
+
+    expect(invoice.vendor_eu_vat_id).to be_nil
+  end
+
   describe "#reprocess!" do
     around do |example|
       original_adapter = ActiveJob::Base.queue_adapter

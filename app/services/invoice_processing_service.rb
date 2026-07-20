@@ -132,6 +132,8 @@ class InvoiceProcessingService
 
     invoice = user.invoices.create!(
       vendor_name: extraction[:vendor_name] || fallback_vendor,
+      vendor_country: extraction[:vendor_country],
+      vendor_eu_vat_id: extraction[:vendor_eu_vat_id],
       amount_cents: extraction[:amount_cents],
       currency: extraction[:currency] || fallback_currency,
       document_type: extraction[:document_type] || fallback_document_type,
@@ -210,6 +212,8 @@ class InvoiceProcessingService
     invoice.assign_attributes(
       user: email.user,
       vendor_name: extraction[:vendor_name],
+      vendor_country: extraction[:vendor_country],
+      vendor_eu_vat_id: extraction[:vendor_eu_vat_id],
       amount_cents: extraction[:amount_cents],
       currency: extraction[:currency],
       document_type: extraction[:document_type],

@@ -13,6 +13,14 @@ class InvoiceExtractionAgent < ApplicationAgent
           null
         end
         string :vendor_name, description: "Business that issued the document"
+        any_of :vendor_country do
+          string description: "Vendor country as an uppercase two-letter ISO 3166-1 alpha-2 code"
+          null
+        end
+        any_of :vendor_eu_vat_id do
+          string description: "EU VAT ID normalized to two uppercase letters followed by 8 to 12 digits, without spaces or punctuation"
+          null
+        end
         any_of :document_number do
           string
           null
@@ -55,6 +63,8 @@ class InvoiceExtractionAgent < ApplicationAgent
     For an invoice, total.kind is invoice_total and the amount is the original grand total charged, not the remaining balance. For a credit note, total.kind is credit_total and the amount is the credit issued by this document, not the referenced invoice's total. Always return a positive amount in cents.
 
     Interpret numeric dates using the vendor's country: day/month/year for most countries and month/day/year for the United States. Only return delivery_date when explicitly stated. A header-level service period may use its end date; a period mentioned only inside a line item may not.
+
+    Return vendor_country only when the document identifies it through the vendor address or tax identity. Return vendor_eu_vat_id only for the vendor (not the customer), normalized like SK2120299335. Return null unless it has an EU VAT prefix followed by 8 to 12 digits.
   PROMPT
 
   # Initialize with either an attachment or a raw PDF path.
@@ -192,6 +202,8 @@ class InvoiceExtractionAgent < ApplicationAgent
       referenced_invoice_number: data[:referenced_invoice_number],
       amount_kind: data[:amount_kind],
       vendor_name: data[:vendor_name],
+      vendor_country: data[:vendor_country],
+      vendor_eu_vat_id: data[:vendor_eu_vat_id],
       amount_cents: data[:amount_cents],
       currency: data[:currency],
       issue_date: data[:issue_date],
@@ -219,6 +231,8 @@ class InvoiceExtractionAgent < ApplicationAgent
       document_number: document[:document_number],
       referenced_invoice_number: document[:referenced_invoice_number],
       vendor_name: document[:vendor_name],
+      vendor_country: normalize_country(document[:vendor_country], document[:vendor_eu_vat_id]),
+      vendor_eu_vat_id: EuVatId.normalize(document[:vendor_eu_vat_id]),
       amount_cents: total[:amount_cents],
       currency: total[:currency],
       amount_kind: total[:kind],
@@ -253,6 +267,8 @@ class InvoiceExtractionAgent < ApplicationAgent
       document_number: nil,
       referenced_invoice_number: nil,
       vendor_name: nil,
+      vendor_country: nil,
+      vendor_eu_vat_id: nil,
       amount_cents: nil,
       currency: nil,
       amount_kind: nil,
@@ -264,6 +280,11 @@ class InvoiceExtractionAgent < ApplicationAgent
 
   def parse_date(value)
     Date.parse(value) if value.present?
+  end
+
+  def normalize_country(country, eu_vat_id)
+    normalized = country.to_s.strip.upcase
+    normalized.match?(/\A[A-Z]{2}\z/) ? normalized : EuVatId.country_code(eu_vat_id)
   end
 
   def extraction_note(document)

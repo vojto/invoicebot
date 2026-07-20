@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_07_20_170000) do
+ActiveRecord::Schema[8.1].define(version: 2026_07_20_180000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -147,6 +147,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_20_170000) do
     t.text "note"
     t.datetime "updated_at", null: false
     t.bigint "user_id", null: false
+    t.string "vendor_country"
+    t.string "vendor_eu_vat_id"
     t.string "vendor_name"
     t.index ["category_id"], name: "index_invoices_on_category_id"
     t.index ["email_id"], name: "index_invoices_on_email_id"

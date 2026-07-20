@@ -102,6 +102,26 @@ RSpec.describe InvoiceExtractionAgent do
     )
   end
 
+  it "extracts normalized vendor identity" do
+    allow(schema_chat).to receive(:ask).and_return(
+      llm_result(extracted_data(vendor_country: nil, vendor_eu_vat_id: "SK 2120299335"))
+    )
+
+    result = agent.call
+
+    expect(result).to include(vendor_country: "SK", vendor_eu_vat_id: "SK2120299335")
+  end
+
+  it "discards an invalid EU VAT ID" do
+    allow(schema_chat).to receive(:ask).and_return(
+      llm_result(extracted_data(vendor_country: nil, vendor_eu_vat_id: "VAT-123"))
+    )
+
+    result = agent.call
+
+    expect(result).to include(vendor_country: nil, vendor_eu_vat_id: nil)
+  end
+
   it "retries with the full PDF when the first page has no accounting date" do
     allow(schema_chat).to receive(:ask).and_return(
       llm_result(status_data("insufficient_data")),
@@ -159,6 +179,8 @@ RSpec.describe InvoiceExtractionAgent do
     type: "invoice",
     explicit_label: "Invoice",
     vendor_name: "Acme",
+    vendor_country: nil,
+    vendor_eu_vat_id: nil,
     document_number: nil,
     referenced_invoice_number: nil,
     amount_cents: 1234,
@@ -172,6 +194,8 @@ RSpec.describe InvoiceExtractionAgent do
         type: type,
         explicit_label: explicit_label,
         vendor_name: vendor_name,
+        vendor_country: vendor_country,
+        vendor_eu_vat_id: vendor_eu_vat_id,
         document_number: document_number,
         referenced_invoice_number: referenced_invoice_number,
         total: {

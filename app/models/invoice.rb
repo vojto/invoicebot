@@ -8,7 +8,7 @@
 # - invoice_number: Not needed for our matching purposes
 # - due_date: Not relevant for historical matching
 # - tax_amount/subtotal: Only total amount matters for bank matching
-# - vendor_tax_id/address: Vendor name is sufficient for identification
+# - vendor_address: Vendor name, country, and EU VAT ID are sufficient for identification
 # - payment_reference/variable_symbol: Not needed for our use case
 #
 class Invoice < ApplicationRecord
@@ -26,9 +26,11 @@ class Invoice < ApplicationRecord
   }
 
   before_save :track_pdf_attachment_change
+  before_validation :normalize_vendor_identity
   after_commit :enqueue_page_extraction, if: :pdf_attachment_changed?
   after_rollback :clear_pdf_attachment_change
   validate :category_belongs_to_user
+  validates :vendor_country, format: { with: /\A[A-Z]{2}\z/ }, allow_nil: true
 
   def soft_deleted?
     deleted_at.present?
@@ -62,6 +64,8 @@ class Invoice < ApplicationRecord
   def update_from_extraction!(extraction)
     update!(
       vendor_name: extraction[:vendor_name],
+      vendor_country: extraction[:vendor_country],
+      vendor_eu_vat_id: extraction[:vendor_eu_vat_id],
       amount_cents: extraction[:amount_cents],
       currency: extraction[:currency],
       document_type: extraction[:document_type],
@@ -76,6 +80,11 @@ class Invoice < ApplicationRecord
   end
 
   private
+
+  def normalize_vendor_identity
+    self.vendor_eu_vat_id = EuVatId.normalize(vendor_eu_vat_id)
+    self.vendor_country = vendor_country.to_s.strip.upcase.presence || EuVatId.country_code(vendor_eu_vat_id)
+  end
 
   def category_belongs_to_user
     return unless category && user
