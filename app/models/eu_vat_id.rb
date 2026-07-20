@@ -1,6 +1,9 @@
 class EuVatId
+  NON_UNION_SCHEME_FORMAT = /\AEU\d{9}\z/
+
   def self.normalize(value)
     vat_id = Valvat.new(value)
+    return vat_id.to_s if vat_id.to_s.match?(NON_UNION_SCHEME_FORMAT)
     return unless vat_id.valid?
     return unless Valvat::Utils::EU_MEMBER_STATES.include?(vat_id.iso_country_code)
 

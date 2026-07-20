@@ -14,6 +14,13 @@ RSpec.describe Invoice, type: :model do
     expect(invoice.vendor_eu_vat_id).to be_nil
   end
 
+  it "stores a non-Union scheme VAT ID" do
+    invoice = create(:invoice, vendor_country: "SG", vendor_eu_vat_id: "EU 528377759")
+
+    expect(invoice.vendor_country).to eq("SG")
+    expect(invoice.vendor_eu_vat_id).to eq("EU528377759")
+  end
+
   describe "#reprocess!" do
     around do |example|
       original_adapter = ActiveJob::Base.queue_adapter

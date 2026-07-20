@@ -18,7 +18,7 @@ class InvoiceExtractionAgent < ApplicationAgent
           null
         end
         any_of :vendor_eu_vat_id do
-          string description: "Vendor EU VAT ID in its valid country-specific format, uppercase without spaces or punctuation"
+          string description: "Vendor EU VAT ID in its valid national or EU non-Union scheme format, uppercase without spaces or punctuation"
           null
         end
         any_of :document_number do
@@ -64,7 +64,7 @@ class InvoiceExtractionAgent < ApplicationAgent
 
     Interpret numeric dates using the vendor's country: day/month/year for most countries and month/day/year for the United States. Only return delivery_date when explicitly stated. A header-level service period may use its end date; a period mentioned only inside a line item may not.
 
-    Return vendor_country only when the document identifies it through the vendor address or tax identity. Return vendor_eu_vat_id only for the vendor (not the customer), normalized like SK2120299335 or IE3668997OH using that country's valid VAT ID format. Return null when no vendor EU VAT ID is shown.
+    Return vendor_country only when the document identifies it through the vendor address or tax identity. Return vendor_eu_vat_id only for the vendor (not the customer), normalized like SK2120299335 or IE3668997OH using that country's valid VAT ID format, or EU528377759 for the non-Union scheme. Return null when no vendor EU VAT ID is shown.
   PROMPT
 
   # Initialize with either an attachment or a raw PDF path.
