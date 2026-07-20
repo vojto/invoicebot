@@ -28,6 +28,7 @@ RSpec.describe InvoiceReprocessingJob, type: :job do
     allow(agent).to receive(:call).and_return(
       {
         is_invoice: true,
+        document_type: "credit_note",
         vendor_name: "New Vendor",
         amount_cents: 2500,
         currency: "USD",
@@ -44,6 +45,7 @@ RSpec.describe InvoiceReprocessingJob, type: :job do
     expect(invoice.vendor_name).to eq("New Vendor")
     expect(invoice.amount_cents).to eq(2500)
     expect(invoice.currency).to eq("USD")
+    expect(invoice.document_type).to eq("credit_note")
     expect(invoice.issue_date).to eq(Date.new(2026, 2, 1))
     expect(invoice.delivery_date).to eq(Date.new(2026, 2, 2))
     expect(invoice.note).to eq("New note")

@@ -17,6 +17,29 @@ RSpec.describe "GET /transactions/:id/invoice_matches", type: :request do
     body = response.parsed_body
     expect(body["match_type"]).to eq("exact")
     expect(body["matches"].map { |m| m["id"] }).to eq([ exact.id ])
+    expect(body["matches"].first["document_type"]).to eq("invoice")
+  end
+
+  it "returns only credit notes for credit transactions" do
+    transaction.update!(direction: :credit)
+    credit_note = create(:invoice, user: user, document_type: :credit_note, amount_cents: 5000, currency: "EUR", issue_date: Date.new(2026, 2, 1))
+    create(:invoice, user: user, amount_cents: 5000, currency: "EUR", issue_date: Date.new(2026, 2, 1))
+
+    get "/transactions/#{transaction.id}/invoice_matches"
+
+    body = response.parsed_body
+    expect(body["matches"].map { |match| match["id"] }).to eq([ credit_note.id ])
+    expect(body["matches"].first["document_type"]).to eq("credit_note")
+  end
+
+  it "searches only documents compatible with the transaction direction" do
+    transaction.update!(direction: :credit)
+    credit_note = create(:invoice, user: user, document_type: :credit_note, vendor_name: "Anthropic")
+    create(:invoice, user: user, vendor_name: "Anthropic")
+
+    get "/transactions/#{transaction.id}/search_invoices", params: { q: "Anthropic" }
+
+    expect(response.parsed_body["matches"].map { |match| match["id"] }).to eq([ credit_note.id ])
   end
 
   it "omits amount difference when match is exact in original currency" do

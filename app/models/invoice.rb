@@ -1,4 +1,4 @@
-# Represents an invoice extracted from an email attachment.
+# Represents an invoice or credit note extracted from an email attachment.
 #
 # Each invoice is linked to exactly one email (the source email containing the PDF).
 # We store only the total amount charged - no subtotals or tax breakdowns, as we're
@@ -17,6 +17,12 @@ class Invoice < ApplicationRecord
   has_one :bank_transaction, class_name: "Transaction", dependent: :nullify
   has_one_attached :pdf
   has_many :page_images, class_name: "InvoicePageImage", dependent: :destroy
+
+  enum :document_type, { invoice: "invoice", credit_note: "credit_note" }, prefix: true
+
+  scope :compatible_with_transaction, ->(transaction) {
+    where(document_type: transaction.credit? ? :credit_note : :invoice)
+  }
 
   before_save :track_pdf_attachment_change
   after_commit :enqueue_page_extraction, if: :pdf_attachment_changed?
@@ -56,10 +62,15 @@ class Invoice < ApplicationRecord
       vendor_name: extraction[:vendor_name],
       amount_cents: extraction[:amount_cents],
       currency: extraction[:currency],
+      document_type: extraction[:document_type],
       issue_date: extraction[:issue_date],
       delivery_date: extraction[:delivery_date],
       note: extraction[:note]
     )
+  end
+
+  def expected_transaction_direction
+    document_type_credit_note? ? "credit" : "debit"
   end
 
   private

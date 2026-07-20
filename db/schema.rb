@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_07_20_120000) do
+ActiveRecord::Schema[8.1].define(version: 2026_07_20_130000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -106,6 +106,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_20_120000) do
     t.string "currency"
     t.datetime "deleted_at"
     t.date "delivery_date"
+    t.string "document_type", default: "invoice", null: false
     t.bigint "email_id"
     t.boolean "is_reprocessing", default: false, null: false
     t.date "issue_date"
@@ -115,6 +116,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_20_120000) do
     t.string "vendor_name"
     t.index ["email_id"], name: "index_invoices_on_email_id"
     t.index ["user_id"], name: "index_invoices_on_user_id"
+    t.check_constraint "document_type::text = ANY (ARRAY['invoice'::character varying, 'credit_note'::character varying]::text[])", name: "invoices_document_type"
   end
 
   create_table "transactions", force: :cascade do |t|

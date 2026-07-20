@@ -29,6 +29,7 @@ RSpec.describe InvoiceExtractionAgent do
     allow(schema_chat).to receive(:ask).and_return(
       llm_result(
         is_invoice: true,
+        document_type: "invoice",
         vendor_name: "Acme",
         amount_cents: 1234,
         currency: "EUR",
@@ -51,6 +52,7 @@ RSpec.describe InvoiceExtractionAgent do
       llm_result(
         {
           is_invoice: true,
+          document_type: "invoice",
           vendor_name: "Acme",
           amount_cents: 1234,
           currency: "EUR",
@@ -63,6 +65,21 @@ RSpec.describe InvoiceExtractionAgent do
 
     expect(result[:vendor_name]).to eq("Acme")
     expect(result[:amount_cents]).to eq(1234)
+  end
+
+  it "extracts credit notes as a distinct document type" do
+    allow(schema_chat).to receive(:ask).and_return(
+      llm_result(
+        is_invoice: true,
+        document_type: "credit_note",
+        vendor_name: "Acme",
+        amount_cents: 1234,
+        currency: "EUR",
+        issue_date: "2026-01-15"
+      )
+    )
+
+    expect(agent.call[:document_type]).to eq("credit_note")
   end
 
   it "retries with the full PDF when the first page has no accounting date" do
@@ -110,6 +127,7 @@ RSpec.describe InvoiceExtractionAgent do
   def llm_result(content = {})
     defaults = {
       is_invoice: true,
+      document_type: nil,
       vendor_name: nil,
       amount_cents: nil,
       currency: nil,

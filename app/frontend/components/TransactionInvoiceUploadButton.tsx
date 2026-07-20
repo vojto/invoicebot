@@ -54,7 +54,7 @@ export default function TransactionInvoiceUploadButton({ transactionId }: Props)
         onClick={openFilePicker}
         disabled={isUploading}
       >
-        {isUploading ? "Uploading..." : "Upload invoice"}
+        {isUploading ? "Uploading..." : "Upload document"}
       </Button>
     </>
   )

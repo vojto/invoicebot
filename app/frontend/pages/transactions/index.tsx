@@ -83,7 +83,7 @@ function TransactionActions({ transactionId, isFlagged, isLinked }: ActionButton
               className={itemClass}
               onSelect={() => postTransactionAction(`/transactions/${transactionId}/unlink_invoice`)}
             >
-              Unlink invoice
+              Unlink document
             </DropdownMenu.Item>
           )}
           <DropdownMenu.Item
@@ -177,7 +177,7 @@ export default function TransactionsIndex(props: Props) {
                       <Table.ColumnHeaderCell width="140px">Amount</Table.ColumnHeaderCell>
                       <Table.ColumnHeaderCell width="140px">Original</Table.ColumnHeaderCell>
                       <Table.ColumnHeaderCell>Note</Table.ColumnHeaderCell>
-                      <Table.ColumnHeaderCell>Invoice</Table.ColumnHeaderCell>
+                      <Table.ColumnHeaderCell>Document</Table.ColumnHeaderCell>
                       <Table.ColumnHeaderCell width="100px">Actions</Table.ColumnHeaderCell>
                     </Table.Row>
                   </Table.Header>

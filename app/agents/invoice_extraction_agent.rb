@@ -4,9 +4,10 @@ class InvoiceExtractionAgent < ApplicationAgent
   class ResponseSchema < ApplicationSchema
     additional_properties false
 
-    boolean :is_invoice, description: "Whether this document is a valid invoice that can be extracted"
+    boolean :is_invoice, description: "Whether this document is a valid invoice or credit note that can be extracted"
+    string :document_type, nullable: true, enum: %w[invoice credit_note], description: "Whether the document is an invoice or a credit note"
     string :vendor_name, nullable: true, description: "The name of the vendor/business issuing the invoice"
-    integer :amount_cents, nullable: true, description: "Total amount in cents (e.g., 1999 for $19.99)"
+    integer :amount_cents, nullable: true, description: "Positive document total in cents (e.g., 1999 for $19.99)"
     string :currency, nullable: true, description: "Three-letter currency code (e.g., USD, EUR, CZK)"
     string :issue_date, nullable: true, description: "Invoice issue date in YYYY-MM-DD format"
     string :delivery_date, nullable: true, description: "Delivery/service date in YYYY-MM-DD format"
@@ -20,10 +21,10 @@ class InvoiceExtractionAgent < ApplicationAgent
   ExtractionAttempt = Struct.new(:data, :elapsed_ms, :input_tokens, :output_tokens, :scope, keyword_init: true)
 
   SYSTEM_PROMPT = <<~PROMPT
-    You are an invoice data extraction assistant. Your task is to analyze documents and extract structured data from invoices.
+    You are an invoice data extraction assistant. Your task is to analyze documents and extract structured data from invoices and credit notes.
 
-    First, determine if the document is actually an invoice. Set is_invoice to false if:
-    - The document is not an invoice (e.g., a contract, letter, report, manual, etc.)
+    First, determine if the document is actually an invoice or credit note. Set is_invoice to false if:
+    - The document is neither an invoice nor a credit note (e.g., a contract, letter, report, manual, etc.)
     - The document is too malformed or unclear to extract meaningful data
     - Essential information (vendor name, amount) cannot be determined
 
@@ -36,8 +37,9 @@ class InvoiceExtractionAgent < ApplicationAgent
        - United States: assume month/day/year format (e.g., 05/01/2026 = May 1st, 2026)
 
     3. Extract the following information:
+       - document_type: Set to credit_note only when the document itself is a credit note or credit memo that reverses or refunds an invoice. Otherwise set to invoice. Classify the PDF itself, not the surrounding email subject.
        - vendor_name: The name of the business or company issuing the invoice
-       - amount_cents: The original invoice total, converted to cents (multiply by 100). For example, $19.99 becomes 1999.
+       - amount_cents: The original document total, converted to cents (multiply by 100). Always return a positive amount; document_type carries whether it is an invoice or credit note. For example, $19.99 becomes 1999.
          If the invoice shows a total and then subtracts prior payments resulting in a lower balance due (or zero), extract the original total — not the remaining balance.
        - currency: The three-letter currency code (USD, EUR, CZK, GBP, etc.)
        - issue_date: The date the invoice was issued (YYYY-MM-DD format). Most invoices have this, but set to null if not present.
@@ -148,6 +150,7 @@ class InvoiceExtractionAgent < ApplicationAgent
     return true unless data[:is_invoice]
 
     data[:vendor_name].blank? ||
+      data[:document_type].blank? ||
       data[:amount_cents].nil? ||
       data[:currency].blank? ||
       (data[:issue_date].blank? && data[:delivery_date].blank?)
@@ -186,6 +189,7 @@ class InvoiceExtractionAgent < ApplicationAgent
   def response_for(data, attempt, usage)
     {
       is_invoice: data[:is_invoice],
+      document_type: data[:document_type],
       vendor_name: data[:vendor_name],
       amount_cents: data[:amount_cents],
       currency: data[:currency],
@@ -202,6 +206,7 @@ class InvoiceExtractionAgent < ApplicationAgent
 
   def normalize_data(data)
     data = data.dup
+    data[:document_type] ||= "invoice" if data[:is_invoice]
     data[:issue_date] = Date.parse(data[:issue_date]) if data[:issue_date].present?
     data[:delivery_date] = Date.parse(data[:delivery_date]) if data[:delivery_date].present?
     data

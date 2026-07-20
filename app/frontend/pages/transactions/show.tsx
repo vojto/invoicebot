@@ -165,7 +165,7 @@ export default function TransactionsShow(props: Props) {
 
           {tx.invoice && (
             <Box mt="6">
-              <Heading size="4" mb="3">Linked Invoice</Heading>
+              <Heading size="4" mb="3">Linked Document</Heading>
               <Table.Root variant="surface" size="2">
                 <Table.Body>
                   <DetailRow label="Vendor" value={tx.invoice.vendor_name} />

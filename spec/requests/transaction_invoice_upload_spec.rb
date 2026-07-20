@@ -19,7 +19,8 @@ RSpec.describe "POST /transactions/:id/upload_invoice", type: :request do
       require_extraction: false,
       fallback_date: transaction.booking_date || transaction.value_date,
       fallback_vendor: transaction.vendor_name,
-      fallback_currency: transaction.currency
+      fallback_currency: transaction.currency,
+      fallback_document_type: :invoice
     ).and_return(invoice)
 
     post "/transactions/#{transaction.id}/upload_invoice", params: {
@@ -39,6 +40,30 @@ RSpec.describe "POST /transactions/:id/upload_invoice", type: :request do
 
     expect(response).to have_http_status(:bad_request)
     expect(transaction.reload.invoice).to be_nil
+  end
+
+  it "uses a credit note fallback for credit transactions" do
+    transaction.update!(direction: :credit)
+    invoice = create(:invoice, user: user, document_type: :credit_note)
+    processing_service = instance_double(InvoiceProcessingService)
+
+    allow(InvoiceProcessingService).to receive(:new).and_return(processing_service)
+    expect(processing_service).to receive(:extract_invoice_from_pdf).with(
+      user,
+      instance_of(Tempfile),
+      filename: "credit-note.pdf",
+      require_extraction: false,
+      fallback_date: transaction.booking_date || transaction.value_date,
+      fallback_vendor: transaction.vendor_name,
+      fallback_currency: transaction.currency,
+      fallback_document_type: :credit_note
+    ).and_return(invoice)
+
+    post "/transactions/#{transaction.id}/upload_invoice", params: {
+      file: uploaded_file(filename: "credit-note.pdf", content_type: "application/pdf")
+    }
+
+    expect(transaction.reload.invoice).to eq(invoice)
   end
 
   def uploaded_file(filename:, content_type:)

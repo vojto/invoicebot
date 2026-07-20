@@ -106,7 +106,7 @@ class InvoiceProcessingService
   # @param pdf_io [IO, StringIO] The PDF file data
   # @param filename [String] The original filename of the PDF
   # @return [Invoice, nil] The created invoice, or nil if extraction failed
-  def extract_invoice_from_pdf(user, pdf_io, filename:, require_extraction: true, fallback_date: nil, fallback_vendor: nil, fallback_currency: nil)
+  def extract_invoice_from_pdf(user, pdf_io, filename:, require_extraction: true, fallback_date: nil, fallback_vendor: nil, fallback_currency: nil, fallback_document_type: :invoice)
     Rails.logger.info "[InvoiceProcessingService] Extracting invoice from PDF: #{filename} for user #{user.email}"
 
     # Read PDF content for both extraction and attachment
@@ -134,6 +134,7 @@ class InvoiceProcessingService
       vendor_name: extraction[:vendor_name] || fallback_vendor,
       amount_cents: extraction[:amount_cents],
       currency: extraction[:currency] || fallback_currency,
+      document_type: extraction[:document_type] || fallback_document_type,
       issue_date: extraction[:issue_date] || fallback_date,
       delivery_date: extraction[:delivery_date],
       note: extraction[:note]
@@ -211,6 +212,7 @@ class InvoiceProcessingService
       vendor_name: extraction[:vendor_name],
       amount_cents: extraction[:amount_cents],
       currency: extraction[:currency],
+      document_type: extraction[:document_type],
       issue_date: extraction[:issue_date],
       delivery_date: extraction[:delivery_date],
       note: extraction[:note]

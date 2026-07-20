@@ -44,11 +44,20 @@ RSpec.describe AutomaticInvoiceMatchingService do
     expect { service.match_transaction(transaction) }.not_to change(transaction.reload, :invoice_id)
   end
 
-  it "only automatically matches visible, unflagged debit transactions" do
+  it "does not match ordinary invoices to credit transactions" do
     invoice = create(:invoice, user: user, amount_cents: 5_000, currency: "EUR", issue_date: Date.new(2026, 7, 10))
     credit = create(:transaction, bank_connection: connection, direction: :credit, amount_cents: 5_000, currency: "EUR", booking_date: Date.new(2026, 7, 10))
 
     expect { service.match_transaction(credit) }.not_to change(credit.reload, :invoice_id)
     expect(invoice.reload.bank_transaction).to be_nil
+  end
+
+
+  it "matches credit notes only to credit transactions" do
+    credit = create(:transaction, bank_connection: connection, direction: :credit, amount_cents: 5_000, currency: "EUR", booking_date: Date.new(2026, 7, 10))
+    credit_note = create(:invoice, user: user, document_type: :credit_note, amount_cents: 5_000, currency: "EUR", issue_date: Date.new(2026, 7, 10))
+
+    expect(service.match_invoice(credit_note)).to eq(credit_note)
+    expect(credit.reload.invoice).to eq(credit_note)
   end
 end

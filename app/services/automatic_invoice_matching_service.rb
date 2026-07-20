@@ -33,7 +33,7 @@ class AutomaticInvoiceMatchingService
     Transaction
       .joins(:bank_connection)
       .where(bank_connections: { user_id: user.id })
-      .where(invoice_id: nil, direction: :debit, hidden_at: nil, is_flagged: false)
+      .where(invoice_id: nil, hidden_at: nil, is_flagged: false)
       .find_each { |transaction| self.class.match_transaction(transaction) }
   end
 
@@ -68,7 +68,6 @@ class AutomaticInvoiceMatchingService
 
   def eligible_transaction?(transaction)
     transaction.invoice_id.nil? &&
-      transaction.debit? &&
       transaction.hidden_at.nil? &&
       !transaction.is_flagged? &&
       transaction_date(transaction).present? &&
@@ -87,6 +86,7 @@ class AutomaticInvoiceMatchingService
     date = transaction_date(transaction)
     scope = Invoice
       .where(user_id: transaction.bank_connection.user_id, deleted_at: nil)
+      .compatible_with_transaction(transaction)
       .where(accounting_date: (date - DATE_TOLERANCE_DAYS)..(date + DATE_TOLERANCE_DAYS))
       .where.missing(:bank_transaction)
 
@@ -101,7 +101,7 @@ class AutomaticInvoiceMatchingService
     Transaction
       .joins(:bank_connection)
       .where(bank_connections: { user_id: invoice.user_id })
-      .where(invoice_id: nil, direction: :debit, hidden_at: nil, is_flagged: false)
+      .where(invoice_id: nil, direction: invoice.expected_transaction_direction, hidden_at: nil, is_flagged: false)
       .where("COALESCE(transactions.booking_date, transactions.value_date) BETWEEN ? AND ?", date_range.begin, date_range.end)
       .where(
         <<~SQL.squish,

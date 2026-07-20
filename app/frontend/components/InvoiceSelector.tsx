@@ -1,27 +1,31 @@
 import { ExternalLinkIcon, MagnifyingGlassIcon } from "@radix-ui/react-icons"
 import { router } from "@inertiajs/react"
-import { Box, Button, Flex, Text, TextField, Theme } from "@radix-ui/themes"
+import { Badge, Box, Button, Flex, Text, TextField, Theme } from "@radix-ui/themes"
 import { useCallback, useEffect, useRef, useState } from "react"
 import * as Popover from "@radix-ui/react-popover"
+import { z } from "zod"
 
-type InvoiceMatch = {
-  id: number
-  vendor_name: string | null
-  amount_label: string
-  date_label: string
-  date_offset_days: number | null
-  amount_diff_label: string | null
-}
+const InvoiceMatchSchema = z.object({
+  id: z.number(),
+  vendor_name: z.string().nullable(),
+  document_type: z.enum(["invoice", "credit_note"]),
+  amount_label: z.string(),
+  date_label: z.string(),
+  date_offset_days: z.number().nullable(),
+  amount_diff_label: z.string().nullable(),
+})
 
-type Props = {
-  transactionId: number
-}
+const MatchesResponseSchema = z.object({ matches: z.array(InvoiceMatchSchema) })
+const PropsSchema = z.object({ transactionId: z.number() })
+
+type InvoiceMatch = z.infer<typeof InvoiceMatchSchema>
+type Props = z.infer<typeof PropsSchema>
 
 function formatOffset(offset: number | null): string {
   if (offset === null || Number.isNaN(offset)) return "—"
-  if (offset === 0) return "0"
-  const sign = offset > 0 ? "+" : ""
-  return `${sign}${offset}`
+  if (offset === 0) return "Same day"
+  const days = Math.abs(offset)
+  return `${days} ${days === 1 ? "day" : "days"} ${offset < 0 ? "before" : "after"}`
 }
 
 function offsetTone(offset: number | null): "green" | "red" | "gray" {
@@ -30,6 +34,8 @@ function offsetTone(offset: number | null): "green" | "red" | "gray" {
 }
 
 function InvoiceMatchRow({ invoice, transactionId, onSelect }: { invoice: InvoiceMatch; transactionId: number; onSelect: () => void }) {
+  const isCreditNote = invoice.document_type === "credit_note"
+
   return (
     <Flex
       align="start"
@@ -51,13 +57,19 @@ function InvoiceMatchRow({ invoice, transactionId, onSelect }: { invoice: Invoic
             <Text size="2" weight="medium" className="min-w-0 flex-1 truncate text-left">
               {invoice.vendor_name || "Unknown vendor"}
             </Text>
+            <Badge size="1" variant="soft" color={isCreditNote ? "green" : "gray"} className="shrink-0">
+              {isCreditNote ? "Credit note" : "Invoice"}
+            </Badge>
           </Flex>
           <Flex align="center" justify="between" className="w-full">
-            <Text size="2" color="gray">
-              {invoice.amount_label}
-            </Text>
+            <Flex align="center" gap="1">
+              <Text size="2" weight="medium" color={isCreditNote ? "green" : "red"}>
+                {isCreditNote ? "+" : "−"}{invoice.amount_label}
+              </Text>
+              <Text size="1" color="gray">· {invoice.date_label}</Text>
+            </Flex>
             <Text size="2" weight="medium" color={offsetTone(invoice.date_offset_days)}>
-              {formatOffset(invoice.date_offset_days)}d
+              {formatOffset(invoice.date_offset_days)}
             </Text>
           </Flex>
         </Flex>
@@ -78,7 +90,8 @@ function InvoiceMatchRow({ invoice, transactionId, onSelect }: { invoice: Invoic
   )
 }
 
-export default function InvoiceSelector({ transactionId }: Props) {
+export default function InvoiceSelector(props: Props) {
+  const { transactionId } = PropsSchema.parse(props)
   const [open, setOpen] = useState(false)
   const [exactMatches, setExactMatches] = useState<InvoiceMatch[] | null>(null)
   const [isLoading, setIsLoading] = useState(false)
@@ -94,8 +107,8 @@ export default function InvoiceSelector({ transactionId }: Props) {
       setIsLoading(true)
       try {
         const response = await fetch(`/transactions/${transactionId}/invoice_matches`)
-        const json = await response.json()
-        setExactMatches(json.matches || [])
+        const json = MatchesResponseSchema.parse(await response.json())
+        setExactMatches(json.matches)
       } catch {
         setExactMatches([])
       } finally {
@@ -116,8 +129,8 @@ export default function InvoiceSelector({ transactionId }: Props) {
     setIsSearching(true)
     try {
       const response = await fetch(`/transactions/${transactionId}/search_invoices?q=${encodeURIComponent(query)}`)
-      const json = await response.json()
-      setSearchResults(json.matches || [])
+      const json = MatchesResponseSchema.parse(await response.json())
+      setSearchResults(json.matches)
     } catch {
       setSearchResults([])
     } finally {
@@ -153,7 +166,7 @@ export default function InvoiceSelector({ transactionId }: Props) {
           className="gap-1 select-none text-xs font-semibold text-gray-600 data-[state=open]:bg-gray-200 data-[state=open]:text-gray-700"
         >
           <MagnifyingGlassIcon />
-          <span className="text-inherit">Select invoice</span>
+          <span className="text-inherit">Select document</span>
         </Button>
       </Popover.Trigger>
       <Popover.Portal>
@@ -172,7 +185,7 @@ export default function InvoiceSelector({ transactionId }: Props) {
                 </Flex>
               ) : hasExactMatches ? (
                 <>
-                  <Text size="2" weight="medium">Matching invoices</Text>
+                  <Text size="2" weight="medium">Matching documents</Text>
                   <Flex direction="column" gap="2" mt="2">
                     {exactMatches!.map((invoice) => (
                       <InvoiceMatchRow key={invoice.id} invoice={invoice} transactionId={transactionId} onSelect={() => setOpen(false)} />
@@ -183,7 +196,7 @@ export default function InvoiceSelector({ transactionId }: Props) {
                 <>
                   <TextField.Root
                     size="2"
-                    placeholder="Search invoices by vendor..."
+                    placeholder="Search documents by vendor..."
                     value={searchQuery}
                     onChange={(e) => handleSearchChange(e.target.value)}
                     autoFocus
@@ -198,7 +211,7 @@ export default function InvoiceSelector({ transactionId }: Props) {
                         <span className="h-4 w-4 animate-spin rounded-full border-2 border-gray-200 border-t-gray-500" />
                       </Flex>
                     ) : searchQuery.trim().length > 0 && searchResults.length === 0 ? (
-                      <Text size="1" color="gray">No invoices found.</Text>
+                      <Text size="1" color="gray">No documents found.</Text>
                     ) : searchResults.length > 0 ? (
                       <Flex direction="column" gap="2">
                         {searchResults.map((invoice) => (
@@ -206,7 +219,7 @@ export default function InvoiceSelector({ transactionId }: Props) {
                         ))}
                       </Flex>
                     ) : (
-                      <Text size="1" color="gray">Type to search invoices.</Text>
+                      <Text size="1" color="gray">Type to search documents.</Text>
                     )}
                   </Box>
                 </>

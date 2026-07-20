@@ -1,7 +1,7 @@
 class TransactionsController < ApplicationController
   # Expected behavior:
   # - Linking keeps invoices one-to-one across the current user's transactions.
-  # - Manual PDF uploads create a normal Invoice record, attach the PDF, and link it immediately.
+  # - Manual PDF uploads create an Invoice record compatible with the transaction direction, attach the PDF, and link it immediately.
   #
   # Gotchas:
   # - transactions.invoice_id is unique, so relinking must clear any existing owner first.
@@ -89,6 +89,7 @@ class TransactionsController < ApplicationController
     return render json: { matches: [] } if query.blank?
 
     invoices = Invoice.where(user_id: current_user.id, deleted_at: nil)
+      .compatible_with_transaction(@transaction)
       .where("vendor_name ILIKE ?", "%#{Invoice.sanitize_sql_like(query)}%")
       .limit(10)
 
@@ -125,14 +126,15 @@ class TransactionsController < ApplicationController
       require_extraction: false,
       fallback_date: @transaction.booking_date || @transaction.value_date,
       fallback_vendor: @transaction.custom_note.presence || @transaction.vendor_name,
-      fallback_currency: @transaction.currency
+      fallback_currency: @transaction.currency,
+      fallback_document_type: @transaction.credit? ? :credit_note : :invoice
     )
 
     Transaction.transaction do
       link_invoice_to_transaction!(invoice)
     end
 
-    redirect_to transaction_path(@transaction), notice: "Invoice uploaded and linked to transaction"
+    redirect_to transaction_path(@transaction), notice: "Document uploaded and linked to transaction"
   end
 
   private
@@ -209,6 +211,7 @@ class TransactionsController < ApplicationController
     {
       id: invoice.id,
       vendor_name: invoice.vendor_name,
+      document_type: invoice.document_type,
       amount_label: format_amount(invoice.amount_cents, invoice.currency),
       date_label: format_invoice_date(invoice),
       date_offset_days: date_offset_days(transaction, invoice),
@@ -228,6 +231,7 @@ class TransactionsController < ApplicationController
 
   def invoice_match_candidates(transaction)
     scope = Invoice.where(user_id: current_user.id, deleted_at: nil)
+      .compatible_with_transaction(transaction)
     matches = scope.where(currency: transaction.currency, amount_cents: transaction.amount_cents)
 
     if transaction.original_amount_cents.present? && transaction.original_currency.present?
@@ -244,6 +248,7 @@ class TransactionsController < ApplicationController
 
   def close_invoice_match_candidates(transaction)
     scope = Invoice.where(user_id: current_user.id, deleted_at: nil)
+      .compatible_with_transaction(transaction)
     matches = scope.where(
       currency: transaction.currency,
       amount_cents: (transaction.amount_cents - 500)..(transaction.amount_cents + 500)
