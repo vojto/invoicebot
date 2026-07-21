@@ -58,7 +58,7 @@ class AccountantInvoiceSpreadsheet
   def columns
     @columns ||= @table.columns.flat_map do |column|
       case column.key
-      when :invoice_amount then []
+      when :original_amount then []
       when :vendor_eu_vat_id then country_and_vat_columns
       else
         export_column = ExportColumn.new(
@@ -110,17 +110,10 @@ class AccountantInvoiceSpreadsheet
   end
 
   def spreadsheet_value(record, column)
-    return if original_matches_bank?(record) && column.source_key == :original_amount
-
     if column.kind == :currency
       return record[:currencies][column.source_key]
     end
 
     record[:values][column.source_key]
-  end
-
-  def original_matches_bank?(record)
-    record[:values][:original_amount] == record[:values][:bank_amount] &&
-      record[:currencies][:original_amount].to_s.casecmp?(record[:currencies][:bank_amount].to_s)
   end
 end
