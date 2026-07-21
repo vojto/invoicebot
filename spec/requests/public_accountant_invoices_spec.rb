@@ -209,6 +209,21 @@ RSpec.describe "Public accountant invoices", type: :request do
       original_amount_cents: 8_000,
       original_currency: "GBP"
     )
+    matching_invoice = create(
+      :invoice,
+      user: user,
+      vendor_name: "Matching amounts",
+      issue_date: Date.new(2026, 7, 11)
+    )
+    create(
+      :transaction,
+      bank_connection: connection,
+      invoice: matching_invoice,
+      amount_cents: 5_000,
+      currency: "EUR",
+      original_amount_cents: 5_000,
+      original_currency: "EUR"
+    )
 
     get accountant_month_spreadsheet_path(
       month: "2026-07",
@@ -229,10 +244,9 @@ RSpec.describe "Public accountant invoices", type: :request do
         "Vendor",
         "Accounting date",
         "Transaction date",
-        "Country / VAT ID",
+        "Country",
+        "VAT ID",
         "Category",
-        "Invoice amount",
-        "Invoice currency",
         "Bank account",
         "Bank amount",
         "Bank currency",
@@ -240,19 +254,22 @@ RSpec.describe "Public accountant invoices", type: :request do
         "Original currency"
       ])
       expect(worksheet).to include("July Vendor")
-      expect(worksheet).to include("SK · SK2020000000")
       expect(worksheet).not_to include(
-        "Status", "Issue date", "Delivery date", "Direction", ">PDF<"
+        "Status", "Issue date", "Delivery date", "Direction", ">PDF<", "Invoice amount", "Invoice currency"
       )
       data_cells = worksheet_xml.xpath("//xmlns:sheetData/xmlns:row[@r='2']/xmlns:c", namespaces).index_by do |cell|
         cell["r"]
       end
-      expect([ data_cells["F2"]["t"], data_cells["F2"].text ]).to eq([ "n", "123.45" ])
-      expect([ data_cells["G2"]["t"], data_cells["G2"].text ]).to eq([ "inlineStr", "EUR" ])
-      expect([ data_cells["I2"]["t"], data_cells["I2"].text ]).to eq([ "n", "100.0" ])
-      expect([ data_cells["J2"]["t"], data_cells["J2"].text ]).to eq([ "inlineStr", "USD" ])
-      expect([ data_cells["K2"]["t"], data_cells["K2"].text ]).to eq([ "n", "80.0" ])
-      expect([ data_cells["L2"]["t"], data_cells["L2"].text ]).to eq([ "inlineStr", "GBP" ])
+      expect([ data_cells["D2"]["t"], data_cells["D2"].text ]).to eq([ "inlineStr", "SK" ])
+      expect([ data_cells["E2"]["t"], data_cells["E2"].text ]).to eq([ "inlineStr", "SK2020000000" ])
+      expect([ data_cells["H2"]["t"], data_cells["H2"].text ]).to eq([ "n", "100.0" ])
+      expect([ data_cells["I2"]["t"], data_cells["I2"].text ]).to eq([ "inlineStr", "USD" ])
+      expect([ data_cells["J2"]["t"], data_cells["J2"].text ]).to eq([ "n", "80.0" ])
+      expect([ data_cells["K2"]["t"], data_cells["K2"].text ]).to eq([ "inlineStr", "GBP" ])
+      matching_cells = worksheet_xml.xpath("//xmlns:sheetData/xmlns:row[@r='3']/xmlns:c", namespaces).index_by do |cell|
+        cell["r"]
+      end
+      expect(matching_cells.values_at("J3", "K3").map(&:text)).to eq([ "", "" ])
       styles = zip.find_entry("xl/styles.xml").get_input_stream.read.force_encoding(Encoding::UTF_8)
       expect(styles).to include("yyyy-mm-dd", "#,##0.00;(#,##0.00);-")
       expect(styles).not_to include("€", "$", "£")

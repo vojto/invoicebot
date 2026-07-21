@@ -1,5 +1,5 @@
 class AccountantInvoiceSpreadsheet
-  CurrencyColumn = Data.define(:key, :label, :kind, :width)
+  ExportColumn = Data.define(:key, :label, :kind, :width, :source_key)
 
   def initialize(table)
     @table = table
@@ -57,18 +57,36 @@ class AccountantInvoiceSpreadsheet
 
   def columns
     @columns ||= @table.columns.flat_map do |column|
-      next column unless column.kind == :amount
-
-      [ column, currency_column(column) ]
+      case column.key
+      when :invoice_amount then []
+      when :vendor_eu_vat_id then country_and_vat_columns
+      else
+        export_column = ExportColumn.new(
+          key: column.key,
+          label: column.label,
+          kind: column.kind,
+          width: column.width,
+          source_key: column.key
+        )
+        column.kind == :amount ? [ export_column, currency_column(export_column) ] : export_column
+      end
     end
   end
 
+  def country_and_vat_columns
+    [
+      ExportColumn.new(key: :vendor_country, label: "Country", kind: :text, width: 10, source_key: :vendor_country),
+      ExportColumn.new(key: :vendor_eu_vat_id, label: "VAT ID", kind: :text, width: 18, source_key: :vendor_eu_vat_id)
+    ]
+  end
+
   def currency_column(amount_column)
-    CurrencyColumn.new(
+    ExportColumn.new(
       key: :"#{amount_column.key}_currency",
       label: amount_column.label.sub(/ amount\z/, " currency"),
       kind: :currency,
-      width: 12
+      width: 12,
+      source_key: amount_column.source_key
     )
   end
 
@@ -92,14 +110,17 @@ class AccountantInvoiceSpreadsheet
   end
 
   def spreadsheet_value(record, column)
+    return if original_matches_bank?(record) && column.source_key == :original_amount
+
     if column.kind == :currency
-      amount_key = column.key.to_s.delete_suffix("_currency").to_sym
-      return record[:currencies][amount_key]
+      return record[:currencies][column.source_key]
     end
 
-    value = record[:values][column.key]
-    return value unless column.kind == :country_vat
+    record[:values][column.source_key]
+  end
 
-    [ record[:values][:vendor_country], value ].compact_blank.join(" · ").presence
+  def original_matches_bank?(record)
+    record[:values][:original_amount] == record[:values][:bank_amount] &&
+      record[:currencies][:original_amount].to_s.casecmp?(record[:currencies][:bank_amount].to_s)
   end
 end
