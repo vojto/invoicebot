@@ -6,16 +6,10 @@ RSpec.describe InvoiceExtractionAgent do
   subject(:agent) { described_class.new(pdf_path: pdf_path, filename: "invoice.pdf") }
 
   let(:pdf_path) { Rails.root.join("tmp/invoice.pdf").to_s }
-  let(:qpdf) { instance_double(Qpdf) }
   let(:chat) { instance_double(RubyLLM::Chat) }
   let(:schema_chat) { instance_double(RubyLLM::Chat) }
 
   before do
-    allow(Qpdf).to receive(:new).with(pdf_path).and_return(qpdf)
-    allow(qpdf).to receive(:extract_first_pages) do |_count, output_path:|
-      output_path
-    end
-
     allow(RubyLLM).to receive(:chat).with(
       model: described_class::MODEL,
       provider: described_class::PROVIDER
@@ -25,7 +19,7 @@ RSpec.describe InvoiceExtractionAgent do
     allow(chat).to receive(:with_schema).with(described_class::ResponseSchema).and_return(schema_chat)
   end
 
-  it "extracts from the first page only when the total is found" do
+  it "extracts from the full PDF" do
     allow(schema_chat).to receive(:ask).and_return(
       llm_result(
         extracted_data(
@@ -40,10 +34,9 @@ RSpec.describe InvoiceExtractionAgent do
 
     result = agent.call
 
-    expect(qpdf).to have_received(:extract_first_pages).with(1, output_path: kind_of(String))
-    expect(schema_chat).to have_received(:ask).once
+    expect(schema_chat).to have_received(:ask).with("Extract invoice data from this document.", with: pdf_path).once
     expect(result[:amount_cents]).to eq(1234)
-    expect(result[:extraction_scope]).to eq("first_page")
+    expect(result[:extraction_scope]).to eq("full_pdf")
   end
 
   it "parses a serialized structured response" do
@@ -122,56 +115,14 @@ RSpec.describe InvoiceExtractionAgent do
     expect(result).to include(vendor_country: nil, vendor_eu_vat_id: nil)
   end
 
-  it "retries with the full PDF when the first page has no accounting date" do
-    allow(schema_chat).to receive(:ask).and_return(
-      llm_result(status_data("insufficient_data")),
-      llm_result(extracted_data(issue_date: "2026-01-15"))
-    )
-
-    result = agent.call
-
-    expect(schema_chat).to have_received(:ask).twice
-    expect(result[:issue_date]).to eq(Date.new(2026, 1, 15))
-    expect(result[:extraction_scope]).to eq("full_pdf")
-  end
-
-  it "retries with the full PDF when the first page has no total" do
-    allow(schema_chat).to receive(:ask).and_return(
-      llm_result(status_data("insufficient_data")),
-      llm_result(extracted_data(amount_cents: 5678))
-    )
-
-    result = agent.call
-
-    expect(schema_chat).to have_received(:ask).twice
-    expect(schema_chat).to have_received(:ask).with("Extract invoice data from this document.", with: pdf_path)
-    expect(result[:amount_cents]).to eq(5678)
-    expect(result[:input_tokens]).to eq(200)
-    expect(result[:extraction_scope]).to eq("full_pdf")
-  end
-
-  it "retries with the full PDF when the first page is not recognized as an invoice" do
-    allow(schema_chat).to receive(:ask).and_return(
-      llm_result(status_data("unsupported_document")),
-      llm_result(extracted_data(amount_cents: 9012))
-    )
-
-    result = agent.call
-
-    expect(schema_chat).to have_received(:ask).twice
-    expect(result[:is_invoice]).to eq(true)
-    expect(result[:amount_cents]).to eq(9012)
-    expect(result[:extraction_scope]).to eq("full_pdf")
-  end
-
-  it "returns a non-invoice result when the full document is unsupported" do
+  it "returns a non-invoice result when the document is unsupported" do
     allow(schema_chat).to receive(:ask).and_return(
       llm_result(status_data("unsupported_document"))
     )
 
     result = agent.call
 
-    expect(schema_chat).to have_received(:ask).twice
+    expect(schema_chat).to have_received(:ask).once
     expect(result).to include(is_invoice: false, extraction_status: "unsupported_document")
   end
 
