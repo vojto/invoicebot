@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_07_20_180000) do
+ActiveRecord::Schema[8.1].define(version: 2026_08_18_100001) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -88,6 +88,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_20_180000) do
   create_table "categories", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.string "name", null: false
+    t.text "note"
     t.datetime "updated_at", null: false
     t.bigint "user_id", null: false
     t.index "user_id, lower((name)::text)", name: "index_categories_on_user_id_and_lower_name", unique: true
@@ -134,6 +135,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_20_180000) do
   create_table "invoices", force: :cascade do |t|
     t.virtual "accounting_date", type: :date, as: "COALESCE(accounting_date_override, delivery_date, issue_date)", stored: true
     t.date "accounting_date_override"
+    t.datetime "ai_categorization_attempted_at"
     t.integer "amount_cents"
     t.bigint "category_id"
     t.datetime "created_at", null: false

@@ -28,6 +28,7 @@ class Invoice < ApplicationRecord
   before_save :track_pdf_attachment_change
   before_validation :normalize_vendor_identity
   after_commit :enqueue_page_extraction, if: :pdf_attachment_changed?
+  after_commit :enqueue_ai_categorization, on: [ :create, :update ], if: :needs_ai_categorization?
   after_rollback :clear_pdf_attachment_change
   validate :category_belongs_to_user
   validates :vendor_country, format: { with: /\A[A-Z]{2}\z/ }, allow_nil: true
@@ -109,5 +110,19 @@ class Invoice < ApplicationRecord
     InvoicePageExtractionJob.perform_later(id) if pdf.attached?
   ensure
     clear_pdf_attachment_change
+  end
+
+  # Only an uncategorized invoice we have never looked at, and only once the
+  # extraction filled in the vendor, is worth sending to the categorization agent.
+  def needs_ai_categorization?
+    vendor_name.present? &&
+      category_id.nil? &&
+      ai_categorization_attempted_at.nil? &&
+      !soft_deleted? &&
+      user.categories.exists?
+  end
+
+  def enqueue_ai_categorization
+    InvoiceCategorizationJob.perform_later(id)
   end
 end

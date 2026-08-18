@@ -4,7 +4,8 @@ class CategoriesController < ApplicationController
 
   def index
     render inertia: "categories/index", props: {
-      categories: categories_with_invoice_counts.map { |category| serialize_category(category) }
+      categories: categories_with_invoice_counts.map { |category| serialize_category(category) },
+      uncategorized_count: uncategorized_count
     }
   end
 
@@ -38,7 +39,11 @@ class CategoriesController < ApplicationController
   end
 
   def category_params
-    params.require(:category).permit(:name)
+    params.require(:category).permit(:name, :note)
+  end
+
+  def uncategorized_count
+    current_user.invoices.where(category_id: nil, deleted_at: nil).count
   end
 
   def categories_with_invoice_counts
@@ -53,6 +58,7 @@ class CategoriesController < ApplicationController
     {
       id: category.id,
       name: category.name,
+      note: category.note,
       invoices_count: category[:invoices_count].to_i
     }
   end
