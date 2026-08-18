@@ -39,13 +39,24 @@ export default function BankSyncStatusList({ bankSyncStatuses }: { bankSyncStatu
                 <CrossCircledIcon />
               </Callout.Icon>
               <Callout.Text>
-                Last transaction sync failed for {status.bank_name}: {status.sync_error}
+                <Flex align="center" gap="3" wrap="wrap">
+                  <span>
+                    {status.status === "expired"
+                      ? `${status.bank_name} authorization expired. Reconnect to resume transaction syncing.`
+                      : `Transaction sync failed for ${status.bank_name}: ${status.sync_error}`}
+                  </span>
+                  {status.reconnect_url && (
+                    <Button
+                      size="1"
+                      color="red"
+                      variant="soft"
+                      onClick={() => router.post(status.reconnect_url!)}
+                    >
+                      Reconnect
+                    </Button>
+                  )}
+                </Flex>
               </Callout.Text>
-              {status.reconnect_url && (
-                <Button size="1" onClick={() => router.post(status.reconnect_url!)}>
-                  Reconnect bank
-                </Button>
-              )}
             </Callout.Root>
           )
         }
@@ -57,11 +68,18 @@ export default function BankSyncStatusList({ bankSyncStatuses }: { bankSyncStatu
                 <UpdateIcon />
               </Callout.Icon>
               <Callout.Text>
-                Bank connection for {status.bank_name} is waiting for authorization.
+                <Flex align="center" gap="3" wrap="wrap">
+                  <span>{status.bank_name} is waiting for authorization.</span>
+                  <Button
+                    size="1"
+                    color="amber"
+                    variant="soft"
+                    onClick={() => router.post(status.reconnect_url!)}
+                  >
+                    Continue
+                  </Button>
+                </Flex>
               </Callout.Text>
-              <Button size="1" color="amber" onClick={() => router.post(status.reconnect_url!)}>
-                Continue connection
-              </Button>
             </Callout.Root>
           )
         }
