@@ -112,8 +112,9 @@ function CategoryForm({
             onChange={(event) => setNote(event.target.value)}
             placeholder="Describe what belongs here, like you'd brief a bookkeeper."
             aria-label="Category note"
-            rows={3}
+            rows={9}
             resize="vertical"
+            style={{ minHeight: "15rem" }}
           />
           <Flex align="center" gap="4">
             <Button type="submit" color="green" radius="full" disabled={isSaving || name.trim() === ""}>
