@@ -1,5 +1,6 @@
-import { Callout, Flex } from "@radix-ui/themes"
+import { Callout, Button, Flex } from "@radix-ui/themes"
 import { UpdateIcon, CrossCircledIcon, CheckCircledIcon } from "@radix-ui/react-icons"
+import { router } from "@inertiajs/react"
 import { z } from "zod"
 
 export const BankSyncStatusSchema = z.object({
@@ -8,6 +9,7 @@ export const BankSyncStatusSchema = z.object({
   sync_running: z.boolean(),
   sync_completed_at: z.string(),
   sync_error: z.string().nullable(),
+  reconnect_url: z.string().nullable(),
 })
 
 export type BankSyncStatus = z.infer<typeof BankSyncStatusSchema>
@@ -38,6 +40,11 @@ export default function BankSyncStatusList({ bankSyncStatuses }: { bankSyncStatu
               <Callout.Text>
                 Last transaction sync failed for {status.bank_name}: {status.sync_error}
               </Callout.Text>
+              {status.reconnect_url && (
+                <Button size="1" onClick={() => router.post(status.reconnect_url!)}>
+                  Reconnect bank
+                </Button>
+              )}
             </Callout.Root>
           )
         }

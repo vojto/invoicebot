@@ -1,4 +1,8 @@
 class TransactionSyncService
+  class AuthorizationExpiredError < StandardError; end
+
+  AUTHORIZATION_EXPIRED_MESSAGE = "Bank authorization expired. Reconnect the bank account to resume syncing."
+
   def initialize(bank_connection)
     @bank_connection = bank_connection
     @user = bank_connection.user
@@ -19,7 +23,9 @@ class TransactionSyncService
 
       @bank_connection.update!(sync_running: false, sync_completed_at: Time.current, sync_error: nil)
     rescue => e
-      @bank_connection.update(sync_running: false, sync_error: e.message)
+      attributes = { sync_running: false, sync_error: e.message }
+      attributes[:status] = :expired if e.is_a?(AuthorizationExpiredError)
+      @bank_connection.update(attributes)
       raise
     end
   end
@@ -50,12 +56,11 @@ class TransactionSyncService
   def booked_transactions(response)
     return response.dig("transactions", "booked") || [] if response["transactions"]
 
-    message = if response["status_code"] == 401 && response["detail"]&.include?("expired")
-      "Bank authorization expired. Reconnect the bank account to resume syncing."
-    else
-      response["detail"].presence || response["summary"].presence || "Bank returned an invalid transaction response."
+    if response["status_code"] == 401 && response["detail"]&.include?("expired")
+      raise AuthorizationExpiredError, AUTHORIZATION_EXPIRED_MESSAGE
     end
 
+    message = response["detail"].presence || response["summary"].presence || "Bank returned an invalid transaction response."
     raise StandardError, message
   end
 

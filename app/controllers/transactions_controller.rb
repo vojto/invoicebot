@@ -348,7 +348,8 @@ class TransactionsController < ApplicationController
       bank_name: connection.institution_name.presence || "Bank ##{connection.id}",
       sync_running: connection.sync_running,
       sync_completed_at: format_last_synced(connection.sync_completed_at),
-      sync_error: connection.sync_error
+      sync_error: connection.sync_error,
+      reconnect_url: connection.expired? ? reconnect_bank_path(connection) : nil
     }
   end
 

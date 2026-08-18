@@ -87,7 +87,7 @@ RSpec.describe TransactionSyncService do
 
     context "when the bank authorization expired" do
       let(:previous_sync_time) { 1.day.ago.change(usec: 0) }
-      let(:expired_message) { "Bank authorization expired. Reconnect the bank account to resume syncing." }
+      let(:expired_message) { described_class::AUTHORIZATION_EXPIRED_MESSAGE }
 
       let(:fake_account) do
         instance_double("Account").tap do |a|
@@ -114,6 +114,7 @@ RSpec.describe TransactionSyncService do
 
         expect(connection.sync_error).to eq(expired_message)
         expect(connection.sync_completed_at).to eq(previous_sync_time)
+        expect(connection).to be_expired
       end
     end
   end
