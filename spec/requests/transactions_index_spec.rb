@@ -41,6 +41,27 @@ RSpec.describe "Transactions index", type: :request do
     expect(response).to have_http_status(:not_found)
   end
 
+  it "shows expired bank connections with their reconnect action" do
+    expired_connection = create(
+      :bank_connection,
+      user: user,
+      status: :expired,
+      sync_error: TransactionSyncService::AUTHORIZATION_EXPIRED_MESSAGE
+    )
+
+    get "/transactions", headers: inertia_headers
+
+    bank_status = response.parsed_body.dig("props", "bank_sync_statuses").find do |status|
+      status["id"] == expired_connection.id
+    end
+
+    expect(bank_status).to include(
+      "status" => "expired",
+      "sync_error" => TransactionSyncService::AUTHORIZATION_EXPIRED_MESSAGE,
+      "reconnect_url" => reconnect_bank_path(expired_connection)
+    )
+  end
+
   def inertia_headers
     {
       "X-Inertia" => "true",

@@ -6,6 +6,7 @@ import { z } from "zod"
 export const BankSyncStatusSchema = z.object({
   id: z.number(),
   bank_name: z.string(),
+  status: z.enum(["pending", "linked", "expired"]),
   sync_running: z.boolean(),
   sync_completed_at: z.string(),
   sync_error: z.string().nullable(),
@@ -31,7 +32,7 @@ export default function BankSyncStatusList({ bankSyncStatuses }: { bankSyncStatu
           )
         }
 
-        if (status.sync_error) {
+        if (status.status === "expired" || status.sync_error) {
           return (
             <Callout.Root key={status.id} color="red">
               <Callout.Icon>
@@ -45,6 +46,22 @@ export default function BankSyncStatusList({ bankSyncStatuses }: { bankSyncStatu
                   Reconnect bank
                 </Button>
               )}
+            </Callout.Root>
+          )
+        }
+
+        if (status.status === "pending") {
+          return (
+            <Callout.Root key={status.id} color="amber">
+              <Callout.Icon>
+                <UpdateIcon />
+              </Callout.Icon>
+              <Callout.Text>
+                Bank connection for {status.bank_name} is waiting for authorization.
+              </Callout.Text>
+              <Button size="1" color="amber" onClick={() => router.post(status.reconnect_url!)}>
+                Continue connection
+              </Button>
             </Callout.Root>
           )
         }

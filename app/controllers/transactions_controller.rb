@@ -25,7 +25,6 @@ class TransactionsController < ApplicationController
       .limit(500)
 
     bank_sync_statuses = current_user.bank_connections
-      .linked
       .order(:institution_name)
 
     render inertia: "transactions/index", props: {
@@ -346,10 +345,11 @@ class TransactionsController < ApplicationController
     {
       id: connection.id,
       bank_name: connection.institution_name.presence || "Bank ##{connection.id}",
+      status: connection.status,
       sync_running: connection.sync_running,
       sync_completed_at: format_last_synced(connection.sync_completed_at),
       sync_error: connection.sync_error,
-      reconnect_url: connection.expired? ? reconnect_bank_path(connection) : nil
+      reconnect_url: connection.linked? ? nil : reconnect_bank_path(connection)
     }
   end
 

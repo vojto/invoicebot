@@ -28,6 +28,7 @@ RSpec.describe "Banks" do
       expect(connection).to be_pending
       expect(connection.requisition_id).to eq("new-requisition")
       expect(connection.reference_id).to be_present
+      expect(connection.sync_error).to be_nil
     end
   end
 

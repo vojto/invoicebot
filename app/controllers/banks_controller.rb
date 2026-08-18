@@ -33,7 +33,9 @@ class BanksController < ApplicationController
     connection.update!(
       requisition_id: session_data["id"],
       reference_id: reference_id,
-      status: :pending
+      status: :pending,
+      sync_running: false,
+      sync_error: nil
     )
 
     inertia_location session_data["link"]
