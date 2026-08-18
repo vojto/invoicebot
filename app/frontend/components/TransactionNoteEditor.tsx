@@ -8,6 +8,7 @@ type Props = {
   transactionId: number
   customNote: string | null
   vendorName: string | null
+  isEnriched: boolean
   textClassName?: string
 }
 
@@ -15,9 +16,10 @@ function displayValue(customNote: string | null, vendorName: string | null): str
   return customNote === null ? (vendorName ?? "") : customNote
 }
 
-export default function TransactionNoteEditor({ transactionId, customNote, vendorName, textClassName }: Props) {
+export default function TransactionNoteEditor({ transactionId, customNote, vendorName, isEnriched, textClassName }: Props) {
   const [open, setOpen] = useState(false)
   const [value, setValue] = useState(displayValue(customNote, vendorName))
+  const isProcessing = !isEnriched && customNote === null
 
   useEffect(() => {
     if (open) {
@@ -42,7 +44,14 @@ export default function TransactionNoteEditor({ transactionId, customNote, vendo
     <Popover.Root open={open} onOpenChange={setOpen}>
       <Flex align="center" gap="1">
         <Text size="1" className={`min-h-5 whitespace-pre-wrap ${textClassName ?? ""}`.trim()}>
-          {displayValue(customNote, vendorName) || "\u00A0"}
+          {isProcessing ? (
+            <span className="inline-flex items-center gap-1.5 italic text-gray-500">
+              <span className="size-1.5 animate-pulse rounded-full bg-gray-400" />
+              Processing…
+            </span>
+          ) : (
+            displayValue(customNote, vendorName) || "\u00A0"
+          )}
         </Text>
         <Popover.Trigger asChild>
           <Button size="1" variant="ghost" color="gray">

@@ -160,6 +160,7 @@ class TransactionsController < ApplicationController
       original_currency: tx.original_currency,
       vendor_name: tx.vendor_name,
       custom_note: tx.custom_note,
+      is_enriched: tx.is_enriched,
       bank_name: tx.bank_connection.institution_name,
       hidden_at: tx.hidden_at&.iso8601,
       is_flagged: tx.is_flagged

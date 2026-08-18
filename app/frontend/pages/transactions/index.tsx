@@ -30,6 +30,7 @@ const TransactionSchema = z.object({
   original_currency: z.string().nullable(),
   vendor_name: z.string().nullable(),
   custom_note: z.string().nullable(),
+  is_enriched: z.boolean(),
   bank_name: z.string().nullable(),
   hidden_at: z.string().nullable(),
   is_flagged: z.boolean(),
@@ -231,6 +232,7 @@ export default function TransactionsIndex(props: Props) {
                               transactionId={tx.id}
                               customNote={tx.custom_note}
                               vendorName={tx.vendor_name}
+                              isEnriched={tx.is_enriched}
                               textClassName={hiddenClass}
                             />
                           </Table.Cell>

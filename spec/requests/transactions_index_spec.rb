@@ -21,6 +21,7 @@ RSpec.describe "Transactions index", type: :request do
     expect(page.dig("props", "selected_month")).to eq({ "key" => "2026-07", "label" => "July 2026" })
     serialized_transaction = page.dig("props", "transaction_groups", 0, "transactions", 0)
     expect(serialized_transaction["id"]).to eq(july.id)
+    expect(serialized_transaction["is_enriched"]).to be(false)
     expect(serialized_transaction.dig("invoice", "category")).to eq(
       { "id" => category.id, "name" => "Software" }
     )
