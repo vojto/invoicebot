@@ -6,7 +6,8 @@ RSpec.describe InvoiceCategorizationAgent do
   subject(:agent) { described_class.new(invoice) }
 
   let(:user) { create(:user) }
-  let(:invoice) { create(:invoice, user: user, vendor_name: "Heroku") }
+  let(:email) { create(:email, user: user, subject: "Your hosting invoice", from_address: "billing@example.com") }
+  let(:invoice) { create(:invoice, user: user, email: email, vendor_name: "Heroku") }
   let!(:hosting) { create(:category, user: user, name: "Hosting", note: "Servers and cloud platforms") }
   let(:chat) { instance_double(RubyLLM::Chat) }
   let(:schema_chat) { instance_double(RubyLLM::Chat) }
@@ -26,7 +27,13 @@ RSpec.describe InvoiceCategorizationAgent do
 
     expect(agent.call).to eq(hosting)
     expect(schema_chat).to have_received(:ask) do |prompt|
-      expect(prompt).to include("Heroku", "Hosting", "Servers and cloud platforms")
+      expect(prompt).to include(
+        "Heroku",
+        "Your hosting invoice",
+        "billing@example.com",
+        "Hosting",
+        "Servers and cloud platforms"
+      )
     end
   end
 

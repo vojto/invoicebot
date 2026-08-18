@@ -9,7 +9,7 @@ class InvoiceCategorizationAgent < ApplicationAgent
 
   SYSTEM_PROMPT = <<~PROMPT
     You file invoices into a user's own bookkeeping categories.
-    You get one invoice and the full list of categories. Each category has an id, a name, and sometimes a note describing what belongs in it.
+    You get one invoice, its source email details, and the full list of categories. Each category has an id, a name, and sometimes a note describing what belongs in it.
     Pick the single category the invoice clearly belongs to and return its id. Be conservative: a plausible guess is worse than no answer here. Return null whenever the invoice does not clearly match a category, several categories fit equally well, or you have too little information about the invoice.
     Only return an id from the list.
   PROMPT
@@ -45,7 +45,9 @@ class InvoiceCategorizationAgent < ApplicationAgent
       "Vendor: #{@invoice.vendor_name}",
       "Amount: #{formatted_amount}",
       "Document type: #{@invoice.document_type}",
-      "Note: #{@invoice.note.presence || 'None'}"
+      "Note: #{@invoice.note.presence || 'None'}",
+      "Email subject: #{@invoice.email&.subject.presence || 'None'}",
+      "Email sender: #{@invoice.email&.from_address.presence || 'None'}"
     ].join("\n")
   end
 
