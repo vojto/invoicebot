@@ -40,11 +40,23 @@ class TransactionSyncService
     date_to = Date.current.iso8601
 
     response = account.get_transactions(date_from: date_from, date_to: date_to)
-    transactions = response.dig("transactions", "booked") || []
+    transactions = booked_transactions(response)
 
     transactions.each do |tx|
       upsert_transaction(tx)
     end
+  end
+
+  def booked_transactions(response)
+    return response.dig("transactions", "booked") || [] if response["transactions"]
+
+    message = if response["status_code"] == 401 && response["detail"]&.include?("expired")
+      "Bank authorization expired. Reconnect the bank account to resume syncing."
+    else
+      response["detail"].presence || response["summary"].presence || "Bank returned an invalid transaction response."
+    end
+
+    raise StandardError, message
   end
 
   def upsert_transaction(tx)

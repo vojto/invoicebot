@@ -84,5 +84,37 @@ RSpec.describe TransactionSyncService do
         expect(connection.sync_completed_at).to eq(previous_sync_time)
       end
     end
+
+    context "when the bank authorization expired" do
+      let(:previous_sync_time) { 1.day.ago.change(usec: 0) }
+      let(:expired_message) { "Bank authorization expired. Reconnect the bank account to resume syncing." }
+
+      let(:fake_account) do
+        instance_double("Account").tap do |a|
+          allow(a).to receive(:get_transactions).and_return(
+            {
+              "summary" => "End User Agreement has expired",
+              "detail" => "EUA was valid for 90 days and it expired",
+              "status_code" => 401
+            }
+          )
+        end
+      end
+
+      before do
+        connection.update!(sync_error: nil, sync_completed_at: previous_sync_time)
+        stub_nordigen_client(requisition_data: fake_requisition_data, account_stub: fake_account)
+      end
+
+      it "persists a reconnect error instead of recording a successful sync" do
+        expect { described_class.new(connection).sync }
+          .to raise_error(StandardError, expired_message)
+
+        connection.reload
+
+        expect(connection.sync_error).to eq(expired_message)
+        expect(connection.sync_completed_at).to eq(previous_sync_time)
+      end
+    end
   end
 end
