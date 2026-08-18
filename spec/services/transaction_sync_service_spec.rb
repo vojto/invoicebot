@@ -57,6 +57,42 @@ RSpec.describe TransactionSyncService do
         expect(created_tx.amount_cents).to eq(1234)
         expect(created_tx.direction).to eq("debit")
       end
+
+      it "resumes from the last successful sync with a two-day overlap" do
+        allow(Date).to receive(:current).and_return(Date.new(2026, 8, 18))
+        connection.update!(sync_completed_at: Time.zone.local(2026, 7, 12, 12))
+
+        described_class.new(connection).sync
+
+        expect(fake_account).to have_received(:get_transactions).with(
+          date_from: "2026-07-10",
+          date_to: "2026-08-18"
+        )
+      end
+
+      it "caps automatic history at 90 days" do
+        allow(Date).to receive(:current).and_return(Date.new(2026, 8, 18))
+        connection.update!(sync_completed_at: Time.zone.local(2026, 4, 1, 12))
+
+        described_class.new(connection).sync
+
+        expect(fake_account).to have_received(:get_transactions).with(
+          date_from: "2026-05-20",
+          date_to: "2026-08-18"
+        )
+      end
+
+      it "accepts an explicit backfill range" do
+        described_class.new(connection).sync(
+          date_from: Date.new(2026, 7, 12),
+          date_to: Date.new(2026, 7, 19)
+        )
+
+        expect(fake_account).to have_received(:get_transactions).with(
+          date_from: "2026-07-12",
+          date_to: "2026-07-19"
+        )
+      end
     end
 
     context "when sync fails" do
