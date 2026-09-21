@@ -30,6 +30,7 @@ const TransactionSchema = z.object({
   original_currency: z.string().nullable(),
   vendor_name: z.string().nullable(),
   custom_note: z.string().nullable(),
+  fallback_description: z.string(),
   is_enriched: z.boolean(),
   bank_name: z.string().nullable(),
   hidden_at: z.string().nullable(),
@@ -84,7 +85,7 @@ function transactionDebugText(transaction: Transaction): string {
     `Direction: ${transaction.direction}`,
     `Vendor: ${transaction.vendor_name ?? "-"}`,
     `Bank: ${transaction.bank_name ?? "-"}`,
-    `Note: ${transaction.custom_note ?? "-"}`,
+    `Description: ${transaction.custom_note?.trim() || transaction.fallback_description}`,
     `Invoice: ${transaction.invoice ? `#${transaction.invoice.id} ${transaction.invoice.label}` : "-"}`,
   ].join("\n")
 }
@@ -208,7 +209,7 @@ export default function TransactionsIndex(props: Props) {
                       <Table.ColumnHeaderCell width="100px">Bank</Table.ColumnHeaderCell>
                       <Table.ColumnHeaderCell width="90px">Date</Table.ColumnHeaderCell>
                       <Table.ColumnHeaderCell width="190px">Amount</Table.ColumnHeaderCell>
-                      <Table.ColumnHeaderCell>Note</Table.ColumnHeaderCell>
+                      <Table.ColumnHeaderCell>Description</Table.ColumnHeaderCell>
                       <Table.ColumnHeaderCell>Document</Table.ColumnHeaderCell>
                       <Table.ColumnHeaderCell width="190px">Category</Table.ColumnHeaderCell>
                       <Table.ColumnHeaderCell width="100px">Actions</Table.ColumnHeaderCell>
@@ -251,7 +252,7 @@ export default function TransactionsIndex(props: Props) {
                             <TransactionNoteEditor
                               transactionId={tx.id}
                               customNote={tx.custom_note}
-                              vendorName={tx.vendor_name}
+                              fallbackDescription={tx.fallback_description}
                               isEnriched={tx.is_enriched}
                               textClassName={hiddenClass}
                             />

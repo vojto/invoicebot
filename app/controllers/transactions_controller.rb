@@ -160,6 +160,7 @@ class TransactionsController < ApplicationController
       original_currency: tx.original_currency,
       vendor_name: tx.vendor_name,
       custom_note: tx.custom_note,
+      fallback_description: transaction_fallback_description(tx),
       is_enriched: tx.is_enriched,
       bank_name: tx.bank_connection.institution_name,
       hidden_at: tx.hidden_at&.iso8601,
@@ -340,6 +341,20 @@ class TransactionsController < ApplicationController
   def format_signed_amount(amount_cents, currency)
     sign = amount_cents > 0 ? "+" : ""
     "#{sign}#{format_amount(amount_cents, currency)}"
+  end
+
+  def transaction_fallback_description(transaction)
+    transaction.vendor_name.presence ||
+      transaction.description.presence ||
+      meaningful_counterparty_name(transaction) ||
+      "No details"
+  end
+
+  def meaningful_counterparty_name(transaction)
+    name = transaction.debit? ? transaction.creditor_name : transaction.debtor_name
+    return if name.blank? || name == "NOTPROVIDED" || name == transaction.currency
+
+    name
   end
 
   def serialize_bank_sync_status(connection)
