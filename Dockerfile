@@ -28,7 +28,7 @@ ENV RAILS_ENV="production" \
     LD_PRELOAD="libjemalloc.so.2"
 
 # Throw-away build stage to reduce size of final image
-FROM base AS build
+FROM base AS build-dependencies
 
 # Install packages needed to build gems and node modules
 RUN apt-get update -qq && \
@@ -52,22 +52,26 @@ RUN bundle install && \
 # Keep the large, dependency-only Bootsnap cache in its own stable image layer.
 RUN BOOTSNAP_CACHE_DIR=/bootsnap-gem-cache bundle exec bootsnap -j 0 precompile --gemfile
 
-# Install node modules
+# Build Vite assets from explicit inputs so backend-only changes reuse this stage.
+FROM build-dependencies AS assets
+
 COPY package.json package-lock.json ./
-RUN npm ci && \
-    rm -rf ~/.npm
+RUN npm ci
+
+COPY vite.config.ts tsconfig*.json ./
+COPY bin/vite ./bin/
+COPY config/vite.json ./config/
+COPY app/frontend/ ./app/frontend/
+RUN bin/vite build
+
+FROM build-dependencies AS build
 
 # Copy application code
 COPY . .
+COPY --from=assets /rails/public/vite/ ./public/vite/
 
 # Precompile bootsnap code for faster boot times
 RUN BOOTSNAP_CACHE_DIR=/bootsnap-app-cache bundle exec bootsnap -j 0 precompile app/ lib/
-
-# Precompiling assets for production without requiring secret RAILS_MASTER_KEY
-RUN BOOTSNAP_CACHE_DIR=/tmp/bootsnap-assets-cache SECRET_KEY_BASE_DUMMY=1 ./bin/rails assets:precompile && \
-    rm -rf /tmp/bootsnap-assets-cache
-
-RUN rm -rf node_modules
 
 
 

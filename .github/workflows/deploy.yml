@@ -13,16 +13,11 @@ on:
 permissions:
   contents: read
 
-concurrency:
-  group: production
-  cancel-in-progress: false
-
 jobs:
-  deploy:
-    name: Test and deploy
-    if: github.ref == 'refs/heads/main'
+  test:
+    name: Test
     runs-on: ubuntu-24.04
-    timeout-minutes: 45
+    timeout-minutes: 20
 
     env:
       CI: true
@@ -95,6 +90,44 @@ jobs:
       - name: Run RSpec
         run: mise exec -- bin/rails db:test:prepare && mise exec -- bundle exec rspec
 
+  # Deploys independently of the test job, like growbase. The Mac Studio runner keeps
+  # Kamal's buildx builder, so Docker layers stay cached locally between deploys.
+  deploy:
+    name: Deploy
+    if: github.ref == 'refs/heads/main'
+    runs-on: [self-hosted, macOS, ARM64, mac-studio, invoicebot]
+    timeout-minutes: 45
+    concurrency:
+      group: production
+      cancel-in-progress: false
+
+    env:
+      BUNDLE_FROZEN: true
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+
+      - name: Check runner prerequisites
+        run: |
+          set -euo pipefail
+          docker info > /dev/null
+          docker buildx inspect > /dev/null
+
+      - name: Install mise tools
+        uses: jdx/mise-action@e6a8b3978addb5a52f2b4cd9d91eafa7f0ab959d # v4.2.0
+        with:
+          version: 2026.6.1
+          cache: false
+
+      - name: Configure local dependency storage
+        run: echo "BUNDLE_PATH=$HOME/actions-caches/invoicebot/bundle" >> "$GITHUB_ENV"
+
+      - name: Install Ruby gems
+        run: mise exec -- bundle check || mise exec -- bundle install --jobs 4 --retry 3
+
       - name: Check deployment secrets
         env:
           KAMAL_REGISTRY_USERNAME: ${{ secrets.KAMAL_REGISTRY_USERNAME }}
@@ -131,6 +164,8 @@ jobs:
             fi
           done
 
+      # The runner shares $HOME with the Studio's own account, so the deploy key goes into an
+      # ssh-agent rather than ~/.ssh/id_rsa, and the host key is appended only when missing.
       - name: Configure SSH
         env:
           KAMAL_SSH_PRIVATE_KEY: ${{ secrets.KAMAL_SSH_PRIVATE_KEY }}
@@ -138,9 +173,18 @@ jobs:
         run: |
           set -euo pipefail
           install -d -m 700 "$HOME/.ssh"
-          printf '%s\n' "$KAMAL_SSH_PRIVATE_KEY" > "$HOME/.ssh/id_rsa"
-          printf '%s\n' "$KAMAL_SSH_KNOWN_HOSTS" > "$HOME/.ssh/known_hosts"
-          chmod 600 "$HOME/.ssh/id_rsa" "$HOME/.ssh/known_hosts"
+          touch "$HOME/.ssh/known_hosts"
+          chmod 600 "$HOME/.ssh/known_hosts"
+
+          deploy_host="${KAMAL_SSH_KNOWN_HOSTS%% *}"
+          if ! ssh-keygen -F "$deploy_host" > /dev/null; then
+            printf '%s\n' "$KAMAL_SSH_KNOWN_HOSTS" >> "$HOME/.ssh/known_hosts"
+          fi
+
+          eval "$(ssh-agent -s)" > /dev/null
+          printf '%s\n' "$KAMAL_SSH_PRIVATE_KEY" | ssh-add - 2> /dev/null
+          echo "SSH_AUTH_SOCK=$SSH_AUTH_SOCK" >> "$GITHUB_ENV"
+          echo "SSH_AGENT_PID=$SSH_AGENT_PID" >> "$GITHUB_ENV"
 
       - name: Deploy with Kamal
         env:
@@ -156,8 +200,13 @@ jobs:
         run: mise exec -- bin/kamal deploy
 
       - name: Verify production health
-        run: curl --fail --show-error --silent --retry 12 --retry-delay 5 https://invoices.rinik.net/up > /dev/null
+        timeout-minutes: 3
+        run: >-
+          curl --fail --show-error --silent
+          --connect-timeout 5 --max-time 10
+          --retry 12 --retry-delay 5 --retry-max-time 120
+          https://invoices.rinik.net/up > /dev/null
 
-      - name: Remove SSH credentials
+      - name: Stop SSH agent
         if: always()
-        run: rm -f "$HOME/.ssh/id_rsa" "$HOME/.ssh/known_hosts"
+        run: ssh-agent -k > /dev/null 2>&1 || true
