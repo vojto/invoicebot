@@ -39,8 +39,8 @@ class Invoice < ApplicationRecord
 
   def soft_delete!
     transaction do
-      bank_transaction&.update!(invoice: nil)
       update!(deleted_at: Time.current)
+      bank_transaction&.update!(invoice: nil)
     end
   end
 

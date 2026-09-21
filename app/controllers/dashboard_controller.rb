@@ -3,8 +3,7 @@ class DashboardController < ApplicationController
 
   def show
     invoices = current_user.invoices
-      .left_joins(:email)
-      .order(Arel.sql("COALESCE(invoices.issue_date, emails.date::date) DESC NULLS LAST"))
+      .order(Arel.sql("invoices.accounting_date DESC NULLS LAST, invoices.id DESC"))
       .limit(100)
       .includes(:email, :category, :bank_transaction, pdf_attachment: :blob)
 

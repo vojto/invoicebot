@@ -108,6 +108,7 @@ RSpec.describe "GET /invoices/:id", type: :request do
 
       expect(response).to redirect_to(month_path)
       expect(invoice.reload).to be_soft_deleted
+      expect(transaction.reload.invoice).to be_nil
     end
 
     it "returns to the current month after restoring an invoice" do

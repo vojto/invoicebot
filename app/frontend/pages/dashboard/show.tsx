@@ -41,16 +41,6 @@ function groupInvoicesByMonth(invoices: Invoice[]): Map<string, Invoice[]> {
     groups.set(key, existing)
   }
 
-  // Sort invoices within each group (newest first)
-  for (const [key, groupInvoices] of groups) {
-    groupInvoices.sort((a, b) => {
-      if (!a.accounting_date) return 1
-      if (!b.accounting_date) return -1
-      return new Date(b.accounting_date).getTime() - new Date(a.accounting_date).getTime()
-    })
-    groups.set(key, groupInvoices)
-  }
-
   // Sort groups by month key (newest first)
   const sortedEntries = [...groups.entries()].sort((a, b) => {
     if (a[0] === "unknown") return 1
