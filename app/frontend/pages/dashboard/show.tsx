@@ -82,7 +82,7 @@ function SyncStatus({ running, completedAt, error }: { running: boolean; complet
           <CrossCircledIcon />
         </Callout.Icon>
         <Flex justify="between" align="center" style={{ flex: 1 }}>
-          <Callout.Text>Sync failed: {error}</Callout.Text>
+          <Callout.Text>Email sync failed: {error}</Callout.Text>
           <Button
             size="1"
             variant="solid"

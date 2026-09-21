@@ -42,8 +42,8 @@ export default function BankSyncStatusList({ bankSyncStatuses }: { bankSyncStatu
                 <Flex align="center" gap="3" wrap="wrap">
                   <span>
                     {status.status === "expired"
-                      ? `${status.bank_name} authorization expired. Reconnect to resume transaction syncing.`
-                      : `Transaction sync failed for ${status.bank_name}: ${status.sync_error}`}
+                      ? `Transaction sync failed: ${status.bank_name} authorization expired. Reconnect to resume transaction syncing.`
+                      : `Transaction sync failed: ${status.bank_name}: ${status.sync_error}`}
                   </span>
                   {status.reconnect_url && (
                     <Button
