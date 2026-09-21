@@ -3,82 +3,29 @@
 require "rails_helper"
 
 RSpec.describe InvoiceExtractionAgent do
-  subject(:agent) { described_class.new(pdf_path: pdf_path, filename: "invoice.pdf") }
+  subject(:agent) { described_class.new(StringIO.new("%PDF-1.4"), filename: "invoice.pdf") }
 
-  let(:pdf_path) { Rails.root.join("tmp/invoice.pdf").to_s }
-  let(:chat) { instance_double(RubyLLM::Chat) }
-  let(:schema_chat) { instance_double(RubyLLM::Chat) }
-
-  before do
-    allow(RubyLLM).to receive(:chat).with(
-      model: described_class::MODEL,
-      provider: described_class::PROVIDER
-    ).and_return(chat)
-    allow(chat).to receive(:with_thinking).with(effort: described_class::REASONING_EFFORT).and_return(chat)
-    allow(chat).to receive(:with_instructions).with(described_class::SYSTEM_PROMPT)
-    allow(chat).to receive(:with_schema).with(described_class::ResponseSchema).and_return(schema_chat)
-  end
-
-  it "extracts from the full PDF" do
-    allow(schema_chat).to receive(:ask).and_return(
-      llm_result(
-        extracted_data(
-          vendor_name: "Acme",
-          amount_cents: 1234,
-          currency: "EUR",
-          issue_date: "2026-01-15",
-          delivery_date: nil
-        )
-      )
-    )
+  it "extracts invoice data from the PDF" do
+    allow(agent).to receive(:ask).and_return(llm_result(extracted_data(amount_cents: 1234, issue_date: "2026-01-15")))
 
     result = agent.call
 
-    expect(schema_chat).to have_received(:ask).with("Extract invoice data from this document.", with: pdf_path).once
-    expect(result[:amount_cents]).to eq(1234)
-    expect(result[:extraction_scope]).to eq("full_pdf")
+    expect(agent).to have_received(:ask)
+      .with("Extract invoice data from this document.", with: an_instance_of(RubyLLM::Attachment)).once
+    expect(result).to include(is_invoice: true, vendor_name: "Acme", amount_cents: 1234, issue_date: Date.new(2026, 1, 15))
   end
 
-  it "parses a serialized structured response" do
-    allow(schema_chat).to receive(:ask).and_return(
-      llm_result(
-        extracted_data(
-          vendor_name: "Acme",
-          amount_cents: 1234,
-          currency: "EUR",
-          issue_date: "2026-01-15"
-        ).to_json
-      )
-    )
+  it "rejects an extraction without an accounting date" do
+    allow(agent).to receive(:ask).and_return(llm_result(extracted_data(issue_date: nil, delivery_date: nil)))
 
-    result = agent.call
-
-    expect(result[:vendor_name]).to eq("Acme")
-    expect(result[:amount_cents]).to eq(1234)
+    expect { agent.call }.to raise_error(ApplicationAgent::InvalidResponseError)
   end
 
-  it "extracts credit notes as a distinct document type" do
-    allow(schema_chat).to receive(:ask).and_return(
+  it "extracts credit notes with their document references" do
+    allow(agent).to receive(:ask).and_return(
       llm_result(
         extracted_data(
           type: "credit_note",
-          vendor_name: "Acme",
-          amount_cents: 1234,
-          currency: "EUR",
-          issue_date: "2026-01-15"
-        )
-      )
-    )
-
-    expect(agent.call[:document_type]).to eq("credit_note")
-  end
-
-  it "returns explicit document semantics" do
-    allow(schema_chat).to receive(:ask).and_return(
-      llm_result(
-        extracted_data(
-          type: "credit_note",
-          explicit_label: "Credit Note",
           document_number: "CN-2",
           referenced_invoice_number: "INV-1"
         )
@@ -88,15 +35,13 @@ RSpec.describe InvoiceExtractionAgent do
     result = agent.call
 
     expect(result).to include(
-      extraction_status: "extracted",
-      amount_kind: "credit_total",
-      document_label: "Credit Note",
+      document_type: "credit_note",
       note: "Document number: CN-2; Referenced invoice: INV-1"
     )
   end
 
   it "extracts normalized vendor identity" do
-    allow(schema_chat).to receive(:ask).and_return(
+    allow(agent).to receive(:ask).and_return(
       llm_result(extracted_data(vendor_country: nil, vendor_eu_vat_id: "SK 2120299335"))
     )
 
@@ -106,7 +51,7 @@ RSpec.describe InvoiceExtractionAgent do
   end
 
   it "discards an invalid EU VAT ID" do
-    allow(schema_chat).to receive(:ask).and_return(
+    allow(agent).to receive(:ask).and_return(
       llm_result(extracted_data(vendor_country: nil, vendor_eu_vat_id: "VAT-123"))
     )
 
@@ -116,13 +61,13 @@ RSpec.describe InvoiceExtractionAgent do
   end
 
   it "returns a non-invoice result when the document is unsupported" do
-    allow(schema_chat).to receive(:ask).and_return(
+    allow(agent).to receive(:ask).and_return(
       llm_result(status_data("unsupported_document"))
     )
 
     result = agent.call
 
-    expect(schema_chat).to have_received(:ask).once
+    expect(agent).to have_received(:ask).once
     expect(result).to include(is_invoice: false, extraction_status: "unsupported_document")
   end
 
@@ -164,12 +109,7 @@ RSpec.describe InvoiceExtractionAgent do
     { status: status, document: nil }
   end
 
-  def llm_result(content)
-    instance_double(
-      RubyLLM::Message,
-      content: content,
-      input_tokens: 100,
-      output_tokens: 20
-    )
+  def llm_result(data)
+    RubyLLM::Message.new(role: :assistant, content: data.to_json)
   end
 end

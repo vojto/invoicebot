@@ -113,9 +113,7 @@ class InvoiceProcessingService
     pdf_content = pdf_io.respond_to?(:read) ? pdf_io.read : pdf_io
 
     begin
-      extraction = with_pdf_tempfile("uploaded_invoice", pdf_content) do |pdf_path|
-        InvoiceExtractionAgent.new(pdf_path: pdf_path, filename: filename).call
-      end
+      extraction = InvoiceExtractionAgent.new(StringIO.new(pdf_content), filename: filename).call
 
       unless extraction[:is_invoice]
         Rails.logger.info "[InvoiceProcessingService] PDF is not a valid invoice: #{filename}"
@@ -156,32 +154,13 @@ class InvoiceProcessingService
   def reprocess_invoice(invoice)
     Rails.logger.info "[InvoiceProcessingService] Reprocessing invoice #{invoice.id}"
 
-    extraction = extract_attached_invoice_pdf(invoice)
+    extraction = InvoiceExtractionAgent.new(invoice.pdf).call
     return nil unless extraction[:is_invoice]
 
     invoice.update_from_extraction!(extraction)
   end
 
   private
-
-  def with_pdf_tempfile(prefix, pdf_content)
-    Tempfile.create([ prefix, ".pdf" ]) do |temp_file|
-      temp_file.binmode
-      temp_file.write(pdf_content)
-      temp_file.close
-
-      yield temp_file.path
-    end
-  end
-
-  def extract_attached_invoice_pdf(invoice)
-    with_pdf_tempfile("reprocessed_invoice", invoice.pdf.download) do |pdf_path|
-      InvoiceExtractionAgent.new(
-        pdf_path: pdf_path,
-        filename: invoice.pdf.filename.to_s
-      ).call
-    end
-  end
 
   def extract_and_save_invoice_from_email(email, pdf_attachments, pdf_filename, verbose: false)
     require "colorize" if verbose
@@ -194,7 +173,7 @@ class InvoiceProcessingService
     end
 
     puts "  #{"Extracting:".light_blue} #{attachment.filename}..." if verbose
-    extraction = InvoiceExtractionAgent.new(attachment).call
+    extraction = InvoiceExtractionAgent.new(attachment.file).call
 
     unless extraction[:is_invoice]
       puts "  #{"Skipped:".yellow} PDF is not a valid invoice" if verbose
