@@ -89,9 +89,5 @@ asset_path: /rails/public
 # Configure the image builder.
 builder:
   arch: amd64
-  # Preserve intermediate dependency layers across ephemeral GitHub runners.
-  cache:
-    type: registry
-    image: vojto/invoicebot-build-cache
-    # mode=max retains intermediate build-stage layers such as Bundler and npm.
-    options: mode=max
+  # Reuse the persistent builder's local cache on the Mac Studio runner.
+  # Exporting a registry cache adds upload time to every deployment.

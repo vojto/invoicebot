@@ -42,6 +42,28 @@ RSpec.describe "Transactions index", type: :request do
     expect(response).to have_http_status(:not_found)
   end
 
+  it "provides a useful fallback description for each transaction" do
+    custom_note = create(:transaction, bank_connection: connection, custom_note: "Wrong card", vendor_name: "Cinema")
+    vendor = create(:transaction, bank_connection: connection, vendor_name: "Apple", description: "Long bank text")
+    bank_description = create(:transaction, bank_connection: connection, description: "Poplatok za balík")
+    counterparty = create(:transaction, bank_connection: connection, creditor_name: "Example Supplier")
+    no_details = create(:transaction, bank_connection: connection, creditor_name: "NOTPROVIDED")
+
+    get "/transactions", headers: inertia_headers
+
+    transactions = response.parsed_body.dig("props", "transaction_groups").flat_map { |group| group["transactions"] }
+    serialized = transactions.index_by { |transaction| transaction["id"] }
+
+    expect(serialized[custom_note.id]).to include(
+      "custom_note" => "Wrong card",
+      "fallback_description" => "Cinema"
+    )
+    expect(serialized[vendor.id]["fallback_description"]).to eq("Apple")
+    expect(serialized[bank_description.id]["fallback_description"]).to eq("Poplatok za balík")
+    expect(serialized[counterparty.id]["fallback_description"]).to eq("Example Supplier")
+    expect(serialized[no_details.id]["fallback_description"]).to eq("No details")
+  end
+
   it "shows expired bank connections with their reconnect action" do
     expired_connection = create(
       :bank_connection,

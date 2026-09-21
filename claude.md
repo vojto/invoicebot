@@ -72,15 +72,14 @@ Three roles: `web` (Puma/Thruster), `job` (Solid Queue via `bin/jobs`), `cron` (
 
 ### Automatic Deployment
 
-Every deployment-relevant push to `main` triggers `.github/workflows/deploy.yml`. Markdown-only, `docs/`, and root `screenshot.png` changes are ignored. The workflow:
+Every deployment-relevant push to `main` triggers `.github/workflows/deploy.yml`. Markdown-only, `docs/`, and root `screenshot.png` changes are ignored. It runs two independent jobs in parallel:
 
-1. Installs the Ruby and Node versions from `.mise.toml`.
-2. Runs the TypeScript check and the full RSpec suite against PostgreSQL.
-3. Verifies that all deployment secrets are present.
-4. Builds and pushes the image to GHCR, then deploys all three roles with Kamal.
-5. Requires `https://invoices.rinik.net/up` to return a successful response.
+- **Test** (`ubuntu-24.04`): installs the Ruby and Node versions from `.mise.toml`, then runs the TypeScript check and the full RSpec suite against PostgreSQL.
+- **Deploy** (self-hosted Mac Studio runner `mac-studio-invoicebot`, labels `mac-studio,invoicebot`): verifies deployment secrets, builds and pushes the image to GHCR, deploys all three roles with Kamal, and requires `https://invoices.rinik.net/up` to succeed.
 
-Deployments use the `production` concurrency group with `cancel-in-progress: false`. The running deployment is never cancelled by a newer push. GitHub retains at most one pending deployment, however, so a newer push can cancel and replace an older pending run; queued commits are not guaranteed to deploy individually.
+Deploy does **not** wait for Test, matching growbase. A failing Test job still reaches production, so check the Test result after pushing risky changes.
+
+The Deploy job uses the `production` concurrency group with `cancel-in-progress: false`. The running deployment is never cancelled by a newer push. GitHub retains at most one pending deployment, however, so a newer push can cancel and replace an older pending run; queued commits are not guaranteed to deploy individually.
 
 #### Deployment Speed Optimizations
 
@@ -92,7 +91,11 @@ Added after reviewing automatic deploys #10 and #11 on 2026-07-20:
 - The `cron` role uses a 2-second `stop_timeout`. The old cron container previously ignored the stop signal until Kamal force-killed it after 30 seconds, so this preserves the eventual forced-stop behavior with less waiting. Remove the override if cron shutdown behavior changes or running cron commands need a longer grace period.
 - The Docker build writes dependency and application Bootsnap caches separately, then merges them into `/rails/tmp/cache/bootsnap` in the final image. This keeps the large dependency cache in a stable layer instead of retransferring it after every code change. If production boot reports missing or invalid Bootsnap cache entries, revert the separate `BOOTSNAP_CACHE_DIR` steps to the original `/rails/tmp/cache` precompile commands.
 
-The registry-backed BuildKit cache remains in `mode=max`; npm installation, TypeScript, and RSpec were already fast enough that more caching was not justified.
+Added on 2026-09-21, copying growbase's setup:
+
+- Deploy runs on the Mac Studio, whose persistent `kamal-local-docker-container` buildx builder keeps Docker layers locally. The registry-backed build cache was removed because importing and exporting it cost ~20 seconds per deploy. Gems for Kamal live in `~/actions-caches/invoicebot/bundle` on the Studio. The runner shares `$HOME` with the Studio's own account, so the SSH deploy key is loaded into an ssh-agent instead of being written to `~/.ssh/id_rsa`.
+- Tests run in a parallel job instead of before the deploy.
+- The Dockerfile builds Vite assets in a separate `assets` stage from explicit inputs (`package*.json`, `vite.config.ts`, `tsconfig*.json`, `bin/vite`, `config/vite.json`, `app/frontend/`), so backend-only changes reuse the cached bundle. Add new inputs to that stage when the frontend build starts depending on another file; Tailwind only scans files present in the stage.
 
 After pushing ordinary completed application work to `main`, do not wait for the automatic deployment. Report the commit and push as complete without claiming that the change is deployed.
 

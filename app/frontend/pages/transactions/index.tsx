@@ -30,6 +30,7 @@ const TransactionSchema = z.object({
   original_currency: z.string().nullable(),
   vendor_name: z.string().nullable(),
   custom_note: z.string().nullable(),
+  fallback_description: z.string(),
   is_enriched: z.boolean(),
   bank_name: z.string().nullable(),
   hidden_at: z.string().nullable(),
@@ -60,7 +61,7 @@ const PropsSchema = z.object({
 type Props = z.infer<typeof PropsSchema>
 
 type ActionButtonProps = {
-  transactionId: number
+  transaction: Transaction
   isFlagged: boolean
   isLinked: boolean
 }
@@ -76,7 +77,21 @@ function formatTransactionAmount(transaction: Transaction): string {
   return `${amount} (${formatCurrency(transaction.original_amount_cents, transaction.original_currency)})`
 }
 
-function TransactionActions({ transactionId, isFlagged, isLinked }: ActionButtonProps) {
+function transactionDebugText(transaction: Transaction): string {
+  return [
+    `Transaction ID: ${transaction.id}`,
+    `Date: ${transaction.booking_date_label}`,
+    `Amount: ${formatTransactionAmount(transaction)}`,
+    `Direction: ${transaction.direction}`,
+    `Vendor: ${transaction.vendor_name ?? "-"}`,
+    `Bank: ${transaction.bank_name ?? "-"}`,
+    `Description: ${transaction.custom_note?.trim() || transaction.fallback_description}`,
+    `Invoice: ${transaction.invoice ? `#${transaction.invoice.id} ${transaction.invoice.label}` : "-"}`,
+  ].join("\n")
+}
+
+function TransactionActions({ transaction, isFlagged, isLinked }: ActionButtonProps) {
+  const transactionId = transaction.id
   const itemClass = "cursor-pointer select-none rounded px-2 py-1.5 text-sm text-gray-800 outline-none hover:bg-gray-100 focus:bg-gray-100"
   return (
     <DropdownMenu.Root>
@@ -115,6 +130,12 @@ function TransactionActions({ transactionId, isFlagged, isLinked }: ActionButton
             )}
           >
             {isFlagged ? "Remove flag" : "Flag"}
+          </DropdownMenu.Item>
+          <DropdownMenu.Item
+            className={itemClass}
+            onSelect={() => navigator.clipboard.writeText(transactionDebugText(transaction))}
+          >
+            Copy to clipboard
           </DropdownMenu.Item>
         </DropdownMenu.Content>
       </DropdownMenu.Portal>
@@ -188,7 +209,7 @@ export default function TransactionsIndex(props: Props) {
                       <Table.ColumnHeaderCell width="100px">Bank</Table.ColumnHeaderCell>
                       <Table.ColumnHeaderCell width="90px">Date</Table.ColumnHeaderCell>
                       <Table.ColumnHeaderCell width="190px">Amount</Table.ColumnHeaderCell>
-                      <Table.ColumnHeaderCell>Note</Table.ColumnHeaderCell>
+                      <Table.ColumnHeaderCell>Description</Table.ColumnHeaderCell>
                       <Table.ColumnHeaderCell>Document</Table.ColumnHeaderCell>
                       <Table.ColumnHeaderCell width="190px">Category</Table.ColumnHeaderCell>
                       <Table.ColumnHeaderCell width="100px">Actions</Table.ColumnHeaderCell>
@@ -231,7 +252,7 @@ export default function TransactionsIndex(props: Props) {
                             <TransactionNoteEditor
                               transactionId={tx.id}
                               customNote={tx.custom_note}
-                              vendorName={tx.vendor_name}
+                              fallbackDescription={tx.fallback_description}
                               isEnriched={tx.is_enriched}
                               textClassName={hiddenClass}
                             />
@@ -298,7 +319,7 @@ export default function TransactionsIndex(props: Props) {
                                 {isHidden ? "Restore" : "Unflag"}
                               </Button>
                             ) : (
-                              <TransactionActions transactionId={tx.id} isFlagged={isFlagged} isLinked={isLinked} />
+                              <TransactionActions transaction={tx} isFlagged={isFlagged} isLinked={isLinked} />
                             )}
                           </Table.Cell>
                         </Table.Row>

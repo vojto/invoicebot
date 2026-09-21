@@ -7,25 +7,25 @@ import { useEffect, useState } from "react"
 type Props = {
   transactionId: number
   customNote: string | null
-  vendorName: string | null
+  fallbackDescription: string
   isEnriched: boolean
   textClassName?: string
 }
 
-function displayValue(customNote: string | null, vendorName: string | null): string {
-  return customNote === null ? (vendorName ?? "") : customNote
+function displayValue(customNote: string | null, fallbackDescription: string): string {
+  return customNote?.trim() || fallbackDescription
 }
 
-export default function TransactionNoteEditor({ transactionId, customNote, vendorName, isEnriched, textClassName }: Props) {
+export default function TransactionNoteEditor({ transactionId, customNote, fallbackDescription, isEnriched, textClassName }: Props) {
   const [open, setOpen] = useState(false)
-  const [value, setValue] = useState(displayValue(customNote, vendorName))
+  const [value, setValue] = useState(displayValue(customNote, fallbackDescription))
   const isProcessing = !isEnriched && customNote === null
 
   useEffect(() => {
     if (open) {
-      setValue(displayValue(customNote, vendorName))
+      setValue(displayValue(customNote, fallbackDescription))
     }
-  }, [open, customNote, vendorName])
+  }, [open, customNote, fallbackDescription])
 
   const save = () => {
     router.post(
@@ -36,8 +36,8 @@ export default function TransactionNoteEditor({ transactionId, customNote, vendo
     setOpen(false)
   }
 
-  const resetToVendor = () => {
-    setValue(vendorName ?? "")
+  const resetToFallback = () => {
+    setValue(fallbackDescription)
   }
 
   return (
@@ -50,7 +50,7 @@ export default function TransactionNoteEditor({ transactionId, customNote, vendo
               Processing…
             </span>
           ) : (
-            displayValue(customNote, vendorName) || "\u00A0"
+            displayValue(customNote, fallbackDescription)
           )}
         </Text>
         <Popover.Trigger asChild>
@@ -80,7 +80,7 @@ export default function TransactionNoteEditor({ transactionId, customNote, vendo
                 autoFocus
               />
               <Flex justify="between" gap="2" mt="2">
-                <Button size="1" variant="soft" color="gray" onClick={resetToVendor}>
+                <Button size="1" variant="soft" color="gray" onClick={resetToFallback}>
                   Reset
                 </Button>
                 <Flex gap="2">
