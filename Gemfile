@@ -50,8 +50,7 @@ gem "caxlsx", "~> 4.5"
 gem "csv"
 
 # LLM integration
-gem "ruby_llm", github: "crmne/ruby_llm"
-gem "ruby_llm-schema"
+gem "ruby_llm", "~> 2.0"
 
 # EU VAT number normalization and country-specific format validation
 gem "valvat", "~> 2.0"
