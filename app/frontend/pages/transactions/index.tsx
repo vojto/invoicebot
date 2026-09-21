@@ -60,7 +60,7 @@ const PropsSchema = z.object({
 type Props = z.infer<typeof PropsSchema>
 
 type ActionButtonProps = {
-  transactionId: number
+  transaction: Transaction
   isFlagged: boolean
   isLinked: boolean
 }
@@ -76,7 +76,21 @@ function formatTransactionAmount(transaction: Transaction): string {
   return `${amount} (${formatCurrency(transaction.original_amount_cents, transaction.original_currency)})`
 }
 
-function TransactionActions({ transactionId, isFlagged, isLinked }: ActionButtonProps) {
+function transactionDebugText(transaction: Transaction): string {
+  return [
+    `Transaction ID: ${transaction.id}`,
+    `Date: ${transaction.booking_date_label}`,
+    `Amount: ${formatTransactionAmount(transaction)}`,
+    `Direction: ${transaction.direction}`,
+    `Vendor: ${transaction.vendor_name ?? "-"}`,
+    `Bank: ${transaction.bank_name ?? "-"}`,
+    `Note: ${transaction.custom_note ?? "-"}`,
+    `Invoice: ${transaction.invoice ? `#${transaction.invoice.id} ${transaction.invoice.label}` : "-"}`,
+  ].join("\n")
+}
+
+function TransactionActions({ transaction, isFlagged, isLinked }: ActionButtonProps) {
+  const transactionId = transaction.id
   const itemClass = "cursor-pointer select-none rounded px-2 py-1.5 text-sm text-gray-800 outline-none hover:bg-gray-100 focus:bg-gray-100"
   return (
     <DropdownMenu.Root>
@@ -115,6 +129,12 @@ function TransactionActions({ transactionId, isFlagged, isLinked }: ActionButton
             )}
           >
             {isFlagged ? "Remove flag" : "Flag"}
+          </DropdownMenu.Item>
+          <DropdownMenu.Item
+            className={itemClass}
+            onSelect={() => navigator.clipboard.writeText(transactionDebugText(transaction))}
+          >
+            Copy to clipboard
           </DropdownMenu.Item>
         </DropdownMenu.Content>
       </DropdownMenu.Portal>
@@ -298,7 +318,7 @@ export default function TransactionsIndex(props: Props) {
                                 {isHidden ? "Restore" : "Unflag"}
                               </Button>
                             ) : (
-                              <TransactionActions transactionId={tx.id} isFlagged={isFlagged} isLinked={isLinked} />
+                              <TransactionActions transaction={tx} isFlagged={isFlagged} isLinked={isLinked} />
                             )}
                           </Table.Cell>
                         </Table.Row>
