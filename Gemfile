@@ -50,7 +50,9 @@ gem "caxlsx", "~> 4.5"
 gem "csv"
 
 # LLM integration
-gem "ruby_llm", "~> 2.0"
+gem "ruby_llm", "~> 2.1.1"
+# Rails before 8.1.4 requires JSON 2.
+gem "json", "< 3"
 
 # EU VAT number normalization and country-specific format validation
 gem "valvat", "~> 2.0"

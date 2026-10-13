@@ -3,8 +3,8 @@
 class ApplicationAgent < RubyLLM::Agent
   class InvalidResponseError < StandardError; end
 
-  model "gpt-5.6-terra", provider: :openai
-  thinking false
+  model "gpt-6.1-sol", provider: :openai
+  thinking effort: :low
 
   private
 
