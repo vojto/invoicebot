@@ -15,8 +15,8 @@ Do not infer `credit_note` merely from a refund mention, a negative line item, a
 - Always return a positive amount in cents.
 ## 📅 Dates
 - Interpret numeric dates using the vendor's country: day/month/year for most countries and month/day/year for the United States.
-- Only return `delivery_date` when explicitly stated.
-- A header-level service period may use its end date; a period mentioned only inside a line item may not.
+- For `delivery_date`, use an explicit delivery or service date; otherwise use the end of a header-level service period, or null if neither exists.
+- Never infer `delivery_date` from a line-item period or the issue date.
 ## 🏢 Vendor identity
 - Return `vendor_country` only when the document identifies it through the vendor address or tax identity.
 - Return `vendor_eu_vat_id` only for the vendor (not the customer), normalized like SK2120299335 or IE3668997OH using that country's valid VAT ID format, or EU528377759 for the non-Union scheme.
