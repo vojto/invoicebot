@@ -1,8 +1,10 @@
-import { Head, router } from "@inertiajs/react"
-import { Heading, Box, Text, Table, Flex, Button, Callout } from "@radix-ui/themes"
+import { Head, Link, router } from "@inertiajs/react"
+import { Heading, Box, Text, Flex, Button, Callout } from "@radix-ui/themes"
 import { DownloadIcon, UpdateIcon, CheckCircledIcon, CrossCircledIcon } from "@radix-ui/react-icons"
 import { z } from "zod"
-import InvoiceRow, { InvoiceSchema, type Invoice } from "~/components/InvoiceRow"
+import { InvoiceSchema, type Invoice } from "../../components/InvoiceRow"
+import InvoiceTable from "../../components/InvoiceTable"
+import PdfDropZone from "../../components/PdfDropZone"
 
 const PropsSchema = z.object({
   invoices: z.array(InvoiceSchema),
@@ -39,16 +41,6 @@ function groupInvoicesByMonth(invoices: Invoice[]): Map<string, Invoice[]> {
     groups.set(key, existing)
   }
 
-  // Sort invoices within each group (newest first)
-  for (const [key, groupInvoices] of groups) {
-    groupInvoices.sort((a, b) => {
-      if (!a.accounting_date) return 1
-      if (!b.accounting_date) return -1
-      return new Date(b.accounting_date).getTime() - new Date(a.accounting_date).getTime()
-    })
-    groups.set(key, groupInvoices)
-  }
-
   // Sort groups by month key (newest first)
   const sortedEntries = [...groups.entries()].sort((a, b) => {
     if (a[0] === "unknown") return 1
@@ -80,7 +72,7 @@ function SyncStatus({ running, completedAt, error }: { running: boolean; complet
           <CrossCircledIcon />
         </Callout.Icon>
         <Flex justify="between" align="center" style={{ flex: 1 }}>
-          <Callout.Text>Sync failed: {error}</Callout.Text>
+          <Callout.Text>Email sync failed: {error}</Callout.Text>
           <Button
             size="1"
             variant="solid"
@@ -114,8 +106,8 @@ export default function DashboardShow(props: Props) {
   const groupedInvoices = groupInvoicesByMonth(invoices)
 
   return (
-    <>
-      <Head title="Dashboard" />
+    <PdfDropZone enabled={true}>
+      <Head title="Invoices" />
       <SyncStatus running={sync_running} completedAt={sync_completed_at} error={sync_error} />
       <Box>
         {invoices.length === 0 ? (
@@ -126,12 +118,23 @@ export default function DashboardShow(props: Props) {
         ) : (
           <Flex direction="column" gap="6">
             {[...groupedInvoices.entries()].map(([monthKey, monthInvoices]) => {
-              const hasDownloadableInvoices = monthKey !== "unknown" && monthInvoices.some((inv) => !inv.deleted_at)
+              const validCount = monthInvoices.filter((inv) => !inv.deleted_at).length
+              const hasDownloadableInvoices = monthKey !== "unknown" && validCount > 0
               return (
               <Box key={monthKey}>
                 <Flex justify="between" align="center" mb="4">
                   <Heading size="5" as="h2">
-                    {formatMonthHeading(monthKey)}
+                    {monthKey === "unknown" ? (
+                      formatMonthHeading(monthKey)
+                    ) : (
+                      <Link
+                        href={`/invoices/month/${monthKey}`}
+                        className="text-inherit underline decoration-dotted underline-offset-4 hover:decoration-solid"
+                      >
+                        {formatMonthHeading(monthKey)}
+                      </Link>
+                    )}{" "}
+                    <Text size="4" color="gray" weight="regular">({validCount})</Text>
                   </Heading>
                   {hasDownloadableInvoices && (
                     <Button
@@ -146,29 +149,12 @@ export default function DashboardShow(props: Props) {
                     </Button>
                   )}
                 </Flex>
-                <Table.Root variant="surface" size="2">
-                  <Table.Header>
-                    <Table.Row>
-                      <Table.ColumnHeaderCell width="400px">Vendor</Table.ColumnHeaderCell>
-                      <Table.ColumnHeaderCell width="120px">Amount</Table.ColumnHeaderCell>
-                      <Table.ColumnHeaderCell width="140px">Accounting Date</Table.ColumnHeaderCell>
-                      <Table.ColumnHeaderCell width="200px">Email Date</Table.ColumnHeaderCell>
-                      <Table.ColumnHeaderCell>Email Subject</Table.ColumnHeaderCell>
-                      <Table.ColumnHeaderCell>Transaction</Table.ColumnHeaderCell>
-                      <Table.ColumnHeaderCell width="140px">Actions</Table.ColumnHeaderCell>
-                    </Table.Row>
-                  </Table.Header>
-                  <Table.Body>
-                    {monthInvoices.map((invoice) => (
-                      <InvoiceRow key={invoice.id} invoice={invoice} />
-                    ))}
-                  </Table.Body>
-                </Table.Root>
+                <InvoiceTable invoices={monthInvoices} />
               </Box>
             )})}
           </Flex>
         )}
       </Box>
-    </>
+    </PdfDropZone>
   )
 }

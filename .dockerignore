@@ -39,6 +39,12 @@
 # Ignore CI service files.
 /.github
 
+# Ignore files that are not needed by the production image.
+*.md
+/docs
+/screenshot.png
+/spec
+
 # Ignore Kamal files.
 /config/deploy*.yml
 /.kamal

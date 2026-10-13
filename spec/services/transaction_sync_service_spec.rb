@@ -3,7 +3,7 @@ require "rails_helper"
 RSpec.describe TransactionSyncService do
   let(:connection) { create(:bank_connection, sync_running: false, sync_error: "old error", sync_completed_at: nil) }
 
-  let(:fake_requisition_data) { { "accounts" => ["acc-1"] } }
+  let(:fake_requisition_data) { { "accounts" => [ "acc-1" ] } }
 
   def stub_nordigen_client(requisition_data:, account_stub:)
     fake_requisition = instance_double("Requisition")
@@ -35,7 +35,7 @@ RSpec.describe TransactionSyncService do
       let(:fake_account) do
         instance_double("Account").tap do |a|
           allow(a).to receive(:get_transactions).and_return(
-            { "transactions" => { "booked" => [transaction_payload] } }
+            { "transactions" => { "booked" => [ transaction_payload ] } }
           )
         end
       end
@@ -56,6 +56,42 @@ RSpec.describe TransactionSyncService do
         expect(connection.sync_completed_at).not_to be_nil
         expect(created_tx.amount_cents).to eq(1234)
         expect(created_tx.direction).to eq("debit")
+      end
+
+      it "resumes from the last successful sync with a two-day overlap" do
+        allow(Date).to receive(:current).and_return(Date.new(2026, 8, 18))
+        connection.update!(sync_completed_at: Time.zone.local(2026, 7, 12, 12))
+
+        described_class.new(connection).sync
+
+        expect(fake_account).to have_received(:get_transactions).with(
+          date_from: "2026-07-10",
+          date_to: "2026-08-18"
+        )
+      end
+
+      it "caps automatic history at 90 days" do
+        allow(Date).to receive(:current).and_return(Date.new(2026, 8, 18))
+        connection.update!(sync_completed_at: Time.zone.local(2026, 4, 1, 12))
+
+        described_class.new(connection).sync
+
+        expect(fake_account).to have_received(:get_transactions).with(
+          date_from: "2026-05-20",
+          date_to: "2026-08-18"
+        )
+      end
+
+      it "accepts an explicit backfill range" do
+        described_class.new(connection).sync(
+          date_from: Date.new(2026, 7, 12),
+          date_to: Date.new(2026, 7, 19)
+        )
+
+        expect(fake_account).to have_received(:get_transactions).with(
+          date_from: "2026-07-12",
+          date_to: "2026-07-19"
+        )
       end
     end
 
@@ -82,6 +118,39 @@ RSpec.describe TransactionSyncService do
         expect(connection.sync_running).to eq(false)
         expect(connection.sync_error).to eq("bank API unavailable")
         expect(connection.sync_completed_at).to eq(previous_sync_time)
+      end
+    end
+
+    context "when the bank authorization expired" do
+      let(:previous_sync_time) { 1.day.ago.change(usec: 0) }
+      let(:expired_message) { described_class::AUTHORIZATION_EXPIRED_MESSAGE }
+
+      let(:fake_account) do
+        instance_double("Account").tap do |a|
+          allow(a).to receive(:get_transactions).and_return(
+            {
+              "summary" => "End User Agreement has expired",
+              "detail" => "EUA was valid for 90 days and it expired",
+              "status_code" => 401
+            }
+          )
+        end
+      end
+
+      before do
+        connection.update!(sync_error: nil, sync_completed_at: previous_sync_time)
+        stub_nordigen_client(requisition_data: fake_requisition_data, account_stub: fake_account)
+      end
+
+      it "persists a reconnect error instead of recording a successful sync" do
+        expect { described_class.new(connection).sync }
+          .to raise_error(StandardError, expired_message)
+
+        connection.reload
+
+        expect(connection.sync_error).to eq(expired_message)
+        expect(connection.sync_completed_at).to eq(previous_sync_time)
+        expect(connection).to be_expired
       end
     end
   end

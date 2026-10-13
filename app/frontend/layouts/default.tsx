@@ -2,7 +2,6 @@ import { ReactNode } from "react"
 import { Link, router, usePage } from "@inertiajs/react"
 import { Button, Box, Callout, Flex, Text } from "@radix-ui/themes"
 import { z } from "zod"
-import PdfDropZone from "../components/PdfDropZone"
 import Nav from "../components/Nav"
 
 const UserSchema = z.object({
@@ -54,7 +53,6 @@ export default function DefaultLayout({ children }: { children: ReactNode }) {
   }
 
   return (
-    <PdfDropZone enabled={signed_in ?? false}>
       <Box style={{ minHeight: "100vh", backgroundColor: "var(--color-background)" }}>
         {/* Header */}
       <Box asChild>
@@ -113,6 +111,5 @@ export default function DefaultLayout({ children }: { children: ReactNode }) {
         </main>
       </Box>
     </Box>
-    </PdfDropZone>
   )
 }

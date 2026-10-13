@@ -1,31 +1,41 @@
 import { Head, Link, router } from "@inertiajs/react"
 import { Heading, Box, Text, Button, Flex, Table } from "@radix-ui/themes"
-import { CheckIcon, FileTextIcon, PlusIcon } from "@radix-ui/react-icons"
+import { ChevronDownIcon, FileTextIcon, MagicWandIcon, PlusIcon } from "@radix-ui/react-icons"
+import * as DropdownMenu from "@radix-ui/react-dropdown-menu"
 import { z } from "zod"
 import BankSyncStatusList, { BankSyncStatusSchema } from "../../components/BankSyncStatusList"
 import InvoiceSelector from "../../components/InvoiceSelector"
+import TransactionNoteEditor from "../../components/TransactionNoteEditor"
 import TransactionInvoiceUploadButton from "../../components/TransactionInvoiceUploadButton"
+import InvoiceCategorySelect, { CategorySchema } from "../../components/InvoiceCategorySelect"
+import PdfDropZone from "../../components/PdfDropZone"
+import formatCurrency from "../../lib/formatCurrency"
 
 const TransactionSchema = z.object({
   id: z.number(),
   invoice_id: z.number().nullable(),
+  invoice_match_source: z.enum(["manual", "automatic"]).nullable(),
   invoice: z
     .object({
       id: z.number(),
       label: z.string(),
+      category: CategorySchema.nullable(),
     })
     .nullable(),
   direction: z.enum(["credit", "debit"]),
   booking_date_label: z.string(),
   amount_cents: z.number(),
-  amount_label: z.string(),
-  original_amount_label: z.string(),
+  currency: z.string().nullable(),
+  original_amount_cents: z.number().nullable(),
+  original_currency: z.string().nullable(),
   vendor_name: z.string().nullable(),
+  custom_note: z.string().nullable(),
+  fallback_description: z.string(),
+  is_enriched: z.boolean(),
   bank_name: z.string().nullable(),
   hidden_at: z.string().nullable(),
+  is_flagged: z.boolean(),
 })
-
-type Transaction = z.infer<typeof TransactionSchema>
 
 const TransactionGroupSchema = z.object({
   month_key: z.string(),
@@ -34,36 +44,138 @@ const TransactionGroupSchema = z.object({
 })
 
 type TransactionGroup = z.infer<typeof TransactionGroupSchema>
+type Transaction = z.infer<typeof TransactionSchema>
 
 const PropsSchema = z.object({
   transaction_groups: z.array(TransactionGroupSchema),
+  categories: z.array(CategorySchema),
   bank_sync_statuses: z.array(BankSyncStatusSchema),
+  selected_month: z
+    .object({
+      key: z.string(),
+      label: z.string(),
+    })
+    .nullable(),
 })
 
 type Props = z.infer<typeof PropsSchema>
 
+type ActionButtonProps = {
+  transaction: Transaction
+  isFlagged: boolean
+  isLinked: boolean
+}
+
+function postTransactionAction(url: string) {
+  router.post(url, {}, { preserveScroll: true })
+}
+
+function formatTransactionAmount(transaction: Transaction): string {
+  const amount = formatCurrency(transaction.amount_cents, transaction.currency)
+  if (transaction.original_amount_cents === null || transaction.original_currency === null) return amount
+
+  return `${amount} (${formatCurrency(transaction.original_amount_cents, transaction.original_currency)})`
+}
+
+function transactionDebugText(transaction: Transaction): string {
+  return [
+    `Transaction ID: ${transaction.id}`,
+    `Date: ${transaction.booking_date_label}`,
+    `Amount: ${formatTransactionAmount(transaction)}`,
+    `Direction: ${transaction.direction}`,
+    `Vendor: ${transaction.vendor_name ?? "-"}`,
+    `Bank: ${transaction.bank_name ?? "-"}`,
+    `Description: ${transaction.custom_note?.trim() || transaction.fallback_description}`,
+    `Invoice: ${transaction.invoice ? `#${transaction.invoice.id} ${transaction.invoice.label}` : "-"}`,
+  ].join("\n")
+}
+
+function TransactionActions({ transaction, isFlagged, isLinked }: ActionButtonProps) {
+  const transactionId = transaction.id
+  const itemClass = "cursor-pointer select-none rounded px-2 py-1.5 text-sm text-gray-800 outline-none hover:bg-gray-100 focus:bg-gray-100"
+  return (
+    <DropdownMenu.Root>
+      <DropdownMenu.Trigger asChild>
+        <Button size="1" variant="soft" color="gray">
+          Actions
+          <ChevronDownIcon />
+        </Button>
+      </DropdownMenu.Trigger>
+      <DropdownMenu.Portal>
+        <DropdownMenu.Content
+          align="end"
+          sideOffset={6}
+          className="z-50 min-w-28 rounded-md border border-gray-200 bg-white p-1 shadow-lg"
+        >
+          {isLinked && (
+            <DropdownMenu.Item
+              className={itemClass}
+              onSelect={() => postTransactionAction(`/transactions/${transactionId}/unlink_invoice`)}
+            >
+              Unlink document
+            </DropdownMenu.Item>
+          )}
+          <DropdownMenu.Item
+            className={itemClass}
+            onSelect={() => postTransactionAction(`/transactions/${transactionId}/hide`)}
+          >
+            Hide
+          </DropdownMenu.Item>
+          <DropdownMenu.Item
+            className={itemClass}
+            onSelect={() => postTransactionAction(
+              isFlagged
+                ? `/transactions/${transactionId}/unflag`
+                : `/transactions/${transactionId}/flag`
+            )}
+          >
+            {isFlagged ? "Remove flag" : "Flag"}
+          </DropdownMenu.Item>
+          <DropdownMenu.Item
+            className={itemClass}
+            onSelect={() => navigator.clipboard.writeText(transactionDebugText(transaction))}
+          >
+            Copy to clipboard
+          </DropdownMenu.Item>
+        </DropdownMenu.Content>
+      </DropdownMenu.Portal>
+    </DropdownMenu.Root>
+  )
+}
+
 export default function TransactionsIndex(props: Props) {
-  const { transaction_groups, bank_sync_statuses } = PropsSchema.parse(props)
+  const { transaction_groups, categories, bank_sync_statuses, selected_month } = PropsSchema.parse(props)
   const hasTransactions = transaction_groups.length > 0
 
   return (
-    <>
+    <PdfDropZone enabled={true}>
       <Head title="Transactions" />
       <Box>
         <Flex justify="between" align="center" mb="4">
-          <Heading size="6">Transactions</Heading>
-          <Button asChild>
-            <Link href="/banks">
-              <PlusIcon />
-              Connect Bank Account
-            </Link>
-          </Button>
+          <Heading size="6">
+            {selected_month ? `Transactions — ${selected_month.label}` : "Transactions"}
+          </Heading>
+          <Flex gap="2">
+            {selected_month && (
+              <Button variant="soft" color="gray" asChild>
+                <Link href="/transactions">All months</Link>
+              </Button>
+            )}
+            <Button asChild>
+              <Link href="/banks">
+                <PlusIcon />
+                Connect Bank Account
+              </Link>
+            </Button>
+          </Flex>
         </Flex>
         <BankSyncStatusList bankSyncStatuses={bank_sync_statuses} />
 
         {!hasTransactions ? (
           <Text color="gray">
-            No transactions found. Connect a bank account to see your transactions.
+            {selected_month
+              ? `No transactions found for ${selected_month.label}.`
+              : "No transactions found. Connect a bank account to see your transactions."}
           </Text>
         ) : (
           <Flex direction="column" gap="6">
@@ -71,7 +183,17 @@ export default function TransactionsIndex(props: Props) {
               <Box key={group.month_key}>
                 <Flex justify="between" align="center" mb="4">
                   <Heading size="5" as="h2">
-                    {group.month_label}
+                    {group.month_key === "unknown" ? (
+                      group.month_label
+                    ) : (
+                      <Link
+                        href={`/transactions/month/${group.month_key}`}
+                        className="text-inherit underline decoration-dotted underline-offset-4 hover:decoration-solid"
+                      >
+                        {group.month_label}
+                      </Link>
+                    )}{" "}
+                    <Text size="4" color="gray" weight="regular">({group.transactions.length})</Text>
                   </Heading>
                   {group.month_key !== "unknown" && (
                     <Button size="1" variant="soft" asChild>
@@ -81,84 +203,123 @@ export default function TransactionsIndex(props: Props) {
                     </Button>
                   )}
                 </Flex>
-                <Table.Root variant="surface" size="2">
+                <Table.Root variant="surface" size="1">
                   <Table.Header>
                     <Table.Row>
-                      <Table.ColumnHeaderCell width="36px"></Table.ColumnHeaderCell>
-                      <Table.ColumnHeaderCell width="110px">Bank</Table.ColumnHeaderCell>
-                      <Table.ColumnHeaderCell width="110px">Date</Table.ColumnHeaderCell>
-                      <Table.ColumnHeaderCell width="140px">Amount</Table.ColumnHeaderCell>
-                      <Table.ColumnHeaderCell width="140px">Original</Table.ColumnHeaderCell>
-                      <Table.ColumnHeaderCell>Vendor</Table.ColumnHeaderCell>
-                      <Table.ColumnHeaderCell>Invoice</Table.ColumnHeaderCell>
+                      <Table.ColumnHeaderCell width="100px">Bank</Table.ColumnHeaderCell>
+                      <Table.ColumnHeaderCell width="90px">Date</Table.ColumnHeaderCell>
+                      <Table.ColumnHeaderCell width="190px">Amount</Table.ColumnHeaderCell>
+                      <Table.ColumnHeaderCell>Description</Table.ColumnHeaderCell>
+                      <Table.ColumnHeaderCell>Document</Table.ColumnHeaderCell>
+                      <Table.ColumnHeaderCell width="190px">Category</Table.ColumnHeaderCell>
                       <Table.ColumnHeaderCell width="100px">Actions</Table.ColumnHeaderCell>
                     </Table.Row>
                   </Table.Header>
                   <Table.Body>
                     {group.transactions.map((tx) => {
                       const isHidden = !!tx.hidden_at
+                      const isFlagged = tx.is_flagged
                       const isLinked = !!tx.invoice_id
+                      const isAutomaticMatch = tx.invoice_match_source === "automatic"
                       const hiddenClass = isHidden ? "line-through opacity-40" : ""
                       const bankLabel = tx.bank_name?.split(" ")[0] || ""
                       const directionColor = tx.direction === "credit" ? "green" : "red"
                       const rowClass = isHidden
                         ? "bg-gray-50"
+                        : isFlagged
+                          ? "bg-red-50"
                         : isLinked
                           ? "bg-blue-50"
                           : "bg-yellow-50/50"
 
                       return (
-                        <Table.Row key={tx.id} className={rowClass}>
-                          <Table.Cell>
-                            {isLinked && <CheckIcon className="text-blue-600" />}
-                          </Table.Cell>
+                        <Table.Row key={tx.id} className={`${rowClass} [&>td]:!py-2`}>
                           <Table.Cell><span className={hiddenClass}>{bankLabel}</span></Table.Cell>
-                          <Table.Cell><span className={hiddenClass}>{tx.booking_date_label}</span></Table.Cell>
+                          <Table.Cell>
+                            <Link
+                              href={`/transactions/${tx.id}`}
+                              className={`${hiddenClass} text-inherit underline decoration-dotted hover:decoration-solid underline-offset-2`}
+                            >
+                              {tx.booking_date_label}
+                            </Link>
+                          </Table.Cell>
                           <Table.Cell>
                             <Text className={hiddenClass} color={isHidden ? "gray" : directionColor}>
-                              {tx.amount_label}
+                              {formatTransactionAmount(tx)}
                             </Text>
                           </Table.Cell>
                           <Table.Cell>
-                            <span className={hiddenClass}>
-                              {tx.original_amount_label}
-                            </span>
+                            <TransactionNoteEditor
+                              transactionId={tx.id}
+                              customNote={tx.custom_note}
+                              fallbackDescription={tx.fallback_description}
+                              isEnriched={tx.is_enriched}
+                              textClassName={hiddenClass}
+                            />
                           </Table.Cell>
-                          <Table.Cell><span className={hiddenClass}>{tx.vendor_name}</span></Table.Cell>
                           <Table.Cell>
-                            {tx.invoice ? (
-                              <Button size="1" variant="soft" color="blue" className="gap-1">
-                                <FileTextIcon />
-                                {tx.invoice.label}
-                              </Button>
-                            ) : (
-                              !isHidden && (
-                                <Flex gap="2" wrap="wrap">
-                                  <InvoiceSelector transactionId={tx.id} />
-                                  <TransactionInvoiceUploadButton transactionId={tx.id} />
+                            {!isFlagged && (
+                              tx.invoice ? (
+                                <Flex align="center" gap="1">
+                                  <Button
+                                    size="1"
+                                    variant="soft"
+                                    color={isAutomaticMatch ? "violet" : "blue"}
+                                    className="gap-1 max-w-[300px]"
+                                    asChild
+                                  >
+                                    <Link href={`/invoices/${tx.invoice.id}`}>
+                                      <FileTextIcon className="shrink-0" />
+                                      <span className="truncate">{tx.invoice.label}</span>
+                                    </Link>
+                                  </Button>
+                                  {isAutomaticMatch && (
+                                    <span
+                                      title="Matched automatically"
+                                      aria-label="Matched automatically"
+                                      className="inline-flex text-violet-600"
+                                    >
+                                      <MagicWandIcon />
+                                    </span>
+                                  )}
                                 </Flex>
+                              ) : (
+                                !isHidden && (
+                                  <Flex gap="2" wrap="wrap">
+                                    <InvoiceSelector transactionId={tx.id} />
+                                    <TransactionInvoiceUploadButton transactionId={tx.id} />
+                                  </Flex>
+                                )
                               )
                             )}
                           </Table.Cell>
                           <Table.Cell>
-                            {isHidden ? (
+                            {tx.invoice ? (
+                              <InvoiceCategorySelect
+                                invoiceId={tx.invoice.id}
+                                category={tx.invoice.category}
+                                categories={categories}
+                              />
+                            ) : (
+                              <Text color="gray">—</Text>
+                            )}
+                          </Table.Cell>
+                          <Table.Cell>
+                            {isHidden || isFlagged ? (
                               <Button
                                 size="1"
                                 variant="soft"
                                 color="gray"
-                                onClick={() => router.post(`/transactions/${tx.id}/restore`)}
+                                onClick={() => postTransactionAction(
+                                  isHidden
+                                    ? `/transactions/${tx.id}/restore`
+                                    : `/transactions/${tx.id}/unflag`
+                                )}
                               >
-                                Restore
+                                {isHidden ? "Restore" : "Unflag"}
                               </Button>
                             ) : (
-                              <Button
-                                size="1"
-                                variant="soft"
-                                color="red"
-                                onClick={() => router.post(`/transactions/${tx.id}/hide`, {}, { preserveScroll: true })}
-                              >
-                                Hide
-                              </Button>
+                              <TransactionActions transaction={tx} isFlagged={isFlagged} isLinked={isLinked} />
                             )}
                           </Table.Cell>
                         </Table.Row>
@@ -171,6 +332,6 @@ export default function TransactionsIndex(props: Props) {
           </Flex>
         )}
       </Box>
-    </>
+    </PdfDropZone>
   )
 }

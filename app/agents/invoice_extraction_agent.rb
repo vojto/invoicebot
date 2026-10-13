@@ -1,159 +1,122 @@
 # frozen_string_literal: true
 
-class InvoiceExtractionAgent
-  class ResponseSchema < ApplicationSchema
-    additional_properties false
-
-    boolean :is_invoice, description: "Whether this document is a valid invoice that can be extracted"
-    string :vendor_name, nullable: true, description: "The name of the vendor/business issuing the invoice"
-    integer :amount_cents, nullable: true, description: "Total amount in cents (e.g., 1999 for $19.99)"
-    string :currency, nullable: true, description: "Three-letter currency code (e.g., USD, EUR, CZK)"
-    string :issue_date, nullable: true, description: "Invoice issue date in YYYY-MM-DD format"
-    string :delivery_date, nullable: true, description: "Delivery/service date in YYYY-MM-DD format"
-    string :note, nullable: true, description: "Any additional notes or invoice number"
-  end
-
-  MODEL = "gpt-5.2"
-  PDF_PAGES_TO_EXTRACT = 2
-
-  SYSTEM_PROMPT = <<~PROMPT
-    You are an invoice data extraction assistant. Your task is to analyze documents and extract structured data from invoices.
-
-    First, determine if the document is actually an invoice. Set is_invoice to false if:
-    - The document is not an invoice (e.g., a contract, letter, report, manual, etc.)
-    - The document is too malformed or unclear to extract meaningful data
-    - Essential information (vendor name, amount) cannot be determined
-
-    If is_invoice is true, follow these steps:
-
-    1. First, determine which country the invoice is from based on the vendor address, language, currency, or other contextual clues.
-
-    2. Use the country of origin to interpret date formats correctly:
-       - European countries (and most of the world): assume day/month/year format (e.g., 05/01/2026 = January 5th, 2026)
-       - United States: assume month/day/year format (e.g., 05/01/2026 = May 1st, 2026)
-
-    3. Extract the following information:
-       - vendor_name: The name of the business or company issuing the invoice
-       - amount_cents: The original invoice total, converted to cents (multiply by 100). For example, $19.99 becomes 1999.
-         If the invoice shows a total and then subtracts prior payments resulting in a lower balance due (or zero), extract the original total — not the remaining balance.
-       - currency: The three-letter currency code (USD, EUR, CZK, GBP, etc.)
-       - issue_date: The date the invoice was issued (YYYY-MM-DD format). Most invoices have this, but set to null if not present.
-       - delivery_date: The date of delivery or service (YYYY-MM-DD format). This is optional and many invoices don't have it. Only extract if explicitly stated, otherwise set to null.
-         If a service/billing period range is explicitly shown in the invoice header or metadata (for example, "Zuctovacie obdobie: 1.1.2026 - 31.1.2026"), use the end date of that range as delivery_date.
-         However, if a date range only appears inside a line item description (e.g., "Feb 24–Mar 24, 2026" next to a product name), do NOT use it as delivery_date — that is just the line item's billing period, not the invoice delivery date.
-       - note: Any relevant notes, invoice number, or reference number
-
-    If is_invoice is false, set all other fields to null.
-
-    Be precise with amounts. Always convert to cents by multiplying the decimal amount by 100.
+class InvoiceExtractionAgent < ApplicationAgent
+  instructions <<~PROMPT
+    Classify and extract this accounting document using only the document itself.
+    Supported types are invoice and credit_note. Use unsupported_document for anything else. Use insufficient_data when the document appears supported but its vendor, total, currency, or accounting date cannot be determined. Set document only when status is extracted.
+    A credit_note explicitly credits or reverses an invoice (for example Credit Note, Credit Memo, Dobropis, Gutschrift, or Avoir). Do not infer credit_note merely from a refund mention, a negative line item, a prior payment, or a zero balance.
+    For an invoice, total.kind is invoice_total and the amount is the grand total actually charged to the payment method, not the remaining balance. When the document shows totals in multiple currencies, use the amount and currency that the payment section says will be charged. For example, if totals show USD 100.00 and EUR 92.00, and the payment section says "EUR 92.00 will be charged," extract 9200 EUR. For a credit note, total.kind is credit_total and the amount is the credit issued by this document, not the referenced invoice's total. Always return a positive amount in cents.
+    Interpret numeric dates using the vendor's country: day/month/year for most countries and month/day/year for the United States. Only return delivery_date when explicitly stated. A header-level service period may use its end date; a period mentioned only inside a line item may not.
+    Return vendor_country only when the document identifies it through the vendor address or tax identity. Return vendor_eu_vat_id only for the vendor (not the customer), normalized like SK2120299335 or IE3668997OH using that country's valid VAT ID format, or EU528377759 for the non-Union scheme. Return null when no vendor EU VAT ID is shown.
   PROMPT
 
-  # Initialize with either an attachment or a raw PDF path.
-  #
-  # @param attachment [Attachment, nil] An Attachment model with a PDF file attached
-  # @param pdf_path [String, nil] Path to a PDF file on disk
-  # @param filename [String, nil] Original filename (used for logging when pdf_path is provided)
-  def initialize(attachment = nil, pdf_path: nil, filename: nil)
-    @attachment = attachment
-    @pdf_path = pdf_path
-    @filename = filename
+  schema do
+    title "invoice_extraction"
 
-    if @attachment.nil? && @pdf_path.nil?
-      raise ArgumentError, "Either attachment or pdf_path must be provided"
+    string :status, enum: %w[extracted unsupported_document insufficient_data], description: "Extraction outcome"
+    any_of :document, description: "Extracted document, or null unless status is extracted" do
+      object do
+        string :type, enum: %w[invoice credit_note]
+        any_of :explicit_label do
+          string description: "Document's visible type label, such as Invoice or Credit Note"
+          null
+        end
+        string :vendor_name, description: "Business that issued the document"
+        any_of :vendor_country do
+          string description: "Vendor country as an uppercase two-letter ISO 3166-1 alpha-2 code"
+          null
+        end
+        any_of :vendor_eu_vat_id do
+          string description: "Vendor EU VAT ID in its valid national or EU non-Union scheme format, uppercase without spaces or punctuation"
+          null
+        end
+        any_of :document_number do
+          string
+          null
+        end
+        any_of :referenced_invoice_number do
+          string
+          null
+        end
+        object :total do
+          integer :amount_cents, description: "Positive document total actually charged to the payment method, in cents"
+          string :currency, description: "Three-letter ISO currency code for the amount actually charged"
+          string :kind, enum: %w[invoice_total credit_total]
+        end
+        any_of :issue_date do
+          string description: "Issue date in YYYY-MM-DD format"
+          null
+        end
+        any_of :delivery_date do
+          string description: "Delivery or service date in YYYY-MM-DD format"
+          null
+        end
+      end
+      null
     end
+  end
+
+  # @param pdf [ActiveStorage::Attached::One, IO, String] The PDF as an attachment, IO, or path
+  # @param filename [String, nil] The PDF filename, needed when passing an IO
+  def initialize(pdf, filename: nil)
+    super()
+    @pdf = RubyLLM::Attachment.new(pdf, filename: filename)
   end
 
   def call
-    if @attachment
-      raise ArgumentError, "Attachment must have a file attached" unless @attachment.file.attached?
-      log_identifier = "attachment #{@attachment.id} (#{@attachment.filename})"
-    else
-      log_identifier = "file #{@filename || @pdf_path}"
-    end
+    data = ask_for_data("Extract invoice data from this document.", with: @pdf)
+    return { is_invoice: false, extraction_status: data[:status] } unless data[:status] == "extracted"
 
-    Rails.logger.info "[InvoiceExtractionAgent] Starting extraction for #{log_identifier}"
+    document = data[:document]
+    raise InvalidResponseError, "Extracted response is incomplete" unless complete?(document)
 
-    pdf_path = extract_first_pages_pdf
-    Rails.logger.info "[InvoiceExtractionAgent] Extracted first #{PDF_PAGES_TO_EXTRACT} pages PDF: #{pdf_path}"
-
-    chat = RubyLLM.chat(model: MODEL)
-    chat.with_instructions(SYSTEM_PROMPT)
-
-    start_time = Time.current
-    result = chat.with_schema(ResponseSchema).ask("Extract invoice data from this document.", with: pdf_path)
-    elapsed_ms = ((Time.current - start_time) * 1000).round
-
-    Rails.logger.info "[InvoiceExtractionAgent] AI response received in #{elapsed_ms}ms"
-
-    content = result.content
-    raise "Expected Hash response, got #{content.class}" unless content.is_a?(Hash)
-
-    data = content.with_indifferent_access
-
-    # Parse dates if present
-    data[:issue_date] = Date.parse(data[:issue_date]) if data[:issue_date].present?
-    data[:delivery_date] = Date.parse(data[:delivery_date]) if data[:delivery_date].present?
-
-    input_tokens = result.input_tokens
-    output_tokens = result.output_tokens
-
-    if data[:is_invoice]
-      Rails.logger.info "[InvoiceExtractionAgent] Extracted: vendor=#{data[:vendor_name]}, amount=#{data[:amount_cents]} #{data[:currency]}"
-    else
-      Rails.logger.info "[InvoiceExtractionAgent] Document is not a valid invoice"
-    end
-    Rails.logger.info "[InvoiceExtractionAgent] Tokens: #{input_tokens} in / #{output_tokens} out"
-
-    {
-      is_invoice: data[:is_invoice],
-      vendor_name: data[:vendor_name],
-      amount_cents: data[:amount_cents],
-      currency: data[:currency],
-      issue_date: data[:issue_date],
-      delivery_date: data[:delivery_date],
-      note: data[:note],
-      llm_model: MODEL,
-      llm_duration_ms: elapsed_ms,
-      input_tokens: input_tokens,
-      output_tokens: output_tokens
-    }
-  rescue StandardError => e
-    Rails.logger.error "[InvoiceExtractionAgent] Error: #{e.class} - #{e.message}"
-    Rails.logger.error "[InvoiceExtractionAgent] Backtrace: #{e.backtrace&.first(5)&.join("\n")}"
-    raise
-  ensure
-    cleanup_temp_files
+    extraction_from(document)
   end
 
   private
 
-  def extract_first_pages_pdf
-    source_path = if @attachment
-      # Download PDF from attachment to temp file
-      @source_pdf_temp_file = Tempfile.new([ "invoice_source", ".pdf" ])
-      @source_pdf_temp_file.binmode
-      @source_pdf_temp_file.write(@attachment.file.download)
-      @source_pdf_temp_file.close
-      @source_pdf_temp_file.path
-    else
-      # Use provided PDF path directly
-      @pdf_path
-    end
+  def complete?(document)
+    return false if document.blank?
 
-    # Extract first pages using Qpdf wrapper
-    @extracted_pdf_temp_file = Tempfile.new([ "invoice_pages", ".pdf" ])
-    @extracted_pdf_temp_file.close
+    total = document[:total]
+    expected_kind = document[:type] == "credit_note" ? "credit_total" : "invoice_total"
 
-    Qpdf.new(source_path).extract_first_pages(
-      PDF_PAGES_TO_EXTRACT,
-      output_path: @extracted_pdf_temp_file.path
-    )
-
-    @extracted_pdf_temp_file.path
+    document[:vendor_name].present? &&
+      total[:amount_cents].to_i.positive? &&
+      total[:currency].present? &&
+      total[:kind] == expected_kind &&
+      (document[:issue_date].present? || document[:delivery_date].present?)
   end
 
-  def cleanup_temp_files
-    @source_pdf_temp_file&.unlink
-    @extracted_pdf_temp_file&.unlink
+  def extraction_from(document)
+    {
+      is_invoice: true,
+      extraction_status: "extracted",
+      document_type: document[:type],
+      vendor_name: document[:vendor_name],
+      vendor_country: normalize_country(document[:vendor_country], document[:vendor_eu_vat_id]),
+      vendor_eu_vat_id: EuVatId.normalize(document[:vendor_eu_vat_id]),
+      amount_cents: document[:total][:amount_cents],
+      currency: document[:total][:currency],
+      issue_date: parse_date(document[:issue_date]),
+      delivery_date: parse_date(document[:delivery_date]),
+      note: note_for(document)
+    }
+  end
+
+  def normalize_country(country, eu_vat_id)
+    normalized = country.to_s.strip.upcase
+    normalized.match?(/\A[A-Z]{2}\z/) ? normalized : EuVatId.country_code(eu_vat_id)
+  end
+
+  def parse_date(value)
+    Date.parse(value) if value.present?
+  end
+
+  def note_for(document)
+    [
+      document[:document_number].presence && "Document number: #{document[:document_number]}",
+      document[:referenced_invoice_number].presence && "Referenced invoice: #{document[:referenced_invoice_number]}"
+    ].compact.join("; ").presence
   end
 end

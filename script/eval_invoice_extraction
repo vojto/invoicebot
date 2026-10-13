@@ -1,0 +1,40 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+require_relative "../config/environment"
+require "yaml"
+
+fixtures_dir = Pathname(ENV.fetch("INVOICE_EVAL_FIXTURES", Rails.root.join("tmp/invoice_extraction_evals")))
+manifest_path = fixtures_dir.join("manifest.yml")
+abort "Missing eval manifest: #{manifest_path}" unless manifest_path.exist?
+
+manifest = YAML.safe_load_file(manifest_path, symbolize_names: true)
+cases = manifest.fetch(:cases)
+results = cases.map do |test_case|
+  pdf_path = fixtures_dir.join(test_case.fetch(:file))
+  abort "Missing eval PDF: #{pdf_path}" unless pdf_path.exist?
+
+  extraction = InvoiceExtractionAgent.new(pdf_path: pdf_path.to_s, filename: pdf_path.basename.to_s).call
+  expected = test_case.fetch(:expected)
+  actual = extraction.slice(*expected.keys).transform_values { |value| value.respond_to?(:iso8601) ? value.iso8601 : value }
+
+  {
+    name: test_case.fetch(:name),
+    passed: actual == expected,
+    expected: expected,
+    actual: actual,
+    extraction_scope: extraction[:extraction_scope],
+    duration_ms: extraction[:llm_duration_ms],
+    input_tokens: extraction[:input_tokens],
+    output_tokens: extraction[:output_tokens]
+  }
+rescue StandardError => error
+  {
+    name: test_case.fetch(:name),
+    passed: false,
+    error: "#{error.class}: #{error.message}"
+  }
+end
+
+puts JSON.pretty_generate(results)
+exit(results.all? { |result| result[:passed] } ? 0 : 1)

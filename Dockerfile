@@ -7,8 +7,8 @@
 
 # For a containerized dev environment, see Dev Containers: https://guides.rubyonrails.org/getting_started_with_devcontainer.html
 
-# Make sure RUBY_VERSION matches the Ruby version in .ruby-version
-ARG RUBY_VERSION=3.4.5
+# Keep language versions aligned with .mise.toml.
+ARG RUBY_VERSION=3.4.10
 FROM docker.io/library/ruby:$RUBY_VERSION-slim AS base
 
 # Rails app lives here
@@ -16,7 +16,7 @@ WORKDIR /rails
 
 # Install base packages (including cron for scheduled jobs)
 RUN apt-get update -qq && \
-    apt-get install --no-install-recommends -y curl libjemalloc2 libvips sqlite3 libpq-dev qpdf cron && \
+    apt-get install --no-install-recommends -y curl libjemalloc2 libvips sqlite3 libpq-dev qpdf cron poppler-utils && \
     rm -rf /var/lib/apt/lists /var/cache/apt/archives && \
     rm -rf /etc/cron.*/*
 
@@ -28,7 +28,7 @@ ENV RAILS_ENV="production" \
     LD_PRELOAD="libjemalloc.so.2"
 
 # Throw-away build stage to reduce size of final image
-FROM base AS build
+FROM base AS build-dependencies
 
 # Install packages needed to build gems and node modules
 RUN apt-get update -qq && \
@@ -36,7 +36,7 @@ RUN apt-get update -qq && \
     rm -rf /var/lib/apt/lists /var/cache/apt/archives
 
 # Install JavaScript dependencies
-ARG NODE_VERSION=22.13.1
+ARG NODE_VERSION=22.23.1
 ENV PATH=/usr/local/node/bin:$PATH
 RUN curl -sL https://github.com/nodenv/node-build/archive/master.tar.gz | tar xz -C /tmp/ && \
     /tmp/node-build-master/bin/node-build "${NODE_VERSION}" /usr/local/node && \
@@ -47,24 +47,31 @@ COPY vendor/* ./vendor/
 COPY Gemfile Gemfile.lock ./
 
 RUN bundle install && \
-    rm -rf ~/.bundle/ "${BUNDLE_PATH}"/ruby/*/cache "${BUNDLE_PATH}"/ruby/*/bundler/gems/*/.git && \
-    bundle exec bootsnap precompile --gemfile
+    rm -rf ~/.bundle/ "${BUNDLE_PATH}"/ruby/*/cache "${BUNDLE_PATH}"/ruby/*/bundler/gems/*/.git
 
-# Install node modules
+# Keep the large, dependency-only Bootsnap cache in its own stable image layer.
+RUN BOOTSNAP_CACHE_DIR=/bootsnap-gem-cache bundle exec bootsnap -j 0 precompile --gemfile
+
+# Build Vite assets from explicit inputs so backend-only changes reuse this stage.
+FROM build-dependencies AS assets
+
 COPY package.json package-lock.json ./
-RUN npm ci && \
-    rm -rf ~/.npm
+RUN npm ci
+
+COPY vite.config.ts tsconfig*.json ./
+COPY bin/vite ./bin/
+COPY config/vite.json ./config/
+COPY app/frontend/ ./app/frontend/
+RUN bin/vite build
+
+FROM build-dependencies AS build
 
 # Copy application code
 COPY . .
+COPY --from=assets /rails/public/vite/ ./public/vite/
 
 # Precompile bootsnap code for faster boot times
-RUN bundle exec bootsnap precompile app/ lib/
-
-# Precompiling assets for production without requiring secret RAILS_MASTER_KEY
-RUN SECRET_KEY_BASE_DUMMY=1 ./bin/rails assets:precompile
-
-RUN rm -rf node_modules
+RUN BOOTSNAP_CACHE_DIR=/bootsnap-app-cache bundle exec bootsnap -j 0 precompile app/ lib/
 
 
 
@@ -79,7 +86,9 @@ USER 1000:1000
 
 # Copy built artifacts: gems, application
 COPY --chown=rails:rails --from=build "${BUNDLE_PATH}" "${BUNDLE_PATH}"
+COPY --chown=rails:rails --from=build /bootsnap-gem-cache/ /rails/tmp/cache/bootsnap/
 COPY --chown=rails:rails --from=build /rails /rails
+COPY --chown=rails:rails --from=build /bootsnap-app-cache/ /rails/tmp/cache/bootsnap/
 
 # Entrypoint prepares the database.
 ENTRYPOINT ["/rails/bin/docker-entrypoint"]

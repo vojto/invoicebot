@@ -173,6 +173,8 @@ class StatementsController < ApplicationController
   end
 
   def format_amount(amount_cents, currency)
+    return "—" if amount_cents.nil?
+
     amount = amount_cents.to_f / 100
     unit = currency.presence || "EUR"
 

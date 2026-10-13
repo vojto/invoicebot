@@ -28,11 +28,20 @@ export default function Nav() {
   return (
     <Flex asChild gap="1" align="center">
       <nav>
-        <NavLink href="/dashboard" isActive={url.startsWith("/dashboard")}>
-          Dashboard
+        <NavLink
+          href="/dashboard"
+          isActive={url.startsWith("/dashboard") || url.startsWith("/invoices")}
+        >
+          Invoices
         </NavLink>
         <NavLink href="/transactions" isActive={url.startsWith("/transactions")}>
           Transactions
+        </NavLink>
+        <NavLink href="/categories" isActive={url.startsWith("/categories")}>
+          Categories
+        </NavLink>
+        <NavLink href="/accountant_accesses" isActive={url.startsWith("/accountant_accesses")}>
+          Accountants
         </NavLink>
       </nav>
     </Flex>

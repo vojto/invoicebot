@@ -23,6 +23,20 @@ namespace :sync do
     processing_service.process_all_users(verbose: true)
   end
 
+  desc "Categorize invoices that have never been through the categorization agent"
+  task categorize: :environment do
+    invoices = Invoice.where(category_id: nil, ai_categorization_attempted_at: nil, deleted_at: nil)
+      .where.not(vendor_name: [ nil, "" ])
+      .where(user_id: Category.select(:user_id))
+
+    count = 0
+    invoices.find_each do |invoice|
+      InvoiceCategorizationJob.perform_later(invoice.id)
+      count += 1
+    end
+    puts "Enqueued #{count} invoices for categorization."
+  end
+
   desc "Sync transactions from all connected bank accounts"
   task transactions: :environment do
     puts "Syncing transactions from all bank connections..."

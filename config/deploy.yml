@@ -18,8 +18,14 @@ servers:
     hosts:
       - 65.108.228.167
     cmd: bash -c "bundle exec whenever --update-crontab && (env && crontab -l) | crontab - && cron -f"
+    # Debian cron does not exit within Kamal's default 30-second grace period.
+    stop_timeout: 2
     options:
       user: root
+
+# Boot job and cron together once web is healthy, so their readiness delays overlap.
+boot:
+  parallel_roles: true
 
 # Enable SSL auto certification via Let's Encrypt and allow for multiple apps on a single web server.
 # Remove this section when using multiple web servers and ensure you terminate SSL at your load balancer.
@@ -87,7 +93,7 @@ asset_path: /rails/public
 # Configure the image builder.
 builder:
   arch: amd64
-  cache:
-    type: registry
-    image: vojto/invoicebot-build-cache
-    options: mode=max
+  # Reuse the persistent builder's local cache on the Mac Studio runner.
+  # Exporting a registry cache adds upload time to every deployment.
+  # Skip pushing a provenance attestation manifest on every deploy.
+  provenance: false

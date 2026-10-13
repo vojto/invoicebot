@@ -141,7 +141,7 @@ class GmailService
     if str =~ /^(.+?)\s*<(.+?)>$/
       name = $1
       address = $2
-      { name: name.gsub(/^"|"$/, ''), address: address }
+      { name: name.gsub(/^"|"$/, ""), address: address }
     else
       { name: nil, address: str }
     end

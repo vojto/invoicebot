@@ -15,8 +15,7 @@ namespace :invoice do
     puts "From: #{attachment.email.from_name} <#{attachment.email.from_address}>"
     puts ""
 
-    agent = InvoiceExtractionAgent.new(attachment)
-    result = agent.call
+    result = InvoiceExtractionAgent.new(attachment.file).call
 
     puts "Extraction Results:"
     puts "-" * 40
@@ -27,9 +26,6 @@ namespace :invoice do
     puts "Delivery Date: #{result[:delivery_date]}"
     puts "Note:          #{result[:note]}"
     puts "-" * 40
-    puts "LLM Model:     #{result[:llm_model]}"
-    puts "Duration:      #{result[:llm_duration_ms]}ms"
-    puts "Tokens:        #{result[:input_tokens]} in / #{result[:output_tokens]} out"
   end
 
   def format_amount(amount_cents, currency)

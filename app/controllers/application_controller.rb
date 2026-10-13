@@ -49,7 +49,18 @@ class ApplicationController < ActionController::Base
   end
 
   def pdf_upload_param(key = :file)
-    file = params[key]
+    valid_pdf_upload(params[key])
+  end
+
+  def pdf_upload_params
+    files = params[:files]
+    files = files.values if files.is_a?(ActionController::Parameters)
+    files = Array(files.presence || params[:file])
+
+    files.filter_map { |file| valid_pdf_upload(file) }
+  end
+
+  def valid_pdf_upload(file)
     return nil unless file.present?
     return nil unless file.respond_to?(:content_type) && file.respond_to?(:original_filename)
 

@@ -84,6 +84,7 @@ class InvoiceProcessingService
     end
 
     invoice = extract_and_save_invoice_from_email(email, pdf_attachments, result[:pdf_filename], verbose: verbose)
+    AutomaticInvoiceMatchingService.match_invoice(invoice) if invoice
     puts "-" * 60 if verbose
 
     invoice
@@ -105,48 +106,58 @@ class InvoiceProcessingService
   # @param pdf_io [IO, StringIO] The PDF file data
   # @param filename [String] The original filename of the PDF
   # @return [Invoice, nil] The created invoice, or nil if extraction failed
-  def extract_invoice_from_pdf(user, pdf_io, filename:)
+  def extract_invoice_from_pdf(user, pdf_io, filename:, require_extraction: true, fallback_date: nil, fallback_vendor: nil, fallback_currency: nil, fallback_document_type: :invoice)
     Rails.logger.info "[InvoiceProcessingService] Extracting invoice from PDF: #{filename} for user #{user.email}"
 
     # Read PDF content for both extraction and attachment
     pdf_content = pdf_io.respond_to?(:read) ? pdf_io.read : pdf_io
 
-    # Write PDF to temp file for processing
-    temp_file = Tempfile.new([ "uploaded_invoice", ".pdf" ])
-    temp_file.binmode
-    temp_file.write(pdf_content)
-    temp_file.close
-
     begin
-      extraction = InvoiceExtractionAgent.new(pdf_path: temp_file.path, filename: filename).call
+      extraction = InvoiceExtractionAgent.new(StringIO.new(pdf_content), filename: filename).call
 
       unless extraction[:is_invoice]
         Rails.logger.info "[InvoiceProcessingService] PDF is not a valid invoice: #{filename}"
-        return nil
+        return nil if require_extraction
+
+        extraction = {}
       end
+    rescue StandardError => e
+      raise if require_extraction
 
-      invoice = user.invoices.create!(
-        vendor_name: extraction[:vendor_name],
-        amount_cents: extraction[:amount_cents],
-        currency: extraction[:currency],
-        issue_date: extraction[:issue_date],
-        delivery_date: extraction[:delivery_date],
-        note: extraction[:note]
-      )
-
-      # Attach the PDF directly to the invoice
-      invoice.pdf.attach(
-        io: StringIO.new(pdf_content),
-        filename: filename,
-        content_type: "application/pdf"
-      )
-
-      Rails.logger.info "[InvoiceProcessingService] Created invoice #{invoice.id} with PDF: #{extraction[:vendor_name]} - #{extraction[:amount_cents]} #{extraction[:currency]}"
-
-      invoice
-    ensure
-      temp_file.unlink
+      Rails.logger.warn "[InvoiceProcessingService] Extraction failed for #{filename}, proceeding without extracted data: #{e.message}"
+      extraction = {}
     end
+
+    invoice = user.invoices.create!(
+      vendor_name: extraction[:vendor_name] || fallback_vendor,
+      vendor_country: extraction[:vendor_country],
+      vendor_eu_vat_id: extraction[:vendor_eu_vat_id],
+      amount_cents: extraction[:amount_cents],
+      currency: extraction[:currency] || fallback_currency,
+      document_type: extraction[:document_type] || fallback_document_type,
+      issue_date: extraction[:issue_date] || fallback_date,
+      delivery_date: extraction[:delivery_date],
+      note: extraction[:note]
+    )
+
+    invoice.pdf.attach(
+      io: StringIO.new(pdf_content),
+      filename: filename,
+      content_type: "application/pdf"
+    )
+
+    Rails.logger.info "[InvoiceProcessingService] Created invoice #{invoice.id} with PDF: #{extraction[:vendor_name]} - #{extraction[:amount_cents]} #{extraction[:currency]}"
+
+    invoice
+  end
+
+  def reprocess_invoice(invoice)
+    Rails.logger.info "[InvoiceProcessingService] Reprocessing invoice #{invoice.id}"
+
+    extraction = InvoiceExtractionAgent.new(invoice.pdf).call
+    return nil unless extraction[:is_invoice]
+
+    invoice.update_from_extraction!(extraction)
   end
 
   private
@@ -162,7 +173,7 @@ class InvoiceProcessingService
     end
 
     puts "  #{"Extracting:".light_blue} #{attachment.filename}..." if verbose
-    extraction = InvoiceExtractionAgent.new(attachment).call
+    extraction = InvoiceExtractionAgent.new(attachment.file).call
 
     unless extraction[:is_invoice]
       puts "  #{"Skipped:".yellow} PDF is not a valid invoice" if verbose
@@ -180,8 +191,11 @@ class InvoiceProcessingService
     invoice.assign_attributes(
       user: email.user,
       vendor_name: extraction[:vendor_name],
+      vendor_country: extraction[:vendor_country],
+      vendor_eu_vat_id: extraction[:vendor_eu_vat_id],
       amount_cents: extraction[:amount_cents],
       currency: extraction[:currency],
+      document_type: extraction[:document_type],
       issue_date: extraction[:issue_date],
       delivery_date: extraction[:delivery_date],
       note: extraction[:note]
@@ -214,6 +228,8 @@ class InvoiceProcessingService
   end
 
   def format_amount(amount_cents, currency)
+    return "—" if amount_cents.nil?
+
     amount = amount_cents.to_f / 100
     "#{amount} #{currency}"
   end

@@ -1,8 +1,11 @@
-import { router } from "@inertiajs/react"
+import { Link, router } from "@inertiajs/react"
 import { Text, Table, Flex, Button, Badge } from "@radix-ui/themes"
 import { z } from "zod"
 import DateDifferenceBadge from "./DateDifferenceBadge"
 import AccountingDateEditor from "./AccountingDateEditor"
+import InvoicePdfPopover from "./InvoicePdfPopover"
+import InvoiceCategorySelect, { CategorySchema, type Category } from "./InvoiceCategorySelect"
+import formatCurrency from "../lib/formatCurrency"
 
 const EmailSchema = z.object({
   id: z.number(),
@@ -15,11 +18,12 @@ const EmailSchema = z.object({
 export const InvoiceSchema = z.object({
   id: z.number(),
   vendor_name: z.string().nullable(),
-  amount_cents: z.number(),
+  amount_cents: z.number().nullable(),
   currency: z.string().nullable(),
   accounting_date: z.string().nullish(),
   deleted_at: z.string().nullish(),
   note: z.string().nullable(),
+  category: CategorySchema.nullable(),
   pdf_url: z.string().nullish(),
   email: EmailSchema.nullable(),
   bank_transaction: z.object({
@@ -29,20 +33,6 @@ export const InvoiceSchema = z.object({
 })
 
 export type Invoice = z.infer<typeof InvoiceSchema>
-
-function formatCurrency(amountCents: number, currency: string | null): string {
-  const amount = amountCents / 100
-  const currencyCode = currency || "USD"
-
-  try {
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: currencyCode,
-    }).format(amount)
-  } catch {
-    return `${amount.toFixed(2)} ${currencyCode}`
-  }
-}
 
 function formatDate(dateString: string | null | undefined): string {
   if (!dateString) return "—"
@@ -57,24 +47,41 @@ function formatDate(dateString: string | null | undefined): string {
 
 type Props = {
   invoice: Invoice
+  categories?: Category[]
+  showCategory?: boolean
 }
 
-export default function InvoiceRow({ invoice }: Props) {
+export default function InvoiceRow({ invoice, categories = [], showCategory = false }: Props) {
   const isDeleted = !!invoice.deleted_at
   const isLinked = !!invoice.bank_transaction
   const deletedStyle = isDeleted ? { textDecoration: "line-through", opacity: 0.4 } : undefined
-  const rowClass = isLinked && !isDeleted ? "bg-blue-50" : ""
+  const rowClass = isDeleted
+    ? "bg-gray-50"
+    : isLinked
+      ? "bg-blue-50"
+      : "bg-yellow-50/50"
 
   return (
     <Table.Row className={rowClass}>
       <Table.Cell>
-        <Text weight="medium" style={deletedStyle}>
-          {invoice.vendor_name || "Unknown"}
-        </Text>
+        <Flex align="center" gap="1">
+          <Link
+            href={`/invoices/${invoice.id}`}
+            className="text-inherit underline decoration-dotted hover:decoration-solid underline-offset-2"
+            style={deletedStyle}
+          >
+            <Text as="span" weight="medium">
+              {invoice.vendor_name || "Unknown"}
+            </Text>
+          </Link>
+          {invoice.pdf_url && !isDeleted && (
+            <InvoicePdfPopover invoiceId={invoice.id} />
+          )}
+        </Flex>
       </Table.Cell>
       <Table.Cell>
-        <Text family="mono" style={deletedStyle}>
-          {formatCurrency(invoice.amount_cents, invoice.currency)}
+        <Text style={deletedStyle}>
+          {invoice.amount_cents != null ? formatCurrency(invoice.amount_cents, invoice.currency) : "—"}
         </Text>
       </Table.Cell>
       <Table.Cell>
@@ -106,20 +113,26 @@ export default function InvoiceRow({ invoice }: Props) {
       </Table.Cell>
       <Table.Cell>
         {invoice.bank_transaction && (
-          <Badge size="1" variant="soft" color="blue">
-            {invoice.bank_transaction.vendor_name || "Transaction"}
-          </Badge>
+          <Link href={`/transactions/${invoice.bank_transaction.id}`}>
+            <Badge size="1" variant="soft" color="blue" style={{ cursor: "pointer" }}>
+              {invoice.bank_transaction.vendor_name || "Transaction"}
+            </Badge>
+          </Link>
         )}
       </Table.Cell>
+      {showCategory && (
+        <Table.Cell>
+          {!isDeleted && (
+            <InvoiceCategorySelect
+              invoiceId={invoice.id}
+              category={invoice.category}
+              categories={categories}
+            />
+          )}
+        </Table.Cell>
+      )}
       <Table.Cell>
         <Flex gap="2" justify="end">
-          {invoice.pdf_url && !isDeleted && (
-            <Button size="1" variant="soft" asChild>
-              <a href={invoice.pdf_url} target="_blank" rel="noopener noreferrer">
-                Open
-              </a>
-            </Button>
-          )}
           {isDeleted ? (
             <Button
               size="1"

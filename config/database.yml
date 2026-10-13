@@ -27,7 +27,3 @@ production:
     <<: *default
     database: <%= ENV["POSTGRES_DB"] || "invoicebot_production" %>_queue
     migrations_paths: db/queue_migrate
-  cable:
-    <<: *default
-    database: <%= ENV["POSTGRES_DB"] || "invoicebot_production" %>_cable
-    migrations_paths: db/cable_migrate

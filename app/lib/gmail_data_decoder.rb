@@ -6,13 +6,13 @@ module GmailDataDecoder
 
     # Base64 encoded, decode it
     # Pad the string if needed (base64url may omit padding)
-    data += '=' * (4 - data.length % 4) if data.length % 4 != 0
+    data += "=" * (4 - data.length % 4) if data.length % 4 != 0
     Base64.urlsafe_decode64(data)
   end
 
   def self.already_decoded?(data)
     # Check if it starts with PDF magic bytes
-    return true if data.start_with?('%PDF')
+    return true if data.start_with?("%PDF")
 
     # Check if it contains non-base64 characters (binary data)
     !data.match?(/\A[A-Za-z0-9_-]+={0,2}\z/)

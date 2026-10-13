@@ -39,6 +39,8 @@ class TransactionEnrichmentService
       original_currency: result[:original_currency],
       original_amount_cents: result[:original_amount_cents]
     )
+
+    AutomaticInvoiceMatchingService.match_transaction(transaction) unless transaction.invoice_id?
   rescue => e
     Rails.logger.error "[TransactionEnrichmentService] Failed to enrich transaction #{transaction.id}: #{e.message}"
   end

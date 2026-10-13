@@ -1,0 +1,119 @@
+class AccountantInvoiceSpreadsheet
+  ExportColumn = Data.define(:key, :label, :kind, :width, :source_key)
+
+  def initialize(table)
+    @table = table
+  end
+
+  def call
+    package = Axlsx::Package.new
+    workbook = package.workbook
+    @styles = workbook.styles
+    date_style = @styles.add_style(format_code: "yyyy-mm-dd")
+    amount_style = @styles.add_style(
+      format_code: "#,##0.00;(#,##0.00);-",
+      alignment: { horizontal: :right }
+    )
+    currency_style = @styles.add_style(alignment: { horizontal: :center })
+    link_style = @styles.add_style(fg_color: "FF0563C1", u: true)
+    row_styles = columns.map do |column|
+      case column.kind
+      when :date then date_style
+      when :amount then amount_style
+      when :currency then currency_style
+      when :text then column.key == :vendor_name ? link_style : 0
+      else 0
+      end
+    end
+
+    workbook.add_worksheet(name: "Invoices") do |sheet|
+      sheet.sheet_view.show_grid_lines = false
+      sheet.sheet_view.pane do |pane|
+        pane.state = :frozen
+        pane.x_split = 2
+        pane.y_split = 1
+        pane.top_left_cell = "C2"
+        pane.active_pane = :bottom_right
+      end
+
+      sheet.add_row(columns.map(&:label))
+      add_data_rows(sheet, row_styles)
+      sheet.column_widths(*columns.map { |column| [ column.width, column.label.length + 2 ].max })
+
+      last_column = Axlsx.col_ref(columns.length - 1)
+      last_row = @table.rows.length + 1
+      table_range = "A1:#{last_column}#{last_row}"
+      sheet.add_table(
+        table_range,
+        name: "AccountantInvoices",
+        style_info: { name: "TableStyleMedium2", show_row_stripes: true }
+      )
+    end
+
+    package.to_stream(confirm_valid: true).read
+  end
+
+  private
+
+  def columns
+    @columns ||= @table.columns.flat_map do |column|
+      case column.key
+      when :original_amount then []
+      when :vendor_eu_vat_id then country_and_vat_columns
+      else
+        export_column = ExportColumn.new(
+          key: column.key,
+          label: column.label,
+          kind: column.kind,
+          width: column.width,
+          source_key: column.key
+        )
+        column.kind == :amount ? [ export_column, currency_column(export_column) ] : export_column
+      end
+    end
+  end
+
+  def country_and_vat_columns
+    [
+      ExportColumn.new(key: :vendor_country, label: "Country", kind: :text, width: 10, source_key: :vendor_country),
+      ExportColumn.new(key: :vendor_eu_vat_id, label: "VAT ID", kind: :text, width: 18, source_key: :vendor_eu_vat_id)
+    ]
+  end
+
+  def currency_column(amount_column)
+    ExportColumn.new(
+      key: :"#{amount_column.key}_currency",
+      label: amount_column.label.sub(/ amount\z/, " currency"),
+      kind: :currency,
+      width: 12,
+      source_key: amount_column.source_key
+    )
+  end
+
+  def add_data_rows(sheet, row_styles)
+    vendor_index = columns.index { |column| column.key == :vendor_name }
+
+    @table.rows.each do |record|
+      values = columns.map { |column| spreadsheet_value(record, column) }
+      styles = row_styles.dup
+      pdf_url = record[:pdf_url]
+      styles[vendor_index] = 0 unless pdf_url.present?
+      row = sheet.add_row(values, style: styles)
+      next unless pdf_url.present?
+
+      sheet.add_hyperlink(
+        location: pdf_url,
+        ref: row.cells[vendor_index],
+        tooltip: "Open invoice PDF"
+      )
+    end
+  end
+
+  def spreadsheet_value(record, column)
+    if column.kind == :currency
+      return record[:currencies][column.source_key]
+    end
+
+    record[:values][column.source_key]
+  end
+end

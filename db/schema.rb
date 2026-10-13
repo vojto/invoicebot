@@ -10,9 +10,23 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_02_06_120002) do
+ActiveRecord::Schema[8.1].define(version: 2026_08_18_100001) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
+
+  create_table "accountant_accesses", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.datetime "expires_at"
+    t.datetime "last_accessed_at"
+    t.string "name", null: false
+    t.datetime "revoked_at"
+    t.text "token_ciphertext", null: false
+    t.string "token_digest", null: false
+    t.datetime "updated_at", null: false
+    t.bigint "user_id", null: false
+    t.index ["token_digest"], name: "index_accountant_accesses_on_token_digest", unique: true
+    t.index ["user_id"], name: "index_accountant_accesses_on_user_id"
+  end
 
   create_table "active_storage_attachments", force: :cascade do |t|
     t.bigint "blob_id", null: false
@@ -71,6 +85,16 @@ ActiveRecord::Schema[8.1].define(version: 2026_02_06_120002) do
     t.index ["user_id"], name: "index_bank_connections_on_user_id"
   end
 
+  create_table "categories", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.string "name", null: false
+    t.text "note"
+    t.datetime "updated_at", null: false
+    t.bigint "user_id", null: false
+    t.index "user_id, lower((name)::text)", name: "index_categories_on_user_id_and_lower_name", unique: true
+    t.index ["user_id"], name: "index_categories_on_user_id"
+  end
+
   create_table "emails", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.datetime "date"
@@ -89,22 +113,49 @@ ActiveRecord::Schema[8.1].define(version: 2026_02_06_120002) do
     t.index ["user_id"], name: "index_emails_on_user_id"
   end
 
+  create_table "exchange_rates", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.string "currency", null: false
+    t.decimal "currency_per_eur", precision: 20, scale: 10, null: false
+    t.datetime "fetched_at", null: false
+    t.date "month", null: false
+    t.datetime "updated_at", null: false
+    t.index ["currency", "month"], name: "index_exchange_rates_on_currency_and_month", unique: true
+  end
+
+  create_table "invoice_page_images", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.bigint "invoice_id", null: false
+    t.integer "page_number", null: false
+    t.datetime "updated_at", null: false
+    t.index ["invoice_id", "page_number"], name: "index_invoice_page_images_on_invoice_id_and_page_number", unique: true
+    t.index ["invoice_id"], name: "index_invoice_page_images_on_invoice_id"
+  end
+
   create_table "invoices", force: :cascade do |t|
     t.virtual "accounting_date", type: :date, as: "COALESCE(accounting_date_override, delivery_date, issue_date)", stored: true
     t.date "accounting_date_override"
-    t.integer "amount_cents", default: 0, null: false
+    t.datetime "ai_categorization_attempted_at"
+    t.integer "amount_cents"
+    t.bigint "category_id"
     t.datetime "created_at", null: false
     t.string "currency"
     t.datetime "deleted_at"
     t.date "delivery_date"
+    t.string "document_type", default: "invoice", null: false
     t.bigint "email_id"
+    t.boolean "is_reprocessing", default: false, null: false
     t.date "issue_date"
     t.text "note"
     t.datetime "updated_at", null: false
     t.bigint "user_id", null: false
+    t.string "vendor_country"
+    t.string "vendor_eu_vat_id"
     t.string "vendor_name"
+    t.index ["category_id"], name: "index_invoices_on_category_id"
     t.index ["email_id"], name: "index_invoices_on_email_id"
     t.index ["user_id"], name: "index_invoices_on_user_id"
+    t.check_constraint "document_type::text = ANY (ARRAY['invoice'::character varying::text, 'credit_note'::character varying::text])", name: "invoices_document_type"
   end
 
   create_table "transactions", force: :cascade do |t|
@@ -116,6 +167,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_02_06_120002) do
     t.string "creditor_iban"
     t.string "creditor_name"
     t.string "currency"
+    t.text "custom_note"
     t.string "debtor_iban"
     t.string "debtor_name"
     t.text "description"
@@ -123,7 +175,9 @@ ActiveRecord::Schema[8.1].define(version: 2026_02_06_120002) do
     t.datetime "hidden_at"
     t.string "internal_transaction_id"
     t.bigint "invoice_id"
+    t.string "invoice_match_source"
     t.boolean "is_enriched", default: false, null: false
+    t.boolean "is_flagged", default: false, null: false
     t.integer "original_amount_cents"
     t.string "original_currency"
     t.string "transaction_id"
@@ -135,6 +189,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_02_06_120002) do
     t.index ["booking_date"], name: "index_transactions_on_booking_date"
     t.index ["direction"], name: "index_transactions_on_direction"
     t.index ["invoice_id"], name: "index_transactions_on_invoice_id", unique: true
+    t.check_constraint "(invoice_match_source::text = ANY (ARRAY['manual'::character varying::text, 'automatic'::character varying::text])) OR invoice_match_source IS NULL", name: "transactions_invoice_match_source"
   end
 
   create_table "users", force: :cascade do |t|
@@ -157,11 +212,15 @@ ActiveRecord::Schema[8.1].define(version: 2026_02_06_120002) do
     t.index ["google_uid"], name: "index_users_on_google_uid", unique: true
   end
 
+  add_foreign_key "accountant_accesses", "users"
   add_foreign_key "active_storage_attachments", "active_storage_blobs", column: "blob_id"
   add_foreign_key "active_storage_variant_records", "active_storage_blobs", column: "blob_id"
   add_foreign_key "attachments", "emails"
   add_foreign_key "bank_connections", "users"
+  add_foreign_key "categories", "users"
   add_foreign_key "emails", "users"
+  add_foreign_key "invoice_page_images", "invoices"
+  add_foreign_key "invoices", "categories", on_delete: :nullify
   add_foreign_key "invoices", "emails"
   add_foreign_key "invoices", "users"
   add_foreign_key "transactions", "bank_connections"
