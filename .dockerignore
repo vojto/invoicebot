@@ -41,6 +41,7 @@
 
 # Ignore files that are not needed by the production image.
 *.md
+!/app/prompts/**/*.md
 /docs
 /screenshot.png
 /spec

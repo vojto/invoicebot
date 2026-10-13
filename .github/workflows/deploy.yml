@@ -4,10 +4,12 @@ on:
   push:
     branches:
       - main
-    paths-ignore:
-      - "**/*.md"
-      - "docs/**"
-      - "screenshot.png"
+    paths:
+      - "**"
+      - "!**/*.md"
+      - "!docs/**"
+      - "!screenshot.png"
+      - "app/prompts/**"
   workflow_dispatch:
 
 permissions:
