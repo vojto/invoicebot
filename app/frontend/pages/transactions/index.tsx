@@ -1,6 +1,10 @@
+// Expected behavior: each month group has a chevron toggle that collapses its table; collapsed
+// month keys persist in localStorage so the page reopens with the same months collapsed.
+// Gotchas: localStorage can be unavailable (private mode, SSR) — fall back to all expanded.
+import { useState } from "react"
 import { Head, Link, router } from "@inertiajs/react"
-import { Heading, Box, Text, Button, Flex, Table } from "@radix-ui/themes"
-import { ChevronDownIcon, FileTextIcon, MagicWandIcon, PlusIcon } from "@radix-ui/react-icons"
+import { Heading, Box, Text, Button, Flex, IconButton, Table } from "@radix-ui/themes"
+import { ChevronDownIcon, ChevronRightIcon, FileTextIcon, MagicWandIcon, PlusIcon } from "@radix-ui/react-icons"
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu"
 import { z } from "zod"
 import BankSyncStatusList, { BankSyncStatusSchema } from "../../components/BankSyncStatusList"
@@ -64,6 +68,27 @@ type ActionButtonProps = {
   transaction: Transaction
   isFlagged: boolean
   isLinked: boolean
+}
+
+const COLLAPSED_MONTHS_STORAGE_KEY = "transactions.collapsedMonthKeys"
+
+function loadCollapsedMonthKeys(): string[] {
+  if (typeof window === "undefined") return []
+
+  try {
+    const value = JSON.parse(window.localStorage.getItem(COLLAPSED_MONTHS_STORAGE_KEY) || "[]")
+    return z.array(z.string()).catch([]).parse(value)
+  } catch {
+    return []
+  }
+}
+
+function saveCollapsedMonthKeys(monthKeys: string[]) {
+  try {
+    window.localStorage.setItem(COLLAPSED_MONTHS_STORAGE_KEY, JSON.stringify(monthKeys))
+  } catch {
+    // Collapsing still works in memory when local storage is unavailable.
+  }
 }
 
 function postTransactionAction(url: string) {
@@ -146,6 +171,15 @@ function TransactionActions({ transaction, isFlagged, isLinked }: ActionButtonPr
 export default function TransactionsIndex(props: Props) {
   const { transaction_groups, categories, bank_sync_statuses, selected_month } = PropsSchema.parse(props)
   const hasTransactions = transaction_groups.length > 0
+  const [collapsedMonthKeys, setCollapsedMonthKeys] = useState<string[]>(loadCollapsedMonthKeys)
+
+  function toggleMonth(monthKey: string) {
+    const nextMonthKeys = collapsedMonthKeys.includes(monthKey)
+      ? collapsedMonthKeys.filter((key) => key !== monthKey)
+      : [...collapsedMonthKeys, monthKey]
+    setCollapsedMonthKeys(nextMonthKeys)
+    saveCollapsedMonthKeys(nextMonthKeys)
+  }
 
   return (
     <PdfDropZone enabled={true}>
@@ -179,156 +213,174 @@ export default function TransactionsIndex(props: Props) {
           </Text>
         ) : (
           <Flex direction="column" gap="6">
-            {transaction_groups.map((group: TransactionGroup) => (
-              <Box key={group.month_key}>
-                <Flex justify="between" align="center" mb="4">
-                  <Heading size="5" as="h2">
-                    {group.month_key === "unknown" ? (
-                      group.month_label
-                    ) : (
-                      <Link
-                        href={`/transactions/month/${group.month_key}`}
-                        className="text-inherit underline decoration-dotted underline-offset-4 hover:decoration-solid"
-                      >
-                        {group.month_label}
-                      </Link>
-                    )}{" "}
-                    <Text size="4" color="gray" weight="regular">({group.transactions.length})</Text>
-                  </Heading>
-                  {group.month_key !== "unknown" && (
-                    <Button size="1" variant="soft" asChild>
-                      <Link href={`/statements/${group.month_key}`}>
-                        Print
-                      </Link>
-                    </Button>
-                  )}
-                </Flex>
-                <Table.Root variant="surface" size="1">
-                  <Table.Header>
-                    <Table.Row>
-                      <Table.ColumnHeaderCell width="100px">Bank</Table.ColumnHeaderCell>
-                      <Table.ColumnHeaderCell width="90px">Date</Table.ColumnHeaderCell>
-                      <Table.ColumnHeaderCell width="190px">Amount</Table.ColumnHeaderCell>
-                      <Table.ColumnHeaderCell>Description</Table.ColumnHeaderCell>
-                      <Table.ColumnHeaderCell>Document</Table.ColumnHeaderCell>
-                      <Table.ColumnHeaderCell width="190px">Category</Table.ColumnHeaderCell>
-                      <Table.ColumnHeaderCell width="100px">Actions</Table.ColumnHeaderCell>
-                    </Table.Row>
-                  </Table.Header>
-                  <Table.Body>
-                    {group.transactions.map((tx) => {
-                      const isHidden = !!tx.hidden_at
-                      const isFlagged = tx.is_flagged
-                      const isLinked = !!tx.invoice_id
-                      const isAutomaticMatch = tx.invoice_match_source === "automatic"
-                      const hiddenClass = isHidden ? "line-through opacity-40" : ""
-                      const bankLabel = tx.bank_name?.split(" ")[0] || ""
-                      const directionColor = tx.direction === "credit" ? "green" : "red"
-                      const rowClass = isHidden
-                        ? "bg-gray-50"
-                        : isFlagged
-                          ? "bg-red-50"
-                        : isLinked
-                          ? "bg-blue-50"
-                          : "bg-yellow-50/50"
+            {transaction_groups.map((group: TransactionGroup) => {
+              const isCollapsed = collapsedMonthKeys.includes(group.month_key)
 
-                      return (
-                        <Table.Row key={tx.id} className={`${rowClass} [&>td]:!py-2`}>
-                          <Table.Cell><span className={hiddenClass}>{bankLabel}</span></Table.Cell>
-                          <Table.Cell>
-                            <Link
-                              href={`/transactions/${tx.id}`}
-                              className={`${hiddenClass} text-inherit underline decoration-dotted hover:decoration-solid underline-offset-2`}
-                            >
-                              {tx.booking_date_label}
-                            </Link>
-                          </Table.Cell>
-                          <Table.Cell>
-                            <Text className={hiddenClass} color={isHidden ? "gray" : directionColor}>
-                              {formatTransactionAmount(tx)}
-                            </Text>
-                          </Table.Cell>
-                          <Table.Cell>
-                            <TransactionNoteEditor
-                              transactionId={tx.id}
-                              customNote={tx.custom_note}
-                              fallbackDescription={tx.fallback_description}
-                              isEnriched={tx.is_enriched}
-                              textClassName={hiddenClass}
-                            />
-                          </Table.Cell>
-                          <Table.Cell>
-                            {!isFlagged && (
-                              tx.invoice ? (
-                                <Flex align="center" gap="1">
+              return (
+                <Box key={group.month_key}>
+                  <Flex justify="between" align="center" mb={isCollapsed ? "0" : "4"}>
+                    <Flex align="center" gap="2">
+                      <IconButton
+                        size="1"
+                        variant="ghost"
+                        color="gray"
+                        aria-label={isCollapsed ? `Expand ${group.month_label}` : `Collapse ${group.month_label}`}
+                        aria-expanded={!isCollapsed}
+                        onClick={() => toggleMonth(group.month_key)}
+                      >
+                        {isCollapsed ? <ChevronRightIcon /> : <ChevronDownIcon />}
+                      </IconButton>
+                      <Heading size="5" as="h2">
+                        {group.month_key === "unknown" ? (
+                          group.month_label
+                        ) : (
+                          <Link
+                            href={`/transactions/month/${group.month_key}`}
+                            className="text-inherit underline decoration-dotted underline-offset-4 hover:decoration-solid"
+                          >
+                            {group.month_label}
+                          </Link>
+                        )}{" "}
+                        <Text size="4" color="gray" weight="regular">({group.transactions.length})</Text>
+                      </Heading>
+                    </Flex>
+                    {group.month_key !== "unknown" && (
+                      <Button size="1" variant="soft" asChild>
+                        <Link href={`/statements/${group.month_key}`}>
+                          Print
+                        </Link>
+                      </Button>
+                    )}
+                  </Flex>
+                  {!isCollapsed && (
+                    <Table.Root variant="surface" size="1">
+                      <Table.Header>
+                        <Table.Row>
+                          <Table.ColumnHeaderCell width="100px">Bank</Table.ColumnHeaderCell>
+                          <Table.ColumnHeaderCell width="90px">Date</Table.ColumnHeaderCell>
+                          <Table.ColumnHeaderCell width="190px">Amount</Table.ColumnHeaderCell>
+                          <Table.ColumnHeaderCell>Description</Table.ColumnHeaderCell>
+                          <Table.ColumnHeaderCell>Document</Table.ColumnHeaderCell>
+                          <Table.ColumnHeaderCell width="190px">Category</Table.ColumnHeaderCell>
+                          <Table.ColumnHeaderCell width="100px">Actions</Table.ColumnHeaderCell>
+                        </Table.Row>
+                      </Table.Header>
+                      <Table.Body>
+                        {group.transactions.map((tx) => {
+                          const isHidden = !!tx.hidden_at
+                          const isFlagged = tx.is_flagged
+                          const isLinked = !!tx.invoice_id
+                          const isAutomaticMatch = tx.invoice_match_source === "automatic"
+                          const hiddenClass = isHidden ? "line-through opacity-40" : ""
+                          const bankLabel = tx.bank_name?.split(" ")[0] || ""
+                          const directionColor = tx.direction === "credit" ? "green" : "red"
+                          const rowClass = isHidden
+                            ? "bg-gray-50"
+                            : isFlagged
+                              ? "bg-red-50"
+                            : isLinked
+                              ? "bg-blue-50"
+                              : "bg-yellow-50/50"
+
+                          return (
+                            <Table.Row key={tx.id} className={`${rowClass} [&>td]:!py-2`}>
+                              <Table.Cell><span className={hiddenClass}>{bankLabel}</span></Table.Cell>
+                              <Table.Cell>
+                                <Link
+                                  href={`/transactions/${tx.id}`}
+                                  className={`${hiddenClass} text-inherit underline decoration-dotted hover:decoration-solid underline-offset-2`}
+                                >
+                                  {tx.booking_date_label}
+                                </Link>
+                              </Table.Cell>
+                              <Table.Cell>
+                                <Text className={hiddenClass} color={isHidden ? "gray" : directionColor}>
+                                  {formatTransactionAmount(tx)}
+                                </Text>
+                              </Table.Cell>
+                              <Table.Cell>
+                                <TransactionNoteEditor
+                                  transactionId={tx.id}
+                                  customNote={tx.custom_note}
+                                  fallbackDescription={tx.fallback_description}
+                                  isEnriched={tx.is_enriched}
+                                  textClassName={hiddenClass}
+                                />
+                              </Table.Cell>
+                              <Table.Cell>
+                                {!isFlagged && (
+                                  tx.invoice ? (
+                                    <Flex align="center" gap="1">
+                                      <Button
+                                        size="1"
+                                        variant="soft"
+                                        color={isAutomaticMatch ? "violet" : "blue"}
+                                        className="gap-1 max-w-[300px]"
+                                        asChild
+                                      >
+                                        <Link href={`/invoices/${tx.invoice.id}`}>
+                                          <FileTextIcon className="shrink-0" />
+                                          <span className="truncate">{tx.invoice.label}</span>
+                                        </Link>
+                                      </Button>
+                                      {isAutomaticMatch && (
+                                        <span
+                                          title="Matched automatically"
+                                          aria-label="Matched automatically"
+                                          className="inline-flex text-violet-600"
+                                        >
+                                          <MagicWandIcon />
+                                        </span>
+                                      )}
+                                    </Flex>
+                                  ) : (
+                                    !isHidden && (
+                                      <Flex gap="2" wrap="wrap">
+                                        <InvoiceSelector transactionId={tx.id} />
+                                        <TransactionInvoiceUploadButton transactionId={tx.id} />
+                                      </Flex>
+                                    )
+                                  )
+                                )}
+                              </Table.Cell>
+                              <Table.Cell>
+                                {tx.invoice ? (
+                                  <InvoiceCategorySelect
+                                    invoiceId={tx.invoice.id}
+                                    category={tx.invoice.category}
+                                    categories={categories}
+                                  />
+                                ) : (
+                                  <Text color="gray">—</Text>
+                                )}
+                              </Table.Cell>
+                              <Table.Cell>
+                                {isHidden || isFlagged ? (
                                   <Button
                                     size="1"
                                     variant="soft"
-                                    color={isAutomaticMatch ? "violet" : "blue"}
-                                    className="gap-1 max-w-[300px]"
-                                    asChild
+                                    color="gray"
+                                    onClick={() => postTransactionAction(
+                                      isHidden
+                                        ? `/transactions/${tx.id}/restore`
+                                        : `/transactions/${tx.id}/unflag`
+                                    )}
                                   >
-                                    <Link href={`/invoices/${tx.invoice.id}`}>
-                                      <FileTextIcon className="shrink-0" />
-                                      <span className="truncate">{tx.invoice.label}</span>
-                                    </Link>
+                                    {isHidden ? "Restore" : "Unflag"}
                                   </Button>
-                                  {isAutomaticMatch && (
-                                    <span
-                                      title="Matched automatically"
-                                      aria-label="Matched automatically"
-                                      className="inline-flex text-violet-600"
-                                    >
-                                      <MagicWandIcon />
-                                    </span>
-                                  )}
-                                </Flex>
-                              ) : (
-                                !isHidden && (
-                                  <Flex gap="2" wrap="wrap">
-                                    <InvoiceSelector transactionId={tx.id} />
-                                    <TransactionInvoiceUploadButton transactionId={tx.id} />
-                                  </Flex>
-                                )
-                              )
-                            )}
-                          </Table.Cell>
-                          <Table.Cell>
-                            {tx.invoice ? (
-                              <InvoiceCategorySelect
-                                invoiceId={tx.invoice.id}
-                                category={tx.invoice.category}
-                                categories={categories}
-                              />
-                            ) : (
-                              <Text color="gray">—</Text>
-                            )}
-                          </Table.Cell>
-                          <Table.Cell>
-                            {isHidden || isFlagged ? (
-                              <Button
-                                size="1"
-                                variant="soft"
-                                color="gray"
-                                onClick={() => postTransactionAction(
-                                  isHidden
-                                    ? `/transactions/${tx.id}/restore`
-                                    : `/transactions/${tx.id}/unflag`
+                                ) : (
+                                  <TransactionActions transaction={tx} isFlagged={isFlagged} isLinked={isLinked} />
                                 )}
-                              >
-                                {isHidden ? "Restore" : "Unflag"}
-                              </Button>
-                            ) : (
-                              <TransactionActions transaction={tx} isFlagged={isFlagged} isLinked={isLinked} />
-                            )}
-                          </Table.Cell>
-                        </Table.Row>
-                      )
-                    })}
-                  </Table.Body>
-                </Table.Root>
-              </Box>
-            ))}
+                              </Table.Cell>
+                            </Table.Row>
+                          )
+                        })}
+                      </Table.Body>
+                    </Table.Root>
+                  )}
+                </Box>
+              )
+            })}
           </Flex>
         )}
       </Box>
