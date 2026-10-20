@@ -23,7 +23,7 @@ RSpec.describe TrackedInvoicesMailer do
 
     mail = ActionMailer::Base.deliveries.last
     expect(mail.to).to eq([ user.email ])
-    expect(mail.subject).to eq("Invoices since July 2026")
+    expect(mail.subject).to eq("Invoices 2026")
     expect(mail.text_part.body.to_s).to match(/August 2026\s+#{shell}\s+112\.88 EUR\s+July 2026\s+#{law_firm}\s+1,210\.64 EUR\s*\z/)
   end
 

@@ -1,5 +1,3 @@
-A new invoice arrived. Here are all Shell and law firm invoices since July 2026, at 60%:
-
 <% @invoices.each do |invoice| -%>
 <%= invoice.accounting_date.strftime("%B %Y") %>  <%= invoice.vendor_name %>  <%= number_to_currency(share_amount_cents(invoice).to_f / 100, unit: invoice.currency, format: "%n %u") %>
 <% end -%>
