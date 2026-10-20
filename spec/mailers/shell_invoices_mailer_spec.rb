@@ -20,7 +20,7 @@ RSpec.describe ShellInvoicesMailer do
     mail = ActionMailer::Base.deliveries.last
     expect(mail.to).to eq([ user.email ])
     expect(mail.subject).to eq("Shell invoices 2026")
-    expect(mail.text_part.body.to_s).to match(/28 Feb 2026\s+73\.58 EUR\s+31 Jan 2026\s+69\.13 EUR\s*\z/)
+    expect(mail.text_part.body.to_s).to match(/February 2026\s+73\.58 EUR\s+January 2026\s+69\.13 EUR\s*\z/)
   end
 
   it "does not email for other vendors or invoices missing an amount" do
