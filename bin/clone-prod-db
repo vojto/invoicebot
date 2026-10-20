@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+# Replaces the local development database with a copy of production, for dev
+# work with real data. Dumps invoicebot_production from the shared Postgres
+# container on the Hetzner server over SSH, then drops, recreates and restores
+# invoicebot_development. Only the primary database is copied, not cache/queue.
+set -euo pipefail
+
+server="root@65.108.228.167"
+dump_file="$(mktemp -t invoicebot-prod-dump)"
+trap 'rm -f "$dump_file"' EXIT
+
+echo "Dumping production..."
+ssh "$server" "docker exec shared-db-postgres pg_dump -U postgres -Fc --no-owner --no-acl invoicebot_production" > "$dump_file"
+
+echo "Replacing invoicebot_development..."
+dropdb --force --if-exists invoicebot_development
+createdb invoicebot_development
+pg_restore --no-owner --no-acl -d invoicebot_development "$dump_file"
+
+echo "Done."
