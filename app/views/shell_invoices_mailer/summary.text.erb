@@ -1,5 +1,0 @@
-A new Shell invoice arrived. Here are all Shell invoices since August 2026, at 60%:
-
-<% @invoices.each do |invoice| -%>
-<%= invoice.accounting_date.strftime("%B %Y") %>  <%= number_to_currency(reimbursed_amount_cents(invoice).to_f / 100, unit: invoice.currency, format: "%n %u") %>
-<% end -%>

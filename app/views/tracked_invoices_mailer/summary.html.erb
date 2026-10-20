@@ -1,14 +1,16 @@
-<p>A new Shell invoice arrived. Here are all Shell invoices since August 2026, at 60%:</p>
+<p>A new invoice arrived. Here are all Shell and law firm invoices since July 2026, at 60%:</p>
 
 <table cellpadding="6" style="border-collapse: collapse;">
   <tr>
     <th align="left" style="border-bottom: 1px solid #ccc;">Month</th>
+    <th align="left" style="border-bottom: 1px solid #ccc;">Vendor</th>
     <th align="right" style="border-bottom: 1px solid #ccc;">Amount</th>
   </tr>
   <% @invoices.each do |invoice| %>
     <tr>
       <td><%= link_to invoice.accounting_date.strftime("%B %Y"), invoice_url(invoice) %></td>
-      <td align="right"><%= number_to_currency(reimbursed_amount_cents(invoice).to_f / 100, unit: invoice.currency, format: "%n %u") %></td>
+      <td><%= invoice.vendor_name %></td>
+      <td align="right"><%= number_to_currency(share_amount_cents(invoice).to_f / 100, unit: invoice.currency, format: "%n %u") %></td>
     </tr>
   <% end %>
 </table>
