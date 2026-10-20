@@ -1,7 +1,5 @@
-// Expected behavior: each month group has a chevron toggle that collapses its table; collapsed
-// month keys persist in localStorage so the page reopens with the same months collapsed.
-// Gotchas: localStorage can be unavailable (private mode, SSR) — fall back to all expanded.
-import { useState } from "react"
+// Expected behavior: each month group has a chevron toggle that collapses its table
+// (useCollapsedMonthKeys remembers collapsed months across visits).
 import { Head, Link, router } from "@inertiajs/react"
 import { Heading, Box, Text, Button, Flex, IconButton, Table } from "@radix-ui/themes"
 import { ChevronDownIcon, ChevronRightIcon, FileTextIcon, MagicWandIcon, PlusIcon } from "@radix-ui/react-icons"
@@ -11,6 +9,7 @@ import BankSyncStatusList, { BankSyncStatusSchema } from "../../components/BankS
 import InvoiceSelector from "../../components/InvoiceSelector"
 import TransactionNoteEditor from "../../components/TransactionNoteEditor"
 import TransactionInvoiceUploadButton from "../../components/TransactionInvoiceUploadButton"
+import useCollapsedMonthKeys from "../../hooks/useCollapsedMonthKeys"
 import InvoiceCategorySelect, { CategorySchema } from "../../components/InvoiceCategorySelect"
 import PdfDropZone from "../../components/PdfDropZone"
 import formatCurrency from "../../lib/formatCurrency"
@@ -68,27 +67,6 @@ type ActionButtonProps = {
   transaction: Transaction
   isFlagged: boolean
   isLinked: boolean
-}
-
-const COLLAPSED_MONTHS_STORAGE_KEY = "transactions.collapsedMonthKeys"
-
-function loadCollapsedMonthKeys(): string[] {
-  if (typeof window === "undefined") return []
-
-  try {
-    const value = JSON.parse(window.localStorage.getItem(COLLAPSED_MONTHS_STORAGE_KEY) || "[]")
-    return z.array(z.string()).catch([]).parse(value)
-  } catch {
-    return []
-  }
-}
-
-function saveCollapsedMonthKeys(monthKeys: string[]) {
-  try {
-    window.localStorage.setItem(COLLAPSED_MONTHS_STORAGE_KEY, JSON.stringify(monthKeys))
-  } catch {
-    // Collapsing still works in memory when local storage is unavailable.
-  }
 }
 
 function postTransactionAction(url: string) {
@@ -171,15 +149,7 @@ function TransactionActions({ transaction, isFlagged, isLinked }: ActionButtonPr
 export default function TransactionsIndex(props: Props) {
   const { transaction_groups, categories, bank_sync_statuses, selected_month } = PropsSchema.parse(props)
   const hasTransactions = transaction_groups.length > 0
-  const [collapsedMonthKeys, setCollapsedMonthKeys] = useState<string[]>(loadCollapsedMonthKeys)
-
-  function toggleMonth(monthKey: string) {
-    const nextMonthKeys = collapsedMonthKeys.includes(monthKey)
-      ? collapsedMonthKeys.filter((key) => key !== monthKey)
-      : [...collapsedMonthKeys, monthKey]
-    setCollapsedMonthKeys(nextMonthKeys)
-    saveCollapsedMonthKeys(nextMonthKeys)
-  }
+  const { isMonthCollapsed, toggleMonth } = useCollapsedMonthKeys("transactions.collapsedMonthKeys")
 
   return (
     <PdfDropZone enabled={true}>
@@ -214,7 +184,7 @@ export default function TransactionsIndex(props: Props) {
         ) : (
           <Flex direction="column" gap="6">
             {transaction_groups.map((group: TransactionGroup) => {
-              const isCollapsed = collapsedMonthKeys.includes(group.month_key)
+              const isCollapsed = isMonthCollapsed(group.month_key)
 
               return (
                 <Box key={group.month_key}>

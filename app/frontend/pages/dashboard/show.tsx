@@ -1,10 +1,11 @@
 import { Head, Link, router } from "@inertiajs/react"
-import { Heading, Box, Text, Flex, Button, Callout } from "@radix-ui/themes"
-import { DownloadIcon, UpdateIcon, CheckCircledIcon, CrossCircledIcon } from "@radix-ui/react-icons"
+import { Heading, Box, Text, Flex, Button, Callout, IconButton } from "@radix-ui/themes"
+import { ChevronDownIcon, ChevronRightIcon, DownloadIcon, UpdateIcon, CheckCircledIcon, CrossCircledIcon } from "@radix-ui/react-icons"
 import { z } from "zod"
 import { InvoiceSchema, type Invoice } from "../../components/InvoiceRow"
 import InvoiceTable from "../../components/InvoiceTable"
 import PdfDropZone from "../../components/PdfDropZone"
+import useCollapsedMonthKeys from "../../hooks/useCollapsedMonthKeys"
 
 const PropsSchema = z.object({
   invoices: z.array(InvoiceSchema),
@@ -104,6 +105,7 @@ function SyncStatus({ running, completedAt, error }: { running: boolean; complet
 export default function DashboardShow(props: Props) {
   const { invoices, sync_running, sync_completed_at, sync_error } = PropsSchema.parse(props)
   const groupedInvoices = groupInvoicesByMonth(invoices)
+  const { isMonthCollapsed, toggleMonth } = useCollapsedMonthKeys("dashboard.collapsedMonthKeys")
 
   return (
     <PdfDropZone enabled={true}>
@@ -120,22 +122,35 @@ export default function DashboardShow(props: Props) {
             {[...groupedInvoices.entries()].map(([monthKey, monthInvoices]) => {
               const validCount = monthInvoices.filter((inv) => !inv.deleted_at).length
               const hasDownloadableInvoices = monthKey !== "unknown" && validCount > 0
+              const isCollapsed = isMonthCollapsed(monthKey)
               return (
               <Box key={monthKey}>
-                <Flex justify="between" align="center" mb="4">
-                  <Heading size="5" as="h2">
-                    {monthKey === "unknown" ? (
-                      formatMonthHeading(monthKey)
-                    ) : (
-                      <Link
-                        href={`/invoices/month/${monthKey}`}
-                        className="text-inherit underline decoration-dotted underline-offset-4 hover:decoration-solid"
-                      >
-                        {formatMonthHeading(monthKey)}
-                      </Link>
-                    )}{" "}
-                    <Text size="4" color="gray" weight="regular">({validCount})</Text>
-                  </Heading>
+                <Flex justify="between" align="center" mb={isCollapsed ? "0" : "4"}>
+                  <Flex align="center" gap="2">
+                    <IconButton
+                      size="1"
+                      variant="ghost"
+                      color="gray"
+                      aria-label={isCollapsed ? `Expand ${formatMonthHeading(monthKey)}` : `Collapse ${formatMonthHeading(monthKey)}`}
+                      aria-expanded={!isCollapsed}
+                      onClick={() => toggleMonth(monthKey)}
+                    >
+                      {isCollapsed ? <ChevronRightIcon /> : <ChevronDownIcon />}
+                    </IconButton>
+                    <Heading size="5" as="h2">
+                      {monthKey === "unknown" ? (
+                        formatMonthHeading(monthKey)
+                      ) : (
+                        <Link
+                          href={`/invoices/month/${monthKey}`}
+                          className="text-inherit underline decoration-dotted underline-offset-4 hover:decoration-solid"
+                        >
+                          {formatMonthHeading(monthKey)}
+                        </Link>
+                      )}{" "}
+                      <Text size="4" color="gray" weight="regular">({validCount})</Text>
+                    </Heading>
+                  </Flex>
                   {hasDownloadableInvoices && (
                     <Button
                       variant="soft"
@@ -149,7 +164,7 @@ export default function DashboardShow(props: Props) {
                     </Button>
                   )}
                 </Flex>
-                <InvoiceTable invoices={monthInvoices} />
+                {!isCollapsed && <InvoiceTable invoices={monthInvoices} />}
               </Box>
             )})}
           </Flex>
