@@ -18,7 +18,7 @@ class TrackedInvoicesMailer < ApplicationMailer
       .where(accounting_date: START_DATE..)
       .order(accounting_date: :desc, created_at: :desc)
 
-    mail(to: invoice.user.email, subject: "Invoices #{invoice.accounting_date.year}")
+    mail(to: [ invoice.user.email, "vremerit@gmail.com" ], subject: "Invoices #{invoice.accounting_date.year}")
   end
 
   private
