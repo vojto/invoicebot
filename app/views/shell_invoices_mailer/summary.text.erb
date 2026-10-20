@@ -1,0 +1,5 @@
+A new Shell invoice arrived. Here are all Shell invoices from <%= @year %>:
+
+<% @invoices.each do |invoice| -%>
+<%= invoice.accounting_date.strftime("%-d %b %Y") %>  <%= number_to_currency(invoice.amount_cents.to_f / 100, unit: invoice.currency, format: "%n %u") %>
+<% end -%>

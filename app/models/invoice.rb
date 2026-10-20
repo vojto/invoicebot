@@ -29,6 +29,7 @@ class Invoice < ApplicationRecord
   before_validation :normalize_vendor_identity
   after_commit :enqueue_page_extraction, if: :pdf_attachment_changed?
   after_commit :enqueue_ai_categorization, on: [ :create, :update ], if: :needs_ai_categorization?
+  after_create_commit :send_shell_invoices_summary, if: :shell_invoice_with_data?
   after_rollback :clear_pdf_attachment_change
   validate :category_belongs_to_user
   validates :vendor_country, format: { with: /\A[A-Z]{2}\z/ }, allow_nil: true
@@ -124,5 +125,14 @@ class Invoice < ApplicationRecord
 
   def enqueue_ai_categorization
     InvoiceCategorizationJob.perform_later(id)
+  end
+
+  # Custom: the owner wants this year's Shell invoices emailed whenever a new one arrives.
+  def shell_invoice_with_data?
+    vendor_name == ShellInvoicesMailer::VENDOR_NAME && amount_cents.present? && accounting_date.present?
+  end
+
+  def send_shell_invoices_summary
+    ShellInvoicesMailer.summary(self).deliver_later
   end
 end

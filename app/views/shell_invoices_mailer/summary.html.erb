@@ -1,0 +1,14 @@
+<p>A new Shell invoice arrived. Here are all Shell invoices from <%= @year %>:</p>
+
+<table cellpadding="6" style="border-collapse: collapse;">
+  <tr>
+    <th align="left" style="border-bottom: 1px solid #ccc;">Date</th>
+    <th align="right" style="border-bottom: 1px solid #ccc;">Amount</th>
+  </tr>
+  <% @invoices.each do |invoice| %>
+    <tr>
+      <td><%= link_to invoice.accounting_date.strftime("%-d %b %Y"), invoice_url(invoice) %></td>
+      <td align="right"><%= number_to_currency(invoice.amount_cents.to_f / 100, unit: invoice.currency, format: "%n %u") %></td>
+    </tr>
+  <% end %>
+</table>
