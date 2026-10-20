@@ -6,7 +6,7 @@
   </tr>
   <% @invoices.each do |invoice| %>
     <tr>
-      <td><%= link_to invoice.accounting_date.strftime("%B %Y"), invoice_url(invoice) %></td>
+      <td><%= invoice.accounting_date.strftime("%B %Y") %></td>
       <td><%= invoice.vendor_name %></td>
       <td align="right"><%= number_to_currency(share_amount_cents(invoice).to_f / 100, unit: invoice.currency, format: "%n %u") %></td>
     </tr>
