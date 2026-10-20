@@ -21,6 +21,20 @@ class InvoicesController < ApplicationController
     }
   end
 
+  def vendor
+    vendor_name = params[:name].to_s
+    invoices = current_user.invoices
+      .where(vendor_name: vendor_name)
+      .order(accounting_date: :desc, created_at: :desc)
+      .includes(:email, :category, :bank_transaction, pdf_attachment: :blob)
+
+    render inertia: "invoices/vendor", props: {
+      vendor_name: vendor_name,
+      invoices: invoices.map { |invoice| serialize_invoice_list_item(invoice) },
+      categories: current_user.categories.order(Arel.sql("LOWER(name)")).map { |category| serialize_category(category) }
+    }
+  end
+
   def show
     render inertia: "invoices/show", props: {
       invoice: serialize_invoice_detail(@invoice)

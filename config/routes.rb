@@ -63,6 +63,7 @@ Rails.application.routes.draw do
   resources :invoices, only: [ :show ] do
     collection do
       get :download
+      get :vendor
       post :upload
     end
     member do

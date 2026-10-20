@@ -90,7 +90,16 @@ export default function InvoicesShow(props: Props) {
         <Box style={{ flex: "1 1 0", minWidth: 0 }}>
           <Table.Root variant="surface" size="2">
             <Table.Body>
-              <DetailRow label="Vendor" value={invoice.vendor_name} />
+              <DetailRow
+                label="Vendor"
+                value={
+                  invoice.vendor_name && (
+                    <Link href={`/invoices/vendor?name=${encodeURIComponent(invoice.vendor_name)}`}>
+                      {invoice.vendor_name}
+                    </Link>
+                  )
+                }
+              />
               <DetailRow label="Amount" value={invoice.amount_label} />
               <DetailRow label="Currency" value={invoice.currency} />
               <DetailRow
