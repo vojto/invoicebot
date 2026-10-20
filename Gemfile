@@ -49,6 +49,9 @@ gem "rubyzip", require: "zip"
 gem "caxlsx", "~> 4.5"
 gem "csv"
 
+# Wraps uploaded JPG invoices in a PDF
+gem "prawn", "~> 2.5"
+
 # LLM integration
 gem "ruby_llm", "~> 2.1.1"
 # Rails before 8.1.4 requires JSON 2.

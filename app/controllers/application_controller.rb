@@ -66,6 +66,7 @@ class ApplicationController < ActionController::Base
 
     return file if file.content_type == "application/pdf"
     return file if file.original_filename.to_s.downcase.end_with?(".pdf")
+    return JpegToPdf.new(file).call if JpegToPdf.jpeg_upload?(file)
 
     nil
   end

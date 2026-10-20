@@ -42,7 +42,7 @@ export default function TransactionInvoiceUploadButton({ transactionId }: Props)
       <input
         ref={fileInputRef}
         type="file"
-        accept="application/pdf,.pdf"
+        accept="application/pdf,.pdf,image/jpeg,.jpg,.jpeg"
         className="hidden"
         onChange={handleFileChange}
       />

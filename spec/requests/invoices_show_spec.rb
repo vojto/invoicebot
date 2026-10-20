@@ -79,6 +79,24 @@ RSpec.describe "GET /invoices/:id", type: :request do
       expect(response).to redirect_to("/dashboard")
       expect(flash[:notice]).to eq("2 invoices created")
     end
+
+    it "converts an uploaded JPG into a PDF" do
+      invoice = create(:invoice, user: user, vendor_name: "Shell")
+      processing_service = instance_double(InvoiceProcessingService)
+
+      allow(InvoiceProcessingService).to receive(:new).and_return(processing_service)
+      expect(processing_service).to receive(:extract_invoice_from_pdf) do |_user, pdf_io, filename:|
+        expect(filename).to eq("receipt.pdf")
+        expect(pdf_io.read(5)).to eq("%PDF-")
+        invoice
+      end
+
+      post "/invoices/upload", params: {
+        file: fixture_file_upload("receipt.jpg", "image/jpeg")
+      }
+
+      expect(response).to redirect_to("/invoices/#{invoice.id}")
+    end
   end
 
   it "renders the invoice detail page with linked email and transaction data" do

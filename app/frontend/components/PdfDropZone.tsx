@@ -18,7 +18,7 @@ export default function PdfDropZone({ enabled, children }: PdfDropZoneProps) {
 
     const droppedFiles = Array.from(e.dataTransfer?.files ?? [])
     const files = droppedFiles.filter((file) =>
-      file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf"),
+      ["application/pdf", "image/jpeg"].includes(file.type) || /\.(pdf|jpe?g)$/i.test(file.name),
     )
     if (files.length === 0) return
 
@@ -71,7 +71,7 @@ export default function PdfDropZone({ enabled, children }: PdfDropZoneProps) {
           }}
         >
           <Text size="6" weight="bold" style={{ color: "var(--accent-11)" }}>
-            Drop PDFs to upload invoices
+            Drop PDFs or JPGs to upload invoices
           </Text>
         </Box>
       )}
