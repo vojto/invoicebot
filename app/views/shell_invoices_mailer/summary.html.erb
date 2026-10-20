@@ -1,4 +1,4 @@
-<p>A new Shell invoice arrived. Here are all Shell invoices from <%= @year %>:</p>
+<p>A new Shell invoice arrived. Here are all Shell invoices since August 2026, at 60%:</p>
 
 <table cellpadding="6" style="border-collapse: collapse;">
   <tr>
@@ -8,7 +8,7 @@
   <% @invoices.each do |invoice| %>
     <tr>
       <td><%= link_to invoice.accounting_date.strftime("%B %Y"), invoice_url(invoice) %></td>
-      <td align="right"><%= number_to_currency(invoice.amount_cents.to_f / 100, unit: invoice.currency, format: "%n %u") %></td>
+      <td align="right"><%= number_to_currency(reimbursed_amount_cents(invoice).to_f / 100, unit: invoice.currency, format: "%n %u") %></td>
     </tr>
   <% end %>
 </table>
