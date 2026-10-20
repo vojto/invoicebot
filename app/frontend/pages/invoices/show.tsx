@@ -1,6 +1,6 @@
 import { Head, Link, router } from "@inertiajs/react"
 import { ArrowLeftIcon, ExternalLinkIcon, FileTextIcon, ReloadIcon } from "@radix-ui/react-icons"
-import { Badge, Box, Button, Flex, Heading, Table, Text } from "@radix-ui/themes"
+import { Badge, Box, Button, Flex, Heading, Link as RadixLink, Table, Text } from "@radix-ui/themes"
 import { z } from "zod"
 import AccountingDateEditor from "../../components/AccountingDateEditor"
 import PdfPreview from "../../components/PdfPreview"
@@ -94,9 +94,11 @@ export default function InvoicesShow(props: Props) {
                 label="Vendor"
                 value={
                   invoice.vendor_name && (
-                    <Link href={`/invoices/vendor?name=${encodeURIComponent(invoice.vendor_name)}`}>
-                      {invoice.vendor_name}
-                    </Link>
+                    <RadixLink asChild>
+                      <Link href={`/invoices/vendor?name=${encodeURIComponent(invoice.vendor_name)}`}>
+                        {invoice.vendor_name}
+                      </Link>
+                    </RadixLink>
                   )
                 }
               />
