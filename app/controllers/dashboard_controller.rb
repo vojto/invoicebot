@@ -1,10 +1,13 @@
 class DashboardController < ApplicationController
+  MONTHS_SHOWN = 3
+
   before_action :require_authentication
 
   def show
+    start_date = Date.current.beginning_of_month.months_ago(MONTHS_SHOWN - 1)
     invoices = current_user.invoices
+      .where(accounting_date: start_date..).or(current_user.invoices.where(accounting_date: nil))
       .order(Arel.sql("invoices.accounting_date DESC NULLS LAST, invoices.id DESC"))
-      .limit(100)
       .includes(:email, :category, :bank_transaction, pdf_attachment: :blob)
 
     render inertia: "dashboard/show", props: {
